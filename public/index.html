@@ -3119,10 +3119,27 @@
 
 
     // ===== チャット =====
-    const chatMessages = document.getElementById('chat-messages'), chatInput = document.getElementById('chat-input');
+    const chatMessages = document.getElementById('chat-messages'); let chatInput = document.getElementById('chat-input');
     function addMsg(n,m) { const d=document.createElement('div');d.className='msg';d.innerHTML=`<span class="msg-name">${n}:</span> ${m}`;chatMessages.appendChild(d);chatMessages.scrollTop=chatMessages.scrollHeight; }
     function addSys(t) { const d=document.createElement('div');d.className='msg msg-system';d.textContent=t;chatMessages.appendChild(d);chatMessages.scrollTop=chatMessages.scrollHeight; }
-    function sendChat() { const m=chatInput.value.trim();if(m){socket.emit('chat',m);chatInput.setAttribute('value','');chatInput.value='';chatInput.dispatchEvent(new Event('input'));} }
+    function sendChat() {
+      const m=chatInput.value.trim();
+      if(m){
+        socket.emit('chat',m);
+        // IME対応: 一旦blurしてcompositionを終了させてからクリア
+        chatInput.blur();
+        chatInput.value='';
+        chatInput.setAttribute('value','');
+        // inputを再作成して確実にクリア
+        const newInput = chatInput.cloneNode(false);
+        chatInput.parentNode.replaceChild(newInput, chatInput);
+        chatInput = newInput;
+        chatInput.addEventListener('focus', () => { chatFocused=true; });
+        chatInput.addEventListener('blur', () => { chatFocused=false; });
+        chatInput.addEventListener('keydown', (e) => { if(e.key==='Enter'){e.preventDefault();sendChat();} });
+        chatInput.focus();
+      }
+    }
     document.getElementById('chat-send').addEventListener('click', sendChat);
     chatInput.addEventListener('keydown', (e) => { if(e.key==='Enter'){e.preventDefault();sendChat();} });
     chatInput.addEventListener('focus', () => { chatFocused=true; });
