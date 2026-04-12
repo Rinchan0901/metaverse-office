@@ -134,22 +134,22 @@
       display: none; color: #7c8aff;
     }
     #toolbar {
-      height: 42px; background: #1e1e30; border-top: 2px solid #3a3a5a;
-      display: flex; align-items: center; padding: 0 8px; gap: 4px;
+      height: 56px; background: #1e1e30; border-top: 2px solid #3a3a5a;
+      display: flex; align-items: center; padding: 0 10px; gap: 6px;
       overflow-x: auto; overflow-y: hidden;
     }
     #toolbar::-webkit-scrollbar { height: 0; }
     .tool-btn {
-      padding: 6px 10px; border-radius: 8px; font-size: 12px; cursor: pointer;
+      padding: 10px 16px; border-radius: 10px; font-size: 15px; cursor: pointer;
       background: #2a2a40; border: 1px solid #3a3a5a; color: #b0b0c8;
       font-family: 'DotGothic16', monospace; transition: all 0.15s;
       white-space: nowrap; flex-shrink: 0;
-      display: flex; align-items: center; gap: 4px;
+      display: flex; align-items: center; gap: 6px;
     }
     .tool-btn:hover { background: #3e3e5e; color: #fff; border-color: #5a5a8a; }
     .tool-btn.active { background: #7c8aff22; border-color: #7c8aff; color: #7c8aff; }
-    .tool-sep { width: 1px; height: 22px; background: #3a3a5a; flex-shrink: 0; }
-    #toolbar-hint { font-size: 11px; color: #555; margin-left: auto; white-space: nowrap; }
+    .tool-sep { width: 1px; height: 28px; background: #3a3a5a; flex-shrink: 0; }
+    #toolbar-hint { font-size: 12px; color: #555; margin-left: auto; white-space: nowrap; }
 
     /* === 右パネル === */
     #right-panel {
@@ -965,9 +965,9 @@
       #main { height: calc(100vh - 40px); }
       #game-area { flex: 1; }
       #canvas-wrapper { padding: 4px; }
-      #toolbar { height: 36px; padding: 0 4px; gap: 3px; }
-      .tool-btn { padding: 5px 8px; font-size: 11px; }
-      .tool-sep { height: 18px; }
+      #toolbar { height: 46px; padding: 0 6px; gap: 4px; }
+      .tool-btn { padding: 8px 12px; font-size: 13px; }
+      .tool-sep { height: 22px; }
       #toolbar-hint { display: none; }
       #bgm-bar { height: 30px; padding: 0 8px; font-size: 11px; }
       #mobile-dpad { display: block; }
