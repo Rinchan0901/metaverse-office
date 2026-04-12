@@ -939,10 +939,15 @@ const PORT = process.env.PORT || 3000;
   // Redis接続（REDIS_URLがある場合のみ）
   if (useRedis) {
     try {
-      redis = createClient({ url: process.env.REDIS_URL });
+      console.log('Redis接続開始:', process.env.REDIS_URL?.replace(/\/\/.*@/, '//***@'));
+      redis = createClient({
+        url: process.env.REDIS_URL,
+        socket: { connectTimeout: 10000 },
+      });
       redis.on('error', (err) => console.log('Redis Error:', err.message));
       await redis.connect();
-      console.log('Redis接続完了');
+      await redis.ping();
+      console.log('Redis接続完了・PING成功');
     } catch (e) {
       console.log('Redis接続失敗、ファイルモードで起動:', e.message);
       redis = null;

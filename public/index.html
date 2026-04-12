@@ -3099,7 +3099,7 @@
     const chatMessages = document.getElementById('chat-messages'), chatInput = document.getElementById('chat-input');
     function addMsg(n,m) { const d=document.createElement('div');d.className='msg';d.innerHTML=`<span class="msg-name">${n}:</span> ${m}`;chatMessages.appendChild(d);chatMessages.scrollTop=chatMessages.scrollHeight; }
     function addSys(t) { const d=document.createElement('div');d.className='msg msg-system';d.textContent=t;chatMessages.appendChild(d);chatMessages.scrollTop=chatMessages.scrollHeight; }
-    function sendChat() { const m=chatInput.value.trim();if(m){socket.emit('chat',m);chatInput.value='';chatInput.blur();setTimeout(()=>chatInput.focus(),0);} }
+    function sendChat() { const m=chatInput.value.trim();if(m){socket.emit('chat',m);chatInput.setAttribute('value','');chatInput.value='';chatInput.dispatchEvent(new Event('input'));} }
     document.getElementById('chat-send').addEventListener('click', sendChat);
     chatInput.addEventListener('keydown', (e) => { if(e.key==='Enter'){e.preventDefault();sendChat();} });
     chatInput.addEventListener('focus', () => { chatFocused=true; });
