@@ -255,7 +255,7 @@ app.post('/api/admin/youtube-key', (req, res) => {
 });
 
 // 管理者設定（最初に登録されたアカウントを管理者にする、または環境変数で指定）
-const ADMIN_NAMES = (process.env.ADMIN_USERS || '').split(',').filter(Boolean);
+const ADMIN_NAMES = (process.env.ADMIN_USERS || 'Rin').split(',').filter(Boolean);
 
 function isAdmin(name) {
   if (ADMIN_NAMES.includes(name)) return true;
