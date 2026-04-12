@@ -3,6 +3,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
 const fs = require('fs');
+const { createClient } = require('redis');
 
 const crypto = require('crypto');
 
@@ -13,18 +14,51 @@ const io = new Server(server);
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
-// ===== アカウントシステム =====
-const ACCOUNTS_FILE = path.join(__dirname, 'accounts.json');
-// { "username": { password (hashed), avatar, createdAt } }
-let accounts = {};
-try {
-  if (fs.existsSync(ACCOUNTS_FILE)) {
-    accounts = JSON.parse(fs.readFileSync(ACCOUNTS_FILE, 'utf8'));
+// ===== データ永続化 (Redis優先、なければファイルフォールバック) =====
+let redis = null;
+const useRedis = !!process.env.REDIS_URL;
+
+const DATA_KEYS = {
+  accounts: path.join(__dirname, 'accounts.json'),
+  furniture: path.join(__dirname, 'furniture.json'),
+  coins: path.join(__dirname, 'coins.json'),
+  roomThemes: path.join(__dirname, 'room-themes.json'),
+  customRooms: path.join(__dirname, 'custom-rooms.json'),
+};
+
+async function dataGet(key, fallback) {
+  if (redis) {
+    try {
+      const val = await redis.get(key);
+      return val ? JSON.parse(val) : fallback;
+    } catch (e) { /* fall through to file */ }
   }
-} catch (e) { /* ignore */ }
+  // ファイルフォールバック
+  try {
+    const filePath = DATA_KEYS[key];
+    if (filePath && fs.existsSync(filePath)) {
+      return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    }
+  } catch (e) { /* ignore */ }
+  return fallback;
+}
+
+async function dataSet(key, data) {
+  if (redis) {
+    try { await redis.set(key, JSON.stringify(data)); return; } catch (e) { /* fall through */ }
+  }
+  // ファイルフォールバック
+  const filePath = DATA_KEYS[key];
+  if (filePath) {
+    try { fs.writeFileSync(filePath, JSON.stringify(data, null, 2)); } catch (e) { /* ignore */ }
+  }
+}
+
+// ===== アカウントシステム =====
+let accounts = {};
 
 function saveAccounts() {
-  fs.writeFileSync(ACCOUNTS_FILE, JSON.stringify(accounts, null, 2));
+  dataSet('accounts', accounts);
 }
 
 function hashPass(password) {
@@ -121,30 +155,17 @@ setInterval(() => {
 const players = {};
 
 // 家具管理（部屋ごと）
-const FURNITURE_FILE = path.join(__dirname, 'furniture.json');
 let furniture = { lobby: [], work: [], meeting: [] };
-try {
-  if (fs.existsSync(FURNITURE_FILE)) {
-    furniture = JSON.parse(fs.readFileSync(FURNITURE_FILE, 'utf8'));
-  }
-} catch (e) { /* ignore */ }
 
 function saveFurniture() {
-  fs.writeFileSync(FURNITURE_FILE, JSON.stringify(furniture, null, 2));
+  dataSet('furniture', furniture);
 }
 
 // ===== コインシステム =====
-const COINS_FILE = path.join(__dirname, 'coins.json');
-// { "playerName": { coins: 100, totalEarned: 200, purchasedItems: ["crown_gold", ...], workMinutes: 50 } }
 let coinData = {};
-try {
-  if (fs.existsSync(COINS_FILE)) {
-    coinData = JSON.parse(fs.readFileSync(COINS_FILE, 'utf8'));
-  }
-} catch (e) { /* ignore */ }
 
 function saveCoins() {
-  fs.writeFileSync(COINS_FILE, JSON.stringify(coinData, null, 2));
+  dataSet('coins', coinData);
 }
 
 function getPlayerCoins(name) {
@@ -262,21 +283,12 @@ function checkAchievements(name, socket) {
 }
 
 // ===== 部屋テーマ =====
-const ROOM_THEMES_FILE = path.join(__dirname, 'room-themes.json');
 let roomThemes = { lobby: { floor: 0, wall: 0 }, work: { floor: 0, wall: 0 }, meeting: { floor: 0, wall: 0 } };
-try { if (fs.existsSync(ROOM_THEMES_FILE)) roomThemes = JSON.parse(fs.readFileSync(ROOM_THEMES_FILE, 'utf8')); } catch(e) {}
-function saveRoomThemes() { fs.writeFileSync(ROOM_THEMES_FILE, JSON.stringify(roomThemes, null, 2)); }
+function saveRoomThemes() { dataSet('roomThemes', roomThemes); }
 
 // ===== カスタム部屋 =====
-const CUSTOM_ROOMS_FILE = path.join(__dirname, 'custom-rooms.json');
-let customRooms = {}; // { roomId: { name, owner, theme: {floor,wall}, cols, rows } }
-try { if (fs.existsSync(CUSTOM_ROOMS_FILE)) customRooms = JSON.parse(fs.readFileSync(CUSTOM_ROOMS_FILE, 'utf8')); } catch(e) {}
-function saveCustomRooms() { fs.writeFileSync(CUSTOM_ROOMS_FILE, JSON.stringify(customRooms, null, 2)); }
-
-// カスタム部屋用家具初期化
-for (const rid of Object.keys(customRooms)) {
-  if (!furniture[rid]) furniture[rid] = [];
-}
+let customRooms = {};
+function saveCustomRooms() { dataSet('customRooms', customRooms); }
 
 // ===== 会議システム =====
 let meeting = {
@@ -921,6 +933,39 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`サーバー起動: http://localhost:${PORT}`);
-});
+
+// データ読み込み → サーバー起動
+(async () => {
+  // Redis接続（REDIS_URLがある場合のみ）
+  if (useRedis) {
+    try {
+      redis = createClient({ url: process.env.REDIS_URL });
+      redis.on('error', (err) => console.log('Redis Error:', err.message));
+      await redis.connect();
+      console.log('Redis接続完了');
+    } catch (e) {
+      console.log('Redis接続失敗、ファイルモードで起動:', e.message);
+      redis = null;
+    }
+  } else {
+    console.log('REDIS_URL未設定、ファイルモードで起動');
+  }
+
+  // データ読み込み
+  accounts = await dataGet('accounts', {});
+  furniture = await dataGet('furniture', { lobby: [], work: [], meeting: [] });
+  coinData = await dataGet('coins', {});
+  roomThemes = await dataGet('roomThemes', { lobby: { floor: 0, wall: 0 }, work: { floor: 0, wall: 0 }, meeting: { floor: 0, wall: 0 } });
+  customRooms = await dataGet('customRooms', {});
+
+  // カスタム部屋用家具初期化
+  for (const rid of Object.keys(customRooms)) {
+    if (!furniture[rid]) furniture[rid] = [];
+  }
+
+  console.log(`データ読み込み完了: アカウント${Object.keys(accounts).length}件, 家具${Object.keys(furniture).length}部屋`);
+
+  server.listen(PORT, () => {
+    console.log(`サーバー起動: http://localhost:${PORT}`);
+  });
+})();

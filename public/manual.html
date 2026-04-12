@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>五方よしOFFICE - 入室マニュアル</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Noto Sans JP', sans-serif;
+    background: #f5f5fa;
+    color: #2a2a3a;
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  @media print {
+    body { padding: 0; max-width: 100%; }
+    .no-print { display: none; }
+  }
+
+  /* ヘッダー */
+  .header {
+    background: linear-gradient(135deg, #1a1a2e 0%, #2a2a5a 100%);
+    color: #fff;
+    border-radius: 16px;
+    padding: 28px 32px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    margin-bottom: 20px;
+  }
+  .header-icon {
+    width: 80px; height: 80px;
+    background: #7c8aff;
+    border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 36px; flex-shrink: 0;
+  }
+  .header h1 { font-size: 28px; font-weight: 900; letter-spacing: 1px; }
+  .header p { color: #b0b8e0; font-size: 14px; margin-top: 4px; }
+  .url-box {
+    background: rgba(124,138,255,0.2);
+    border: 1px solid rgba(124,138,255,0.4);
+    border-radius: 8px;
+    padding: 8px 14px;
+    margin-top: 10px;
+    font-size: 15px;
+    font-weight: 700;
+    color: #a0c0ff;
+    letter-spacing: 0.5px;
+    word-break: break-all;
+  }
+
+  /* セクション */
+  .section {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .section h2 {
+    font-size: 16px;
+    font-weight: 900;
+    color: #1a1a2e;
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid #7c8aff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section h2 .emoji { font-size: 20px; }
+
+  /* 2カラム */
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 700px) { .cols { grid-template-columns: 1fr; } }
+
+  /* ステップ */
+  .steps { display: flex; gap: 12px; flex-wrap: wrap; }
+  .step {
+    flex: 1; min-width: 140px;
+    background: #f0f0ff;
+    border-radius: 10px;
+    padding: 14px;
+    text-align: center;
+    position: relative;
+  }
+  .step-num {
+    background: #7c8aff;
+    color: #fff;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 14px;
+    margin-bottom: 8px;
+  }
+  .step-title { font-weight: 700; font-size: 13px; margin-bottom: 4px; }
+  .step-desc { font-size: 11px; color: #666; line-height: 1.5; }
+  .step-arrow { position: absolute; right: -10px; top: 50%; color: #7c8aff; font-size: 18px; }
+
+  /* 機能リスト */
+  .feat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+  .feat {
+    background: #fafafe;
+    border: 1px solid #e8e8f0;
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .feat-icon { font-size: 22px; flex-shrink: 0; margin-top: 1px; }
+  .feat-name { font-weight: 700; font-size: 12px; color: #1a1a2e; }
+  .feat-desc { font-size: 11px; color: #666; line-height: 1.4; margin-top: 2px; }
+
+  /* 操作キー */
+  .key {
+    display: inline-block;
+    background: #e8e8f0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #333;
+    box-shadow: 0 1px 0 #bbb;
+  }
+
+  /* テーブル */
+  .shortcut-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  .shortcut-table td {
+    padding: 5px 8px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .shortcut-table td:first-child { width: 100px; text-align: center; }
+
+  /* PWA */
+  .pwa-steps {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    font-size: 12px;
+  }
+  .pwa-step {
+    background: #f0f0ff;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-weight: 700;
+    font-size: 12px;
+  }
+  .pwa-arrow { color: #7c8aff; font-weight: 900; }
+
+  /* フッター */
+  .footer {
+    text-align: center;
+    color: #999;
+    font-size: 11px;
+    padding: 12px 0;
+  }
+
+  /* iOS/Android */
+  .device-badge {
+    display: inline-block;
+    background: #333;
+    color: #fff;
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 10px;
+    font-weight: 700;
+  }
+  .device-badge.ios { background: #007aff; }
+  .device-badge.android { background: #3ddc84; color: #000; }
+  .device-badge.pc { background: #7c8aff; }
+</style>
+</head>
+<body>
+
+<!-- ヘッダー -->
+<div class="header">
+  <div class="header-icon">🏢</div>
+  <div>
+    <h1>五方よしOFFICE</h1>
+    <p>バーチャルオフィスで仲間とつながろう！ - 入室マニュアル</p>
+    <div class="url-box">https://metaverse-office.onrender.com</div>
+  </div>
+</div>
+
+<!-- 入室方法 -->
+<div class="section">
+  <h2><span class="emoji">🚪</span> 入室方法</h2>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-title">URLにアクセス</div>
+      <div class="step-desc">ブラウザで上記URLを開く<br>
+        <span class="device-badge pc">PC</span>
+        <span class="device-badge ios">iOS</span>
+        <span class="device-badge android">Android</span>
+      </div>
+      <span class="step-arrow">→</span>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-title">ログイン</div>
+      <div class="step-desc">アカウント登録してログイン<br>または「ゲストで入る」をタップ</div>
+      <span class="step-arrow">→</span>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-title">オフィスへ！</div>
+      <div class="step-desc">ロビーに入室！<br>矢印キーで移動、ドアの前でスペースで部屋に入れます</div>
+    </div>
+  </div>
+</div>
+
+<!-- スマホアプリ化 + 操作方法 -->
+<div class="cols">
+  <div class="section">
+    <h2><span class="emoji">📱</span> スマホアプリとして使う</h2>
+    <p style="font-size:12px; color:#666; margin-bottom:10px;">ホーム画面に追加するとアプリのように起動できます</p>
+    <p style="font-size:12px; margin-bottom:6px;"><span class="device-badge ios">iOS Safari</span></p>
+    <div class="pwa-steps">
+      <span class="pwa-step">□↑ 共有</span>
+      <span class="pwa-arrow">→</span>
+      <span class="pwa-step">ホーム画面に追加</span>
+      <span class="pwa-arrow">→</span>
+      <span class="pwa-step">追加</span>
+    </div>
+    <p style="font-size:12px; margin-top:10px; margin-bottom:6px;"><span class="device-badge android">Android Chrome</span></p>
+    <div class="pwa-steps">
+      <span class="pwa-step">⋮ メニュー</span>
+      <span class="pwa-arrow">→</span>
+      <span class="pwa-step">ホーム画面に追加</span>
+    </div>
+  </div>
+  <div class="section">
+    <h2><span class="emoji">🎮</span> 操作方法</h2>
+    <table class="shortcut-table">
+      <tr><td><span class="key">← → ↑ ↓</span></td><td>キャラクター移動</td></tr>
+      <tr><td><span class="key">スペース</span></td><td>ドアから部屋に入る</td></tr>
+      <tr><td><span class="key">ESC</span></td><td>ロビーに戻る</td></tr>
+      <tr><td><span class="key">F</span></td><td>家具の配置モード</td></tr>
+      <tr><td><span class="key">Enter</span></td><td>チャット送信</td></tr>
+    </table>
+    <p style="font-size:11px; color:#888; margin-top:8px;">📱 スマホ: 画面の十字キーで移動、「入室」ボタンでドアに入れます</p>
+  </div>
+</div>
+
+<!-- 機能一覧 -->
+<div class="section">
+  <h2><span class="emoji">✨</span> 機能一覧</h2>
+  <div class="feat-grid">
+    <div class="feat">
+      <div class="feat-icon">💬</div>
+      <div><div class="feat-name">チャット</div><div class="feat-desc">全体チャット。リアクション絵文字も使えます</div></div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">📩</div>
+      <div><div class="feat-name">DM（ダイレクトメッセージ）</div><div class="feat-desc">特定の人にプライベートメッセージを送信</div></div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">📷</div>
+      <div><div class="feat-name">ビデオ/音声通話</div><div class="feat-desc">3タイル以内に近づくと自動接続。距離で音量が変化</div></div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">🖥️</div>
+      <div><div class="feat-name">画面共有</div><div class="feat-desc">ツールバーからワンクリックで画面を共有</div></div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">📋</div>
+      <div><div class="feat-name">会議システム</div><div class="feat-desc">会議室でトピック設定、投票、挙手、タイマー機能</div></div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">🍅</div>
+      <div><div class="feat-name">ポモドーロタイマー</div><div class="feat-desc">25分作業 + 5分休憩。作業中はコインが貯まる</div></div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">🎵</div>
+      <div><div class="feat-name">BGM</div><div class="feat-desc">部屋ごとにYouTubeのBGMを設定して共有</div></div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">😄</div>
+      <div><div class="feat-name">エモート</div><div class="feat-desc">ダンス、キラキラ、ハート、炎などのアニメーション</div></div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">👔</div>
+      <div><div class="feat-name">アバターカスタマイズ</div><div class="feat-desc">髪型、服装、パンツ、アクセサリーを自由に変更</div></div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">🐾</div>
+      <div><div class="feat-name">ペット</div><div class="feat-desc">ネコ、イヌ、トリ、スライムを連れて歩こう</div></div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">🪑</div>
+      <div><div class="feat-name">もようがえ</div><div class="feat-desc">ソファ、テーブル、ランプなど家具を自由に配置</div></div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">🏠</div>
+      <div><div class="feat-name">カスタム部屋</div><div class="feat-desc">自分だけのオリジナル部屋を作成（最大3部屋）</div></div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">🏆</div>
+      <div><div class="feat-name">実績 / バッジ</div><div class="feat-desc">ログイン、作業時間、チャットなどで実績解除&コイン獲得</div></div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">🛒</div>
+      <div><div class="feat-name">ショップ</div><div class="feat-desc">コインで衣装、エモート、ペットなどを購入</div></div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">🌤️</div>
+      <div><div class="feat-name">天気 / 時間帯</div><div class="feat-desc">窓の景色がリアルタイムの時間帯と天気で変化</div></div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">🎨</div>
+      <div><div class="feat-name">部屋テーマ</div><div class="feat-desc">管理者が部屋の壁・床の色を変更可能</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- 部屋マップ -->
+<div class="section">
+  <h2><span class="emoji">🗺️</span> 部屋マップ</h2>
+  <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center;">
+    <div style="background:#f0f0ff; border-radius:10px; padding:14px 20px; text-align:center; min-width:140px;">
+      <div style="font-size:28px;">🏢</div>
+      <div style="font-weight:700; font-size:14px; margin-top:4px;">ロビー</div>
+      <div style="font-size:11px; color:#666;">集合場所・雑談</div>
+    </div>
+    <div style="font-size:24px; display:flex; align-items:center; color:#7c8aff;">→</div>
+    <div style="background:#fff8e0; border-radius:10px; padding:14px 20px; text-align:center; min-width:140px;">
+      <div style="font-size:28px;">💻</div>
+      <div style="font-weight:700; font-size:14px; margin-top:4px;">作業部屋</div>
+      <div style="font-size:11px; color:#666;">集中作業・ポモドーロ</div>
+    </div>
+    <div style="font-size:24px; display:flex; align-items:center; color:#7c8aff;">←</div>
+    <div style="background:#e8f5e9; border-radius:10px; padding:14px 20px; text-align:center; min-width:140px;">
+      <div style="font-size:28px;">📋</div>
+      <div style="font-weight:700; font-size:14px; margin-top:4px;">会議室</div>
+      <div style="font-size:11px; color:#666;">会議・投票・通話</div>
+    </div>
+  </div>
+  <p style="text-align:center; font-size:11px; color:#888; margin-top:10px;">＋ 自分で「カスタム部屋」も作れます！</p>
+</div>
+
+<!-- フッター -->
+<div class="footer">
+  五方よしOFFICE マニュアル v1.0
+</div>
+
+</body>
+</html>

@@ -3101,7 +3101,7 @@
     function addSys(t) { const d=document.createElement('div');d.className='msg msg-system';d.textContent=t;chatMessages.appendChild(d);chatMessages.scrollTop=chatMessages.scrollHeight; }
     function sendChat() { const m=chatInput.value.trim();if(m){socket.emit('chat',m);chatInput.value='';} }
     document.getElementById('chat-send').addEventListener('click', sendChat);
-    chatInput.addEventListener('keydown', (e) => { if(e.key==='Enter')sendChat(); });
+    chatInput.addEventListener('keydown', (e) => { if(e.key==='Enter'){e.preventDefault();sendChat();} });
     chatInput.addEventListener('focus', () => { chatFocused=true; });
     chatInput.addEventListener('blur', () => { chatFocused=false; });
     document.addEventListener('keydown', (e) => { if(e.key==='Enter'&&!chatFocused&&nameModal.classList.contains('hidden')){e.preventDefault();chatInput.focus();} });
@@ -3975,11 +3975,17 @@
     document.getElementById('bgm-set-cancel').addEventListener('click', () => {
       document.getElementById('bgm-set-modal').classList.remove('show');
     });
-    document.getElementById('bgm-set-ok').addEventListener('click', () => {
+    document.getElementById('bgm-set-ok').addEventListener('click', async () => {
       const url = document.getElementById('bgm-url-input').value.trim();
       const videoId = extractVideoId(url);
       if (!videoId) { showCoinNotif('有効なYouTube URLを入力してください'); return; }
-      socket.emit('setBgm', { room: currentRoom, videoId, title: url.slice(0, 60) });
+      let title = videoId;
+      try {
+        const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${videoId}`);
+        const data = await res.json();
+        if (data.title) title = data.title;
+      } catch(e) {}
+      socket.emit('setBgm', { room: currentRoom, videoId, title });
       document.getElementById('bgm-set-modal').classList.remove('show');
     });
     document.getElementById('bgm-url-input').addEventListener('keydown', (e) => {
