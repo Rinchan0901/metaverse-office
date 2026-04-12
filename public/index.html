@@ -108,15 +108,16 @@
     .person.nearby { background: #2a3a2a; border: 1px solid #4caf5050; }
 
     /* === ゲームエリア === */
-    #game-area { flex: 1; display: flex; flex-direction: column; position: relative; }
+    #game-area { flex: 1; display: flex; flex-direction: column; position: relative; min-width: 0; min-height: 0; overflow: hidden; }
     #canvas-wrapper {
       flex: 1; display: flex; align-items: center; justify-content: center;
       overflow: hidden; position: relative; padding: 8px;
+      min-height: 0;
     }
     #game {
       image-rendering: pixelated; border-radius: 6px;
       box-shadow: 0 0 24px rgba(0,0,0,0.4);
-      max-width: 100%; max-height: 100%; object-fit: contain;
+      max-width: 95%; max-height: 95%; object-fit: contain;
     }
     #game.edit-mode { box-shadow: 0 0 24px rgba(255,215,0,0.3); }
     #proximity-popup {
@@ -2773,8 +2774,12 @@
       }
     }
 
-    // ===== キャラクター描画（24x32 高解像度ピクセルアート） =====
+    // ===== キャラクター描画（24x32 かわいいチビキャラ） =====
     // direction: 'down','up','left','right'  walkFrame: 0,1,2 (0=stand, 1=step-left, 2=step-right)
+    // EYE_COLORS: 瞳の色（bodyColorに連動させて個性を出す）
+    const EYE_COLORS = ['#3a2860','#2050a0','#206040','#804020','#602060','#106060','#602020','#1a1a40',
+      '#1a2a40','#805020','#502060','#206030','#601020','#204080','#603000','#404050'];
+
     function drawCharacter(c, px, py, dir, avatar, walkFrame, scale) {
       const S = scale;
       const hairColor = HAIR_COLORS[avatar.hairColor ?? avatar.hair ?? 0] || HAIR_COLORS[0];
@@ -2784,6 +2789,7 @@
       const bodyTypeIdx = avatar.bodyType ?? 0;
       const bt = BODY_TYPES[bodyTypeIdx] || BODY_TYPES[0];
       const hairShapeIdx = avatar.hairShape ?? 0;
+      const eyeColor = EYE_COLORS[avatar.bodyColor ?? avatar.body ?? 0] || EYE_COLORS[0];
 
       const dBody = darken(bodyColor, 25);
       const dHair = darken(hairColor, 20);
@@ -2794,15 +2800,13 @@
       const OL = '#181020';
       const frame = walkFrame;
 
-      // キャラサイズ: 24x32 論理ピクセル * scale
       const w = 24 * S, h = 32 * S;
-      const p = S; // 1論理ピクセル
+      const p = S;
 
-      // 影
-      c.fillStyle = 'rgba(0,0,0,0.18)';
-      c.beginPath(); c.ellipse(px + w/2, py + h - p, w*0.36, p*2.5, 0, 0, Math.PI*2); c.fill();
+      // 影（楕円でやわらかく）
+      c.fillStyle = 'rgba(0,0,0,0.15)';
+      c.beginPath(); c.ellipse(px + w/2, py + h - p*0.5, w*0.38, p*2, 0, 0, Math.PI*2); c.fill();
 
-      // 体型パラメータ（論理px）
       const sW = bt.shoulderW, tH = bt.torsoH, aW = bt.armW, hW = bt.hipW;
       const bodyX = Math.floor((24 - sW) / 2);
       const hipX = Math.floor((24 - hW) / 2);
@@ -2810,96 +2814,96 @@
       if (dir === 'down' || dir === 'up') {
         const isFront = dir === 'down';
 
-        // 足 (歩行アニメーション)
+        // ===== 足（丸みのある靴）=====
+        const lFoot = frame===1 ? -2 : 0, rFoot = frame===2 ? -2 : 0;
+        // 左足
         c.fillStyle = OL;
-        if (frame === 0) {
-          c.fillRect(px+6*p, py+28*p, 4*p, 4*p);
-          c.fillRect(px+14*p, py+28*p, 4*p, 4*p);
-          c.fillStyle = '#7a5a3a';
-          c.fillRect(px+6*p, py+28*p, 4*p, 3*p);
-          c.fillRect(px+14*p, py+28*p, 4*p, 3*p);
-          c.fillStyle = '#9a7a5a';
-          c.fillRect(px+6*p, py+28*p, 4*p, p);
-          c.fillRect(px+14*p, py+28*p, 4*p, p);
-        } else if (frame === 1) {
-          c.fillRect(px+4*p, py+27*p, 4*p, 5*p);
-          c.fillRect(px+15*p, py+28*p, 4*p, 4*p);
-          c.fillStyle = '#7a5a3a';
-          c.fillRect(px+4*p, py+28*p, 4*p, 3*p);
-          c.fillRect(px+15*p, py+28*p, 4*p, 3*p);
-          c.fillStyle = '#9a7a5a';
-          c.fillRect(px+4*p, py+28*p, 4*p, p);
-          c.fillRect(px+15*p, py+30*p, 4*p, p);
-        } else {
-          c.fillRect(px+6*p, py+28*p, 4*p, 4*p);
-          c.fillRect(px+14*p, py+27*p, 4*p, 5*p);
-          c.fillStyle = '#7a5a3a';
-          c.fillRect(px+6*p, py+28*p, 4*p, 3*p);
-          c.fillRect(px+14*p, py+28*p, 4*p, 3*p);
-          c.fillStyle = '#9a7a5a';
-          c.fillRect(px+6*p, py+30*p, 4*p, p);
-          c.fillRect(px+14*p, py+28*p, 4*p, p);
-        }
+        c.beginPath(); c.roundRect(px+5*p, py+(28+lFoot)*p, 5*p, 4*p, p); c.fill();
+        c.fillStyle = '#6a4a30';
+        c.beginPath(); c.roundRect(px+5*p, py+(28+lFoot)*p, 5*p, 3*p, [p,p,0,0]); c.fill();
+        c.fillStyle = '#8a6a4a';
+        c.fillRect(px+5*p, py+(28+lFoot)*p, 5*p, p);
+        // 右足
+        c.fillStyle = OL;
+        c.beginPath(); c.roundRect(px+14*p, py+(28+rFoot)*p, 5*p, 4*p, p); c.fill();
+        c.fillStyle = '#6a4a30';
+        c.beginPath(); c.roundRect(px+14*p, py+(28+rFoot)*p, 5*p, 3*p, [p,p,0,0]); c.fill();
+        c.fillStyle = '#8a6a4a';
+        c.fillRect(px+14*p, py+(28+rFoot)*p, 5*p, p);
 
-        // ズボン
+        // ===== 脚（スキンカラー）=====
+        c.fillStyle = skinColor;
+        c.fillRect(px+6*p, py+26*p, 4*p, 2*p);
+        c.fillRect(px+14*p, py+26*p, 4*p, 2*p);
+
+        // ===== ズボン/スカート（丸みあり）=====
         c.fillStyle = OL;
-        c.fillRect(px+hipX*p, py+22*p, hW*p, 7*p);
+        c.beginPath(); c.roundRect(px+(hipX-1)*p, py+21*p, (hW+2)*p, 6*p, [0,0,p*2,p*2]); c.fill();
         c.fillStyle = pantsColor;
-        c.fillRect(px+hipX*p, py+22*p, hW*p, 6*p);
+        c.beginPath(); c.roundRect(px+hipX*p, py+21*p, hW*p, 5*p, [0,0,p*1.5,p*1.5]); c.fill();
         c.fillStyle = dPants;
-        c.fillRect(px+hipX*p, py+27*p, hW*p, p);
-        c.fillStyle = darken(pantsColor, 10);
-        c.fillRect(px+12*p-Math.floor(p/2), py+22*p, p, 6*p);
+        c.fillRect(px+hipX*p, py+25*p, hW*p, p);
+        // 中央線
+        c.fillStyle = darken(pantsColor, 12);
+        c.fillRect(px+12*p, py+21*p, p, 5*p);
 
-        // 体（上半身）
+        // ===== 体（上半身・丸角）=====
         c.fillStyle = OL;
-        c.fillRect(px+bodyX*p, py+12*p, sW*p, tH*p);
+        c.beginPath(); c.roundRect(px+(bodyX-1)*p, py+12*p, (sW+2)*p, (tH+1)*p, [p*2,p*2,0,0]); c.fill();
         c.fillStyle = bodyColor;
-        c.fillRect(px+(bodyX+1)*p, py+12*p, (sW-2)*p, (tH-1)*p);
-        c.fillStyle = dBody;
-        c.fillRect(px+(bodyX+1)*p, py+(12+tH-1)*p, (sW-2)*p, p);
+        c.beginPath(); c.roundRect(px+bodyX*p, py+12*p, sW*p, tH*p, [p*1.5,p*1.5,0,0]); c.fill();
+        // 服のハイライト
         if (isFront) {
-          c.fillStyle = lighten(bodyColor, 20);
-          c.fillRect(px+10*p, py+12*p, 4*p, 4*p);
+          c.fillStyle = lighten(bodyColor, 25);
+          c.fillRect(px+10*p, py+13*p, 4*p, 3*p);
+          // 襟
+          c.fillStyle = lighten(bodyColor, 35);
+          c.fillRect(px+8*p, py+12*p, 8*p, p*1.5);
         }
-        // ベルト
-        c.fillStyle = '#4a3a2a';
-        c.fillRect(px+hipX*p, py+22*p, hW*p, p);
-        c.fillStyle = '#ffd700';
-        c.fillRect(px+10*p, py+22*p, 4*p, p);
+        c.fillStyle = dBody;
+        c.fillRect(px+bodyX*p, py+(12+tH-1)*p, sW*p, p);
 
-        // 腕
-        const armSwing = frame === 1 ? -p : frame === 2 ? p : 0;
+        // ===== 腕（丸い手付き）=====
+        const armSwing = frame===1 ? -p*1.5 : frame===2 ? p*1.5 : 0;
+        // 左腕
         c.fillStyle = OL;
-        c.fillRect(px+(bodyX-aW)*p, py+13*p+armSwing, aW*p, 9*p);
-        c.fillRect(px+(bodyX+sW)*p, py+13*p-armSwing, aW*p, 9*p);
+        c.fillRect(px+(bodyX-aW-1)*p, py+13*p+armSwing, (aW+1)*p, 9*p);
         c.fillStyle = bodyColor;
         c.fillRect(px+(bodyX-aW)*p, py+13*p+armSwing, aW*p, 7*p);
+        c.fillStyle = skinColor;
+        c.beginPath(); c.arc(px+(bodyX-aW+Math.floor(aW/2))*p, py+21.5*p+armSwing, aW*p*0.6, 0, Math.PI*2); c.fill();
+        // 右腕
+        c.fillStyle = OL;
+        c.fillRect(px+(bodyX+sW)*p, py+13*p-armSwing, (aW+1)*p, 9*p);
+        c.fillStyle = bodyColor;
         c.fillRect(px+(bodyX+sW)*p, py+13*p-armSwing, aW*p, 7*p);
         c.fillStyle = skinColor;
-        c.fillRect(px+(bodyX-aW)*p, py+20*p+armSwing, aW*p, 2*p);
-        c.fillRect(px+(bodyX+sW)*p, py+20*p-armSwing, aW*p, 2*p);
+        c.beginPath(); c.arc(px+(bodyX+sW+Math.floor(aW/2))*p, py+21.5*p-armSwing, aW*p*0.6, 0, Math.PI*2); c.fill();
 
-        // 頭
+        // ===== 頭（大きめ丸い頭 — かわいさの要）=====
+        // 頭をちょっと大きく、丸角で描画
         c.fillStyle = OL;
-        c.fillRect(px+3*p, py+3*p, 18*p, 12*p);
+        c.beginPath(); c.roundRect(px+2*p, py+1*p, 20*p, 13*p, p*3); c.fill();
         c.fillStyle = skinColor;
-        c.fillRect(px+4*p, py+4*p, 16*p, 10*p);
-        // 耳
-        c.fillStyle = OL;
-        c.fillRect(px+p, py+7*p, 3*p, 4*p);
-        c.fillRect(px+20*p, py+7*p, 3*p, 4*p);
-        c.fillStyle = skinColor;
-        c.fillRect(px+2*p, py+8*p, 2*p, 2*p);
-        c.fillRect(px+20*p, py+8*p, 2*p, 2*p);
-        // 頬
+        c.beginPath(); c.roundRect(px+3*p, py+2*p, 18*p, 11*p, p*2.5); c.fill();
+        // 肌ハイライト
         if (isFront) {
-          c.fillStyle = '#ffa8a0';
-          c.fillRect(px+4*p, py+11*p, 3*p, p);
-          c.fillRect(px+17*p, py+11*p, 3*p, p);
+          c.fillStyle = skinLight;
+          c.beginPath(); c.roundRect(px+5*p, py+3*p, 6*p, 4*p, p*2); c.fill();
         }
+        // 耳（丸い）
+        c.fillStyle = OL;
+        c.beginPath(); c.arc(px+2*p, py+8*p, p*2.5, 0, Math.PI*2); c.fill();
+        c.beginPath(); c.arc(px+22*p, py+8*p, p*2.5, 0, Math.PI*2); c.fill();
+        c.fillStyle = skinColor;
+        c.beginPath(); c.arc(px+2.5*p, py+8*p, p*1.5, 0, Math.PI*2); c.fill();
+        c.beginPath(); c.arc(px+21.5*p, py+8*p, p*1.5, 0, Math.PI*2); c.fill();
+        // 耳の中（ピンク）
+        c.fillStyle = '#ffa8a0';
+        c.beginPath(); c.arc(px+2.5*p, py+8*p, p*0.8, 0, Math.PI*2); c.fill();
+        c.beginPath(); c.arc(px+21.5*p, py+8*p, p*0.8, 0, Math.PI*2); c.fill();
 
-        // 髪（データ駆動型）
+        // ===== 髪（データ駆動型）=====
         const hairShape = HAIR_SHAPES[hairShapeIdx] || HAIR_SHAPES[0];
         const hairLayers = isFront ? hairShape.front : hairShape.back;
         const colorMap = { OL, hair:hairColor, dHair, lHair, skinLight };
@@ -2908,82 +2912,109 @@
           if (layer.r) for (const [lx,ly,lw,lh] of layer.r) c.fillRect(px+lx*p, py+ly*p, lw*p, lh*p);
         }
 
-        // 目
+        // ===== 顔のパーツ（正面のみ）=====
         if (isFront) {
+          // 目（大きくてキラキラ — かわいさの核心）
+          // 左目
           c.fillStyle = '#fff';
-          c.fillRect(px+6*p, py+7*p, 4*p, 4*p);
-          c.fillRect(px+14*p, py+7*p, 4*p, 4*p);
-          c.fillStyle = '#1a1040';
-          c.fillRect(px+7*p, py+8*p, 3*p, 3*p);
-          c.fillRect(px+15*p, py+8*p, 3*p, 3*p);
+          c.beginPath(); c.roundRect(px+5*p, py+6*p, 6*p, 5*p, p*1.5); c.fill();
+          c.fillStyle = eyeColor;
+          c.beginPath(); c.arc(px+8*p, py+8.5*p, p*2, 0, Math.PI*2); c.fill();
+          c.fillStyle = '#0a0a20';
+          c.beginPath(); c.arc(px+8.2*p, py+8.8*p, p*1.3, 0, Math.PI*2); c.fill();
+          // ハイライト（キラキラ）
           c.fillStyle = '#fff';
-          c.fillRect(px+7*p, py+8*p, p, p);
-          c.fillRect(px+15*p, py+8*p, p, p);
-          // 口
-          c.fillStyle = '#d08070';
-          c.fillRect(px+10*p, py+13*p, 4*p, p);
-        } else {
-          // 背面は髪レイヤーで既にカバー済み
+          c.beginPath(); c.arc(px+7*p, py+7.5*p, p*0.9, 0, Math.PI*2); c.fill();
+          c.beginPath(); c.arc(px+9*p, py+9.5*p, p*0.5, 0, Math.PI*2); c.fill();
+
+          // 右目
+          c.fillStyle = '#fff';
+          c.beginPath(); c.roundRect(px+13*p, py+6*p, 6*p, 5*p, p*1.5); c.fill();
+          c.fillStyle = eyeColor;
+          c.beginPath(); c.arc(px+16*p, py+8.5*p, p*2, 0, Math.PI*2); c.fill();
+          c.fillStyle = '#0a0a20';
+          c.beginPath(); c.arc(px+16.2*p, py+8.8*p, p*1.3, 0, Math.PI*2); c.fill();
+          c.fillStyle = '#fff';
+          c.beginPath(); c.arc(px+15*p, py+7.5*p, p*0.9, 0, Math.PI*2); c.fill();
+          c.beginPath(); c.arc(px+17*p, py+9.5*p, p*0.5, 0, Math.PI*2); c.fill();
+
+          // まつ毛（上）
+          c.fillStyle = OL;
+          c.fillRect(px+5*p, py+5.5*p, 6*p, p*0.8);
+          c.fillRect(px+13*p, py+5.5*p, 6*p, p*0.8);
+
+          // 頬（ほんのりピンク）
+          c.fillStyle = 'rgba(255,150,140,0.35)';
+          c.beginPath(); c.ellipse(px+5*p, py+10.5*p, p*2, p*1.2, 0, 0, Math.PI*2); c.fill();
+          c.beginPath(); c.ellipse(px+19*p, py+10.5*p, p*2, p*1.2, 0, 0, Math.PI*2); c.fill();
+
+          // 口（小さくてかわいい）
+          c.fillStyle = '#e07060';
+          c.beginPath(); c.arc(px+12*p, py+12.5*p, p*1.2, 0, Math.PI); c.fill();
+
+          // 鼻（ちょこんと）
+          c.fillStyle = dSkin;
+          c.beginPath(); c.arc(px+12*p, py+10.8*p, p*0.5, 0, Math.PI*2); c.fill();
         }
 
       } else {
-        // === 横向き ===
+        // ===== 横向き =====
         const isLeft = dir === 'left';
         const flip = isLeft ? -1 : 1;
         const ox = isLeft ? px + w : px;
-
         c.save();
         c.translate(ox, 0);
         c.scale(flip, 1);
 
         // 足
+        const lFoot = frame===1 ? -2 : 0, rFoot = frame===2 ? -2 : 0;
         c.fillStyle = OL;
-        if (frame === 0) {
-          c.fillRect(7*p, py+28*p, 4*p, 4*p);
-          c.fillRect(13*p, py+28*p, 4*p, 4*p);
-          c.fillStyle = '#7a5a3a';
-          c.fillRect(7*p, py+28*p, 4*p, 3*p);
-          c.fillRect(13*p, py+28*p, 4*p, 3*p);
-        } else if (frame === 1) {
-          c.fillRect(5*p, py+27*p, 4*p, 5*p);
-          c.fillRect(14*p, py+28*p, 4*p, 4*p);
-          c.fillStyle = '#7a5a3a';
-          c.fillRect(5*p, py+28*p, 4*p, 3*p);
-          c.fillRect(14*p, py+28*p, 4*p, 3*p);
-        } else {
-          c.fillRect(7*p, py+28*p, 4*p, 4*p);
-          c.fillRect(15*p, py+27*p, 4*p, 5*p);
-          c.fillStyle = '#7a5a3a';
-          c.fillRect(7*p, py+28*p, 4*p, 3*p);
-          c.fillRect(15*p, py+28*p, 4*p, 3*p);
-        }
+        c.beginPath(); c.roundRect(6*p, py+(28+lFoot)*p, 5*p, 4*p, p); c.fill();
+        c.fillStyle = '#6a4a30';
+        c.beginPath(); c.roundRect(6*p, py+(28+lFoot)*p, 5*p, 3*p, [p,p,0,0]); c.fill();
+        c.fillStyle = OL;
+        c.beginPath(); c.roundRect(13*p, py+(28+rFoot)*p, 5*p, 4*p, p); c.fill();
+        c.fillStyle = '#6a4a30';
+        c.beginPath(); c.roundRect(13*p, py+(28+rFoot)*p, 5*p, 3*p, [p,p,0,0]); c.fill();
+
+        // 脚
+        c.fillStyle = skinColor;
+        c.fillRect(7*p, py+26*p, 4*p, 2*p);
+        c.fillRect(14*p, py+26*p, 4*p, 2*p);
 
         // ズボン
-        c.fillStyle = OL; c.fillRect(6*p, py+22*p, 12*p, 7*p);
-        c.fillStyle = pantsColor; c.fillRect(6*p, py+22*p, 12*p, 6*p);
-        c.fillStyle = dPants; c.fillRect(6*p, py+27*p, 12*p, p);
+        c.fillStyle = OL;
+        c.beginPath(); c.roundRect(5*p, py+21*p, 14*p, 6*p, [0,0,p*2,p*2]); c.fill();
+        c.fillStyle = pantsColor;
+        c.beginPath(); c.roundRect(6*p, py+21*p, 12*p, 5*p, [0,0,p*1.5,p*1.5]); c.fill();
+        c.fillStyle = dPants; c.fillRect(6*p, py+25*p, 12*p, p);
 
         // 体
-        c.fillStyle = OL; c.fillRect(4*p, py+12*p, 16*p, tH*p);
-        c.fillStyle = bodyColor; c.fillRect(5*p, py+12*p, 14*p, (tH-1)*p);
-        c.fillStyle = dBody; c.fillRect(5*p, py+(12+tH-1)*p, 14*p, p);
-        c.fillStyle = '#4a3a2a'; c.fillRect(6*p, py+22*p, 12*p, p);
-        c.fillStyle = '#ffd700'; c.fillRect(11*p, py+22*p, 3*p, p);
+        c.fillStyle = OL;
+        c.beginPath(); c.roundRect(3*p, py+12*p, 18*p, (tH+1)*p, [p*2,p*2,0,0]); c.fill();
+        c.fillStyle = bodyColor;
+        c.beginPath(); c.roundRect(4*p, py+12*p, 16*p, tH*p, [p*1.5,p*1.5,0,0]); c.fill();
+        c.fillStyle = dBody; c.fillRect(4*p, py+(12+tH-1)*p, 16*p, p);
 
-        // 腕(前)
-        const armY = frame === 1 ? -p : frame === 2 ? p : 0;
-        c.fillStyle = OL; c.fillRect(2*p, py+13*p+armY, aW*p, 9*p);
-        c.fillStyle = bodyColor; c.fillRect(2*p, py+13*p+armY, (aW-1)*p, 7*p);
-        c.fillStyle = skinColor; c.fillRect(2*p, py+20*p+armY, (aW-1)*p, 2*p);
+        // 腕
+        const armY = frame===1 ? -p*1.5 : frame===2 ? p*1.5 : 0;
+        c.fillStyle = OL; c.fillRect(2*p, py+13*p+armY, (aW+1)*p, 9*p);
+        c.fillStyle = bodyColor; c.fillRect(2*p, py+13*p+armY, aW*p, 7*p);
+        c.fillStyle = skinColor;
+        c.beginPath(); c.arc((2+Math.floor(aW/2))*p, py+21.5*p+armY, aW*p*0.6, 0, Math.PI*2); c.fill();
 
-        // 頭
-        c.fillStyle = OL; c.fillRect(4*p, py+3*p, 16*p, 12*p);
-        c.fillStyle = skinColor; c.fillRect(5*p, py+4*p, 14*p, 10*p);
+        // 頭（丸角）
+        c.fillStyle = OL;
+        c.beginPath(); c.roundRect(3*p, py+1*p, 18*p, 13*p, p*3); c.fill();
+        c.fillStyle = skinColor;
+        c.beginPath(); c.roundRect(4*p, py+2*p, 16*p, 11*p, p*2.5); c.fill();
         // 耳
-        c.fillStyle = OL; c.fillRect(19*p, py+7*p, 3*p, 4*p);
-        c.fillStyle = skinColor; c.fillRect(19*p, py+8*p, 2*p, 2*p);
-        // 頬
-        c.fillStyle = '#ffa8a0'; c.fillRect(16*p, py+11*p, 3*p, p);
+        c.fillStyle = OL;
+        c.beginPath(); c.arc(20*p, py+8*p, p*2.5, 0, Math.PI*2); c.fill();
+        c.fillStyle = skinColor;
+        c.beginPath(); c.arc(19.5*p, py+8*p, p*1.5, 0, Math.PI*2); c.fill();
+        c.fillStyle = '#ffa8a0';
+        c.beginPath(); c.arc(19.5*p, py+8*p, p*0.8, 0, Math.PI*2); c.fill();
 
         // 髪（データ駆動型）
         const hairShape2 = HAIR_SHAPES[hairShapeIdx] || HAIR_SHAPES[0];
@@ -2994,10 +3025,27 @@
           if (layer.r) for (const [lx,ly,lw,lh] of layer.r) c.fillRect(lx*p, py+ly*p, lw*p, lh*p);
         }
 
-        // 目（横向き - 片目）
-        c.fillStyle = '#fff'; c.fillRect(14*p, py+7*p, 4*p, 4*p);
-        c.fillStyle = '#1a1040'; c.fillRect(15*p, py+8*p, 3*p, 3*p);
-        c.fillStyle = '#fff'; c.fillRect(15*p, py+8*p, p, p);
+        // 頬
+        c.fillStyle = 'rgba(255,150,140,0.35)';
+        c.beginPath(); c.ellipse(17*p, py+10.5*p, p*2, p*1.2, 0, 0, Math.PI*2); c.fill();
+
+        // 目（横向き — 大きい片目）
+        c.fillStyle = '#fff';
+        c.beginPath(); c.roundRect(13*p, py+6*p, 6*p, 5*p, p*1.5); c.fill();
+        c.fillStyle = eyeColor;
+        c.beginPath(); c.arc(16*p, py+8.5*p, p*2, 0, Math.PI*2); c.fill();
+        c.fillStyle = '#0a0a20';
+        c.beginPath(); c.arc(16.3*p, py+8.8*p, p*1.3, 0, Math.PI*2); c.fill();
+        c.fillStyle = '#fff';
+        c.beginPath(); c.arc(15*p, py+7.5*p, p*0.9, 0, Math.PI*2); c.fill();
+        c.beginPath(); c.arc(17*p, py+9.5*p, p*0.5, 0, Math.PI*2); c.fill();
+        // まつ毛
+        c.fillStyle = OL;
+        c.fillRect(13*p, py+5.5*p, 6*p, p*0.8);
+
+        // 口
+        c.fillStyle = '#e07060';
+        c.beginPath(); c.arc(14*p, py+12.5*p, p*1, 0, Math.PI); c.fill();
 
         c.restore();
       }
