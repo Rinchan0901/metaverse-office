@@ -451,14 +451,39 @@
     #bgm-set-modal.show { display: flex; }
     #bgm-set-box {
       background: #252538; border: 2px solid #7c8aff; border-radius: 12px;
-      padding: 24px; text-align: center; min-width: 340px;
+      padding: 24px; text-align: center; min-width: 340px; max-width: 440px; width: 90%;
     }
     #bgm-set-box h3 { font-size: 16px; color: #7c8aff; margin-bottom: 12px; }
-    #bgm-url-input {
-      width: 300px; padding: 10px; background: #1e1e2e; border: 2px solid #3a3a5a;
-      border-radius: 8px; color: #e0e0e0; font-family: 'DotGothic16', monospace;
-      font-size: 13px; outline: none;
+    .bgm-tabs { display: flex; gap: 4px; margin-bottom: 14px; }
+    .bgm-tab {
+      flex: 1; padding: 8px; border: 1px solid #3a3a5a; border-radius: 8px;
+      background: transparent; color: #888; font-family: 'DotGothic16', monospace;
+      font-size: 11px; cursor: pointer; transition: all 0.15s;
     }
+    .bgm-tab:hover { color: #ccc; }
+    .bgm-tab.active { background: #7c8aff; color: #fff; border-color: #7c8aff; }
+    #bgm-url-input, #bgm-playlist-input {
+      width: 100%; padding: 10px; background: #1e1e2e; border: 2px solid #3a3a5a;
+      border-radius: 8px; color: #e0e0e0; font-family: 'DotGothic16', monospace;
+      font-size: 13px; outline: none; box-sizing: border-box;
+    }
+    #bgm-playlist-songs {
+      max-height: 280px; overflow-y: auto; text-align: left;
+    }
+    #bgm-playlist-songs::-webkit-scrollbar { width: 4px; }
+    #bgm-playlist-songs::-webkit-scrollbar-thumb { background: #3a3a5a; border-radius: 2px; }
+    .pl-song {
+      display: flex; align-items: center; gap: 8px; padding: 8px;
+      border-radius: 8px; cursor: pointer; transition: background 0.15s;
+      border: 1px solid transparent; margin-bottom: 4px;
+    }
+    .pl-song:hover { background: #1e1e3e; border-color: #3a3a5a; }
+    .pl-song-thumb { width: 48px; height: 36px; border-radius: 4px; object-fit: cover; flex-shrink: 0; background: #1a1a2e; }
+    .pl-song-info { flex: 1; min-width: 0; }
+    .pl-song-title { font-size: 12px; color: #e0e0e0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pl-song-channel { font-size: 10px; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pl-song-play { font-size: 16px; flex-shrink: 0; opacity: 0.5; }
+    .pl-song:hover .pl-song-play { opacity: 1; }
     #bgm-url-input:focus { border-color: #7c8aff; }
     #bgm-volume-slider { width: 100px; accent-color: #7c8aff; }
 
@@ -787,11 +812,31 @@
   <div id="bgm-set-modal">
     <div id="bgm-set-box">
       <h3>🎵 BGMを設定</h3>
-      <p style="font-size:12px;color:#888;margin-bottom:12px;">YouTubeのURLを貼り付けてください</p>
-      <input type="text" id="bgm-url-input" placeholder="https://www.youtube.com/watch?v=...">
-      <div style="display:flex;gap:8px;justify-content:center;margin-top:12px;">
-        <button class="auth-btn" id="bgm-set-ok" style="width:auto;padding:10px 24px;font-size:14px;">設定</button>
-        <button class="auth-btn secondary" id="bgm-set-cancel" style="width:auto;padding:10px 24px;font-size:14px;">キャンセル</button>
+      <div class="bgm-tabs">
+        <button class="bgm-tab active" data-bgm-tab="url">URLで指定</button>
+        <button class="bgm-tab" data-bgm-tab="playlist">プレイリストから選ぶ</button>
+      </div>
+      <div class="bgm-tab-content" id="bgm-tab-url">
+        <p style="font-size:12px;color:#888;margin-bottom:12px;">YouTubeのURLを貼り付けてください</p>
+        <input type="text" id="bgm-url-input" placeholder="https://www.youtube.com/watch?v=...">
+        <div style="display:flex;gap:8px;justify-content:center;margin-top:12px;">
+          <button class="auth-btn" id="bgm-set-ok" style="width:auto;padding:10px 24px;font-size:14px;">設定</button>
+          <button class="auth-btn secondary" id="bgm-set-cancel" style="width:auto;padding:10px 24px;font-size:14px;">キャンセル</button>
+        </div>
+      </div>
+      <div class="bgm-tab-content" id="bgm-tab-playlist" style="display:none;">
+        <p style="font-size:12px;color:#888;margin-bottom:8px;">YouTubeプレイリストのURLを貼り付け</p>
+        <div style="display:flex;gap:6px;margin-bottom:12px;">
+          <input type="text" id="bgm-playlist-input" placeholder="https://www.youtube.com/playlist?list=...">
+          <button class="auth-btn" id="bgm-playlist-load" style="width:auto;padding:8px 16px;font-size:12px;flex-shrink:0;">読込</button>
+        </div>
+        <div id="bgm-playlist-songs"></div>
+        <div id="bgm-playlist-more" style="display:none;text-align:center;margin-top:8px;">
+          <button class="auth-btn secondary" id="bgm-playlist-next" style="width:auto;padding:6px 16px;font-size:11px;">もっと読み込む</button>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:center;margin-top:12px;">
+          <button class="auth-btn secondary" id="bgm-playlist-cancel" style="width:auto;padding:10px 24px;font-size:14px;">閉じる</button>
+        </div>
       </div>
     </div>
   </div>
@@ -4266,6 +4311,96 @@
     document.getElementById('bgm-volume-slider').addEventListener('input', (e) => {
       bgmVolume = Number(e.target.value);
       if (ytReady && ytPlayer) ytPlayer.setVolume(bgmVolume);
+    });
+
+    // BGMモーダル タブ切替
+    document.querySelectorAll('.bgm-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.bgm-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('bgm-tab-url').style.display = tab.dataset.bgmTab === 'url' ? '' : 'none';
+        document.getElementById('bgm-tab-playlist').style.display = tab.dataset.bgmTab === 'playlist' ? '' : 'none';
+      });
+    });
+    document.getElementById('bgm-playlist-cancel').addEventListener('click', () => {
+      document.getElementById('bgm-set-modal').classList.remove('show');
+    });
+
+    // プレイリスト機能
+    let plNextPageToken = null;
+    let plCurrentId = null;
+
+    function extractPlaylistId(url) {
+      if (!url) return null;
+      const m = url.match(/[?&]list=([a-zA-Z0-9_-]+)/);
+      if (m) return m[1];
+      if (/^[a-zA-Z0-9_-]{10,}$/.test(url.trim())) return url.trim();
+      return null;
+    }
+
+    async function loadPlaylist(playlistId, append) {
+      const songsDiv = document.getElementById('bgm-playlist-songs');
+      if (!append) { songsDiv.innerHTML = '<div style="color:#888;font-size:12px;padding:12px;">読み込み中...</div>'; plNextPageToken = null; }
+      try {
+        const url = `/api/youtube/playlist/${playlistId}${plNextPageToken ? '?pageToken=' + plNextPageToken : ''}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (!res.ok) { songsDiv.innerHTML = `<div style="color:#f44;font-size:12px;padding:12px;">${data.error || 'エラー'}</div>`; return; }
+        if (!append) songsDiv.innerHTML = '';
+        for (const item of data.items) {
+          const song = document.createElement('div');
+          song.className = 'pl-song';
+          const thumb = document.createElement('img');
+          thumb.className = 'pl-song-thumb';
+          thumb.src = item.thumbnail || '';
+          thumb.alt = '';
+          thumb.loading = 'lazy';
+          const info = document.createElement('div');
+          info.className = 'pl-song-info';
+          const title = document.createElement('div');
+          title.className = 'pl-song-title';
+          title.textContent = item.title;
+          const channel = document.createElement('div');
+          channel.className = 'pl-song-channel';
+          channel.textContent = item.channel || '';
+          info.appendChild(title);
+          info.appendChild(channel);
+          const play = document.createElement('span');
+          play.className = 'pl-song-play';
+          play.textContent = '▶';
+          song.appendChild(thumb);
+          song.appendChild(info);
+          song.appendChild(play);
+          song.addEventListener('click', () => {
+            socket.emit('setBgm', { room: currentRoom, videoId: item.videoId, title: item.title });
+            document.getElementById('bgm-set-modal').classList.remove('show');
+          });
+          songsDiv.appendChild(song);
+        }
+        plNextPageToken = data.nextPageToken;
+        document.getElementById('bgm-playlist-more').style.display = plNextPageToken ? '' : 'none';
+        if (data.items.length === 0 && !append) {
+          songsDiv.innerHTML = '<div style="color:#888;font-size:12px;padding:12px;">プレイリストに曲がありません</div>';
+        }
+      } catch (e) {
+        if (!append) songsDiv.innerHTML = '<div style="color:#f44;font-size:12px;padding:12px;">通信エラー</div>';
+      }
+    }
+
+    document.getElementById('bgm-playlist-load').addEventListener('click', () => {
+      const url = document.getElementById('bgm-playlist-input').value.trim();
+      const plId = extractPlaylistId(url);
+      if (!plId) { showCoinNotif('有効なプレイリストURLを入力してください'); return; }
+      plCurrentId = plId;
+      loadPlaylist(plId, false);
+    });
+    document.getElementById('bgm-playlist-input').addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') document.getElementById('bgm-playlist-load').click();
+      if (e.key === 'Escape') document.getElementById('bgm-playlist-cancel').click();
+    });
+    document.getElementById('bgm-playlist-next').addEventListener('click', () => {
+      if (plCurrentId && plNextPageToken) loadPlaylist(plCurrentId, true);
     });
 
     // enterRoom をフックして会議ボタン更新 + BGM

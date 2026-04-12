@@ -158,6 +158,31 @@ app.post('/api/login', authLimiter, async (req, res) => {
   }
 });
 
+// ===== YouTube プレイリストAPI =====
+const YT_API_KEY = process.env.YOUTUBE_API_KEY || '';
+
+app.get('/api/youtube/playlist/:playlistId', async (req, res) => {
+  if (!YT_API_KEY) return res.status(500).json({ error: 'YouTube API Key が設定されていません' });
+  const playlistId = String(req.params.playlistId).slice(0, 64).replace(/[^a-zA-Z0-9_-]/g, '');
+  const pageToken = req.query.pageToken ? String(req.query.pageToken).slice(0, 64) : '';
+  try {
+    const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=25&playlistId=${playlistId}&key=${YT_API_KEY}${pageToken ? '&pageToken=' + pageToken : ''}`;
+    const resp = await fetch(url);
+    const data = await resp.json();
+    if (data.error) return res.status(400).json({ error: data.error.message || 'プレイリストの取得に失敗しました' });
+    const items = (data.items || []).map(item => ({
+      videoId: item.snippet?.resourceId?.videoId,
+      title: item.snippet?.title,
+      thumbnail: item.snippet?.thumbnails?.default?.url,
+      channel: item.snippet?.videoOwnerChannelTitle,
+    })).filter(i => i.videoId && i.title !== 'Private video' && i.title !== 'Deleted video');
+    res.json({ items, nextPageToken: data.nextPageToken || null, total: data.pageInfo?.totalResults || 0 });
+  } catch (e) {
+    console.error('YouTube API error:', e);
+    res.status(500).json({ error: 'YouTube APIの取得に失敗しました' });
+  }
+});
+
 // 管理者設定（最初に登録されたアカウントを管理者にする、または環境変数で指定）
 const ADMIN_NAMES = (process.env.ADMIN_USERS || '').split(',').filter(Boolean);
 
