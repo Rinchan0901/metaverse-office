@@ -937,6 +937,10 @@
   <div id="admin-panel">
     <div id="admin-box">
       <div class="admin-title">🛡️ 管理者パネル</div>
+      <div class="admin-section" id="admin-update-section" style="display:none;">
+        <h4>🔄 アップデート</h4>
+        <div id="admin-update-info" style="background:#1a2e1a;border:1px solid #4caf50;border-radius:8px;padding:10px;font-size:12px;line-height:1.6;"></div>
+      </div>
       <div class="admin-section">
         <h4>📢 アナウンス</h4>
         <div class="admin-announce-area">
@@ -5105,6 +5109,11 @@
     function updateAdminBtn() {
       const adminBtn = document.getElementById('btn-admin');
       if (adminBtn) adminBtn.style.display = (myRole === 'admin' || isAdminLocal()) ? '' : 'none';
+      if (myRole === 'admin') {
+        fetch('/api/version').then(r => r.json()).then(d => {
+          if (d.updateAvailable) addSys(`🔄 アップデート v${d.latest} が利用可能です。管理者パネルで確認できます。`);
+        }).catch(() => {});
+      }
     }
     function isAdminLocal() { return myRole === 'admin'; }
 
@@ -5182,8 +5191,28 @@
       if (panel.classList.contains('show')) {
         socket.emit('adminGetUsers');
         if (typeof window.buildThemeOpts === 'function') window.buildThemeOpts();
+        checkUpdateStatus();
       }
     });
+
+    async function checkUpdateStatus() {
+      try {
+        const res = await fetch('/api/version');
+        const data = await res.json();
+        const section = document.getElementById('admin-update-section');
+        const info = document.getElementById('admin-update-info');
+        if (data.updateAvailable) {
+          section.style.display = '';
+          info.innerHTML = `<div style="color:#4caf50;font-weight:bold;margin-bottom:6px;">v${data.latest} が利用可能です！ (現在: v${data.current})</div>` +
+            `<div style="color:#aaa;margin-bottom:4px;">${data.date}</div>` +
+            `<ul style="margin:4px 0 8px 16px;color:#ccc;">${data.changelog.map(c => `<li>${c}</li>`).join('')}</ul>` +
+            `<div style="color:#888;font-size:11px;">更新方法: source/ フォルダの中身を最新版に差し替えて、Claude Code に「.ai/autopilot_instruction.md の指示に従って再構築して」と指示してください。</div>`;
+        } else {
+          section.style.display = '';
+          info.innerHTML = `<div style="color:#4caf50;">v${data.current} — 最新版です ✓</div>`;
+        }
+      } catch (e) { /* ignore */ }
+    }
 
     document.getElementById('admin-close').addEventListener('click', () => {
       document.getElementById('admin-panel').classList.remove('show');

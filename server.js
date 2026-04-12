@@ -12,6 +12,28 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
+// ===== バージョン管理 =====
+const LOCAL_VERSION = '1.1.0';
+const VERSION_CHECK_URL = 'https://raw.githubusercontent.com/Rinchan0901/metaverse-office/main/version.json';
+let latestVersionInfo = null;
+
+async function checkForUpdates() {
+  try {
+    const res = await fetch(VERSION_CHECK_URL);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.version !== LOCAL_VERSION) {
+      latestVersionInfo = data;
+      console.log(`[UPDATE] 新しいバージョン v${data.version} が利用可能です (現在: v${LOCAL_VERSION})`);
+    } else {
+      latestVersionInfo = null;
+      console.log(`[VERSION] v${LOCAL_VERSION} は最新です`);
+    }
+  } catch (e) { /* ネットワークエラーは無視 */ }
+}
+checkForUpdates();
+setInterval(checkForUpdates, 6 * 60 * 60 * 1000); // 6時間ごとにチェック
+
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
@@ -209,6 +231,17 @@ app.get('/api/profile/:name', (req, res) => {
     purchasedItems: coins?.purchasedItems?.length || 0,
     isOnline,
     isAdmin: isAdmin(name),
+  });
+});
+
+// バージョンチェックAPI
+app.get('/api/version', (req, res) => {
+  res.json({
+    current: LOCAL_VERSION,
+    latest: latestVersionInfo ? latestVersionInfo.version : LOCAL_VERSION,
+    updateAvailable: !!latestVersionInfo,
+    changelog: latestVersionInfo ? latestVersionInfo.changelog : [],
+    date: latestVersionInfo ? latestVersionInfo.date : null
   });
 });
 
