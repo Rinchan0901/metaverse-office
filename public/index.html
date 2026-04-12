@@ -3057,6 +3057,7 @@
         if (data.avatar) { myAvatar = data.avatar; socket.emit('updateAvatar', myAvatar); }
         nameModal.classList.add('hidden');
         if (typeof updateAdminBtn === 'function') updateAdminBtn();
+        localStorage.setItem('gohou_auth', JSON.stringify({ username, password }));
       } catch (e) { loginError.textContent = '接続エラー'; }
     }
 
@@ -3083,6 +3084,28 @@
       nameModal.classList.add('hidden');
       if (typeof updateAdminBtn === 'function') updateAdminBtn();
     }
+
+    // 自動ログイン（保存済みセッション）
+    (async () => {
+      const saved = localStorage.getItem('gohou_auth');
+      if (saved) {
+        try {
+          const { username, password } = JSON.parse(saved);
+          const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
+          const data = await res.json();
+          if (res.ok) {
+            myName = data.username;
+            if (typeof myRole !== 'undefined') { myRole = data.role || 'user'; isGuest = false; }
+            socket.emit('setName', myName);
+            if (data.avatar) { myAvatar = data.avatar; socket.emit('updateAvatar', myAvatar); }
+            nameModal.classList.add('hidden');
+            if (typeof updateAdminBtn === 'function') updateAdminBtn();
+            return;
+          }
+        } catch (e) {}
+        localStorage.removeItem('gohou_auth');
+      }
+    })();
 
     document.getElementById('login-submit').addEventListener('click', doLogin);
     document.getElementById('reg-submit').addEventListener('click', doRegister);
