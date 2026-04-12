@@ -102,17 +102,22 @@
       display: none; color: #7c8aff;
     }
     #toolbar {
-      height: 46px; background: #252538; border-top: 2px solid #3a3a5a;
-      display: flex; align-items: center; padding: 0 16px; gap: 10px;
+      height: 42px; background: #1e1e30; border-top: 2px solid #3a3a5a;
+      display: flex; align-items: center; padding: 0 8px; gap: 4px;
+      overflow-x: auto; overflow-y: hidden;
     }
+    #toolbar::-webkit-scrollbar { height: 0; }
     .tool-btn {
-      padding: 7px 16px; border-radius: 8px; font-size: 13px; cursor: pointer;
-      background: #2e2e42; border: 1px solid #3a3a5a; color: #aaa;
+      padding: 6px 10px; border-radius: 8px; font-size: 12px; cursor: pointer;
+      background: #2a2a40; border: 1px solid #3a3a5a; color: #b0b0c8;
       font-family: 'DotGothic16', monospace; transition: all 0.15s;
+      white-space: nowrap; flex-shrink: 0;
+      display: flex; align-items: center; gap: 4px;
     }
-    .tool-btn:hover { background: #3a3a5a; color: #fff; }
-    .tool-btn.active { background: #7c8aff30; border-color: #7c8aff; color: #7c8aff; }
-    #toolbar-hint { font-size: 12px; color: #555; margin-left: auto; }
+    .tool-btn:hover { background: #3e3e5e; color: #fff; border-color: #5a5a8a; }
+    .tool-btn.active { background: #7c8aff22; border-color: #7c8aff; color: #7c8aff; }
+    .tool-sep { width: 1px; height: 22px; background: #3a3a5a; flex-shrink: 0; }
+    #toolbar-hint { font-size: 11px; color: #555; margin-left: auto; white-space: nowrap; }
 
     /* === 右パネル === */
     #right-panel {
@@ -690,8 +695,9 @@
       #main { height: calc(100vh - 40px); }
       #game-area { flex: 1; }
       #canvas-wrapper { padding: 4px; }
-      #toolbar { height: 38px; padding: 0 8px; gap: 6px; }
-      .tool-btn { padding: 5px 10px; font-size: 11px; }
+      #toolbar { height: 36px; padding: 0 4px; gap: 3px; }
+      .tool-btn { padding: 5px 8px; font-size: 11px; }
+      .tool-sep { height: 18px; }
       #toolbar-hint { display: none; }
       #bgm-bar { height: 30px; padding: 0 8px; font-size: 11px; }
       #mobile-dpad { display: block; }
@@ -965,16 +971,18 @@
         <button class="bgm-btn" id="bgm-stop-btn">停止</button>
       </div>
       <div id="toolbar">
-        <div class="tool-btn" id="btn-furniture">もようがえ (F)</div>
-        <div class="tool-btn" id="btn-meeting" style="display:none;">会議 (M)</div>
-        <div class="tool-btn" id="btn-bgm">🎵 BGM</div>
-        <div class="tool-btn" id="btn-pomo">🍅 ポモドーロ</div>
-        <div class="tool-btn" id="btn-emote">😄 エモート</div>
-        <div class="tool-btn" id="btn-dm" style="position:relative;">📩 DM<span id="dm-badge">0</span></div>
-        <div class="tool-btn" id="btn-cam-toggle" style="display:none;">📷 カメラ</div>
-        <div class="tool-btn" id="btn-mic-toggle" style="display:none;">🎤 マイク</div>
-        <div class="tool-btn" id="btn-screen-share">🖥️ 画面共有</div>
-        <div id="toolbar-hint">矢印キー: 移動 / スペース: 入室 / ESC: ロビー</div>
+        <div class="tool-btn" id="btn-furniture" title="もようがえ (F)">🪑 家具</div>
+        <div class="tool-btn" id="btn-meeting" style="display:none;" title="会議 (M)">📋 会議</div>
+        <div class="tool-btn" id="btn-bgm" title="BGM設定">🎵 BGM</div>
+        <div class="tool-btn" id="btn-pomo" title="ポモドーロタイマー">🍅 集中</div>
+        <div class="tool-sep"></div>
+        <div class="tool-btn" id="btn-emote" title="エモート">😄</div>
+        <div class="tool-btn" id="btn-dm" style="position:relative;" title="ダイレクトメッセージ">📩 DM<span id="dm-badge">0</span></div>
+        <div class="tool-sep"></div>
+        <div class="tool-btn" id="btn-cam-toggle" style="display:none;">📷</div>
+        <div class="tool-btn" id="btn-mic-toggle" style="display:none;">🎤</div>
+        <div class="tool-btn" id="btn-screen-share" title="画面共有">🖥️ 共有</div>
+        <div id="toolbar-hint">矢印/スペース/ESC</div>
       </div>
       <!-- YouTube Player (hidden) -->
       <div id="yt-player-wrap" style="position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;">
@@ -1354,286 +1362,746 @@
 
       drawFloor(x, y);
 
-      // デスク - キーボード・マウスパッド・小物付き
+      // デスク - 高品質ピクセルアート（引き出し・木目・小物）
       if (type === T.DESK) {
-        // 脚（金属）
-        ctx.fillStyle = '#707080'; ctx.fillRect(px+8,py+dt-8,4,8); ctx.fillRect(px+dt-12,py+dt-8,4,8);
-        // 天板（木製）
-        ctx.fillStyle = '#d8c8a8'; ctx.fillRect(px+2, py+14, dt-4, dt-18);
-        ctx.fillStyle = '#e8d8b8'; ctx.fillRect(px+4, py+16, dt-8, dt-24);
+        // 影（床に落ちる）
+        ctx.fillStyle = 'rgba(0,0,0,0.12)'; ctx.fillRect(px+4, py+dt-4, dt-4, 4);
+        // 脚（金属、左右）- 3Dパイプ
+        ctx.fillStyle = '#606070'; ctx.fillRect(px+8,py+dt-10,5,10); ctx.fillRect(px+dt-13,py+dt-10,5,10);
+        ctx.fillStyle = '#808090'; ctx.fillRect(px+9,py+dt-10,2,10); ctx.fillRect(px+dt-12,py+dt-10,2,10);
+        ctx.fillStyle = '#505060'; ctx.fillRect(px+12,py+dt-10,1,10); ctx.fillRect(px+dt-9,py+dt-10,1,10);
+        // 脚の足（横バー）
+        ctx.fillStyle = '#555568'; ctx.fillRect(px+5,py+dt-3,10,3); ctx.fillRect(px+dt-15,py+dt-3,10,3);
+        ctx.fillStyle = '#707082'; ctx.fillRect(px+6,py+dt-3,8,1); ctx.fillRect(px+dt-14,py+dt-3,8,1);
+        // 引き出しユニット（右側）
+        ctx.fillStyle = '#c0b090'; ctx.fillRect(px+dt-22, py+18, 18, dt-22);
+        ctx.fillStyle = '#d0c0a0'; ctx.fillRect(px+dt-21, py+19, 16, dt-24);
+        // 引き出し分割線
+        ctx.fillStyle = '#a09070'; ctx.fillRect(px+dt-21, py+28, 16, 1); ctx.fillRect(px+dt-21, py+37, 16, 1);
+        // 引き出し取っ手
+        ctx.fillStyle = '#888898'; ctx.fillRect(px+dt-15, py+23, 6, 2); ctx.fillRect(px+dt-15, py+32, 6, 2); ctx.fillRect(px+dt-15, py+41, 6, 2);
+        ctx.fillStyle = '#a0a0b0'; ctx.fillRect(px+dt-14, py+23, 4, 1); ctx.fillRect(px+dt-14, py+32, 4, 1); ctx.fillRect(px+dt-14, py+41, 4, 1);
+        // 天板（木製）- 3D bevel
+        ctx.fillStyle = '#c8b898'; ctx.fillRect(px+1, py+14, dt-2, dt-18); // 側面（暗い）
+        ctx.fillStyle = '#d8c8a8'; ctx.fillRect(px+1, py+12, dt-2, 8); // 天板メイン
+        ctx.fillStyle = '#e8d8b8'; ctx.fillRect(px+3, py+13, dt-6, 5); // 天板ハイライト
+        // 天板トップエッジ（光源上左）
+        ctx.fillStyle = '#f0e0c8'; ctx.fillRect(px+2, py+12, dt-4, 1);
+        // 天板右エッジ（影）
+        ctx.fillStyle = '#b8a888'; ctx.fillRect(px+dt-2, py+12, 1, 7);
         // 天板前面エッジ
-        ctx.fillStyle = '#c8b898'; ctx.fillRect(px+2, py+dt-6, dt-4, 4);
-        // 天板側面
-        ctx.fillStyle = '#c0b090'; ctx.fillRect(px+2, py+14, 2, dt-18);
-        ctx.fillRect(px+dt-4, py+14, 2, dt-18);
+        ctx.fillStyle = '#c0b090'; ctx.fillRect(px+1, py+18, dt-2, 2);
+        // 木目テクスチャ
+        ctx.fillStyle = '#d0c098';
+        ctx.fillRect(px+6, py+14, 18, 1); ctx.fillRect(px+28, py+15, 14, 1);
+        ctx.fillRect(px+10, py+16, 22, 1);
         // キーボード
-        ctx.fillStyle = '#e0e0e0'; ctx.fillRect(px+12, py+22, 24, 10);
-        ctx.fillStyle = '#d0d0d0'; ctx.fillRect(px+13, py+23, 22, 8);
-        // キーの行
+        ctx.fillStyle = '#d8d8d8'; ctx.fillRect(px+10, py+22, 26, 12);
+        ctx.fillStyle = '#e8e8e8'; ctx.fillRect(px+11, py+23, 24, 10);
+        // キーの行（3行）
         ctx.fillStyle = '#c8c8c8';
-        for (let k=0;k<6;k++) ctx.fillRect(px+14+k*3.5, py+24, 3, 2);
-        for (let k=0;k<6;k++) ctx.fillRect(px+14+k*3.5, py+27, 3, 2);
-        // マウス
-        ctx.fillStyle = '#e8e8e8'; ctx.fillRect(px+42, py+26, 6, 8);
-        ctx.fillStyle = '#d0d0d0'; ctx.fillRect(px+43, py+27, 4, 3);
+        for (let k=0;k<7;k++) ctx.fillRect(px+12+k*3.2, py+24, 2.5, 2);
+        for (let k=0;k<7;k++) ctx.fillRect(px+12+k*3.2, py+27, 2.5, 2);
+        for (let k=0;k<5;k++) ctx.fillRect(px+14+k*3.2, py+30, 2.5, 2);
+        // スペースバー
+        ctx.fillStyle = '#c0c0c0'; ctx.fillRect(px+18, py+30, 10, 2);
         // マウスパッド
-        ctx.fillStyle = '#404060'; ctx.fillRect(px+40, py+24, 12, 14);
-        ctx.fillStyle = '#e8e8e8'; ctx.fillRect(px+42, py+26, 6, 8);
-        // メモ帳
-        ctx.fillStyle = '#f8f0c0'; ctx.fillRect(px+6, py+18, 12, 14);
-        ctx.fillStyle = '#e8e0b0'; ctx.fillRect(px+6, py+18, 12, 2);
-        // ペン
-        ctx.fillStyle = '#3060c0'; ctx.fillRect(px+8, py+34, 1, 8);
+        ctx.fillStyle = '#353550'; ctx.fillRect(px+40, py+22, 14, 16);
+        ctx.fillStyle = '#3a3a58'; ctx.fillRect(px+41, py+23, 12, 14);
+        // マウス
+        ctx.fillStyle = '#e8e8e8'; ctx.fillRect(px+44, py+26, 6, 9);
+        ctx.fillStyle = '#d0d0d0'; ctx.fillRect(px+45, py+27, 4, 3);
+        ctx.fillStyle = '#f0f0f0'; ctx.fillRect(px+45, py+26, 4, 2);
+        // マウスホイール
+        ctx.fillStyle = '#a0a0a0'; ctx.fillRect(px+46, py+29, 2, 2);
+        // 付箋（カラフル）
+        ctx.fillStyle = '#f8f080'; ctx.fillRect(px+4, py+22, 10, 10);
+        ctx.fillStyle = '#e8e070'; ctx.fillRect(px+4, py+22, 10, 2); // 糊部分
+        ctx.fillStyle = '#aaa'; ctx.fillRect(px+6, py+25, 6, 1); ctx.fillRect(px+6, py+27, 4, 1); ctx.fillRect(px+6, py+29, 5, 1);
+        // ピンク付箋（重ね）
+        ctx.fillStyle = '#ffb0c0'; ctx.fillRect(px+3, py+33, 8, 8);
+        ctx.fillStyle = '#ee9ab0'; ctx.fillRect(px+3, py+33, 8, 2);
+        ctx.fillStyle = '#aaa'; ctx.fillRect(px+5, py+36, 4, 1);
+        // ペンカップ
+        ctx.fillStyle = '#505068'; ctx.fillRect(px+15, py+34, 6, 8);
+        ctx.fillStyle = '#606078'; ctx.fillRect(px+15, py+34, 6, 2);
+        ctx.fillStyle = '#404058'; ctx.fillRect(px+16, py+36, 4, 6);
+        // ペン（赤・青）
+        ctx.fillStyle = '#d04040'; ctx.fillRect(px+16, py+30, 1, 6);
+        ctx.fillStyle = '#3060c0'; ctx.fillRect(px+18, py+31, 1, 5);
+        ctx.fillStyle = '#40a040'; ctx.fillRect(px+20, py+32, 1, 4);
+        // コーヒーマグ
+        ctx.fillStyle = '#f0f0f0'; ctx.fillRect(px+24, py+34, 7, 8);
+        ctx.fillStyle = '#e0e0e0'; ctx.fillRect(px+25, py+35, 5, 6);
+        ctx.fillStyle = '#8a6040'; ctx.fillRect(px+25, py+36, 5, 4); // コーヒー
+        // マグ取っ手
+        ctx.fillStyle = '#f0f0f0'; ctx.fillRect(px+31, py+36, 2, 4);
+        ctx.fillRect(px+31, py+36, 3, 1); ctx.fillRect(px+31, py+39, 3, 1);
+        // 蒸気
+        ctx.fillStyle = 'rgba(200,200,200,0.4)';
+        ctx.fillRect(px+26, py+32, 1, 2); ctx.fillRect(px+28, py+31, 1, 3);
+        // テープディスペンサー
+        ctx.fillStyle = '#2a2a3a'; ctx.fillRect(px+36, py+36, 6, 5);
+        ctx.fillStyle = '#3a3a4a'; ctx.fillRect(px+37, py+37, 4, 3);
+        ctx.fillStyle = '#c0c0a0'; ctx.fillRect(px+42, py+38, 2, 1); // テープ
         return;
       }
-      // モニター - 画面にコード表示
+      // モニター - 高品質ピクセルアート（大画面・反射・デスクトップUI）
       if (type === T.MONITOR) {
-        // デスク部分
-        ctx.fillStyle = '#707080'; ctx.fillRect(px+8,py+dt-8,4,8); ctx.fillRect(px+dt-12,py+dt-8,4,8);
-        ctx.fillStyle = '#d8c8a8'; ctx.fillRect(px+2, py+20, dt-4, dt-24);
-        ctx.fillStyle = '#e8d8b8'; ctx.fillRect(px+4, py+22, dt-8, dt-28);
-        ctx.fillStyle = '#c8b898'; ctx.fillRect(px+2, py+dt-6, dt-4, 4);
-        // モニター本体
-        ctx.fillStyle = '#1a1a2a'; ctx.fillRect(px+6, py+0, dt-12, dt-22);
-        // ベゼル
-        ctx.fillStyle = '#2a2a3a'; ctx.fillRect(px+7, py+1, dt-14, dt-24);
+        // 影
+        ctx.fillStyle = 'rgba(0,0,0,0.12)'; ctx.fillRect(px+4, py+dt-4, dt-4, 4);
+        // デスク脚
+        ctx.fillStyle = '#606070'; ctx.fillRect(px+8,py+dt-10,5,10); ctx.fillRect(px+dt-13,py+dt-10,5,10);
+        ctx.fillStyle = '#808090'; ctx.fillRect(px+9,py+dt-10,2,10); ctx.fillRect(px+dt-12,py+dt-10,2,10);
+        ctx.fillStyle = '#555568'; ctx.fillRect(px+5,py+dt-3,10,3); ctx.fillRect(px+dt-15,py+dt-3,10,3);
+        // デスク天板
+        ctx.fillStyle = '#c8b898'; ctx.fillRect(px+1, py+36, dt-2, dt-38);
+        ctx.fillStyle = '#d8c8a8'; ctx.fillRect(px+1, py+34, dt-2, 6);
+        ctx.fillStyle = '#e8d8b8'; ctx.fillRect(px+3, py+35, dt-6, 3);
+        ctx.fillStyle = '#f0e0c8'; ctx.fillRect(px+2, py+34, dt-4, 1);
+        ctx.fillStyle = '#c0b090'; ctx.fillRect(px+1, py+39, dt-2, 2);
+        // モニター台座（しっかりした土台）
+        ctx.fillStyle = '#2a2a3a'; ctx.fillRect(px+dt/2-10, py+32, 20, 4);
+        ctx.fillStyle = '#3a3a4a'; ctx.fillRect(px+dt/2-9, py+32, 18, 2);
+        // モニターアーム/スタンド
+        ctx.fillStyle = '#2a2a38'; ctx.fillRect(px+dt/2-2, py+26, 4, 8);
+        ctx.fillStyle = '#3a3a48'; ctx.fillRect(px+dt/2-1, py+26, 2, 8);
+        // モニター本体（大きいベゼル）
+        ctx.fillStyle = '#1a1a28'; ctx.fillRect(px+3, py+0, dt-6, 28);
+        // ベゼル内側
+        ctx.fillStyle = '#222234'; ctx.fillRect(px+4, py+1, dt-8, 26);
+        // ベゼル下部（ブランドエリア）
+        ctx.fillStyle = '#1e1e30'; ctx.fillRect(px+3, py+24, dt-6, 4);
+        // ブランドロゴ（小さい銀色ドット）
+        ctx.fillStyle = '#808898'; ctx.fillRect(px+dt/2-3, py+25, 6, 2);
         // 画面
-        ctx.fillStyle = '#1e2d3d'; ctx.fillRect(px+9, py+3, dt-18, dt-28);
-        // コード風テキスト
-        ctx.fillStyle = '#5aaa5a'; ctx.fillRect(px+11, py+5, 14, 2);
-        ctx.fillStyle = '#5a8aaa'; ctx.fillRect(px+11, py+9, 20, 2);
-        ctx.fillStyle = '#aa8a5a'; ctx.fillRect(px+15, py+13, 12, 2);
-        ctx.fillStyle = '#5aaa5a'; ctx.fillRect(px+11, py+17, 18, 2);
-        ctx.fillStyle = '#8a6aaa'; ctx.fillRect(px+15, py+21, 16, 2);
-        ctx.fillStyle = '#5a8aaa'; ctx.fillRect(px+11, py+25, 10, 2);
-        ctx.fillStyle = '#aa5a5a'; ctx.fillRect(px+11, py+29, 22, 2);
-        ctx.fillStyle = '#5aaa5a'; ctx.fillRect(px+15, py+33, 8, 2);
+        ctx.fillStyle = '#1a2a3a'; ctx.fillRect(px+6, py+3, dt-12, 20);
+        // デスクトップUI: タイトルバー
+        ctx.fillStyle = '#3a4a5a'; ctx.fillRect(px+6, py+3, dt-12, 3);
+        // ウィンドウボタン（閉じる・最小化等）
+        ctx.fillStyle = '#e05050'; ctx.fillRect(px+8, py+4, 2, 1);
+        ctx.fillStyle = '#e0c040'; ctx.fillRect(px+11, py+4, 2, 1);
+        ctx.fillStyle = '#50c050'; ctx.fillRect(px+14, py+4, 2, 1);
+        // コードエディタ風コンテンツ
+        ctx.fillStyle = '#1e2e3e'; ctx.fillRect(px+6, py+6, dt-12, 17);
+        // サイドバー
+        ctx.fillStyle = '#182838'; ctx.fillRect(px+6, py+6, 10, 17);
+        ctx.fillStyle = '#405060'; ctx.fillRect(px+7, py+8, 8, 2);
+        ctx.fillStyle = '#3a6080'; ctx.fillRect(px+7, py+11, 8, 2);
+        ctx.fillStyle = '#405060'; ctx.fillRect(px+7, py+14, 6, 2);
+        ctx.fillStyle = '#405060'; ctx.fillRect(px+7, py+17, 7, 2);
+        // コード行
+        ctx.fillStyle = '#5aaa5a'; ctx.fillRect(px+18, py+7, 12, 2);
+        ctx.fillStyle = '#5a8aaa'; ctx.fillRect(px+18, py+10, 18, 2);
+        ctx.fillStyle = '#aa8a5a'; ctx.fillRect(px+22, py+13, 10, 2);
+        ctx.fillStyle = '#5aaa5a'; ctx.fillRect(px+18, py+16, 16, 2);
+        ctx.fillStyle = '#8a6aaa'; ctx.fillRect(px+22, py+19, 14, 2);
+        // 行番号
+        ctx.fillStyle = '#3a4a5a';
+        for (let ln=0; ln<5; ln++) ctx.fillRect(px+16, py+7+ln*3, 2, 2);
+        // 画面反射ハイライト（上左）
+        ctx.fillStyle = 'rgba(255,255,255,0.06)';
+        ctx.fillRect(px+6, py+3, dt-12, 10);
+        ctx.fillStyle = 'rgba(255,255,255,0.1)';
+        ctx.fillRect(px+7, py+4, 8, 3);
         // LED
-        ctx.fillStyle = '#4aff4a'; fillCirc(ctx, px+dt/2, py+dt-24, 1);
-        // スタンド
-        ctx.fillStyle = '#3a3a4a'; ctx.fillRect(px+dt/2-3, py+dt-22, 6, 3);
-        ctx.fillRect(px+dt/2-8, py+dt-20, 16, 2);
-        // コーヒーカップ
-        ctx.fillStyle = '#f0f0f0'; ctx.fillRect(px+dt-16, py+24, 8, 10);
-        ctx.fillStyle = '#8a6040'; ctx.fillRect(px+dt-15, py+25, 6, 5);
-        // 取っ手
-        ctx.fillStyle = '#f0f0f0'; ctx.fillRect(px+dt-8, py+26, 3, 4);
+        ctx.fillStyle = '#4aff4a'; fillCirc(ctx, px+dt/2, py+25, 1.2);
+        ctx.fillStyle = 'rgba(74,255,74,0.3)'; fillCirc(ctx, px+dt/2, py+25, 2.5);
+        // コーヒーマグ（デスク上）
+        ctx.fillStyle = '#f0f0f0'; ctx.fillRect(px+dt-14, py+36, 7, 7);
+        ctx.fillStyle = '#e0e0e0'; ctx.fillRect(px+dt-13, py+37, 5, 5);
+        ctx.fillStyle = '#8a6040'; ctx.fillRect(px+dt-13, py+38, 5, 3);
+        ctx.fillStyle = '#f0f0f0'; ctx.fillRect(px+dt-7, py+38, 2, 3);
+        ctx.fillStyle = 'rgba(200,200,200,0.35)'; ctx.fillRect(px+dt-12, py+34, 1, 2); ctx.fillRect(px+dt-10, py+33, 1, 3);
+        // メモ帳
+        ctx.fillStyle = '#f8f0c0'; ctx.fillRect(px+4, py+36, 10, 8);
+        ctx.fillStyle = '#e8e0b0'; ctx.fillRect(px+4, py+36, 10, 2);
+        ctx.fillStyle = '#aaa'; ctx.fillRect(px+6, py+39, 6, 1); ctx.fillRect(px+6, py+41, 4, 1);
+        // ペン
+        ctx.fillStyle = '#3060c0'; ctx.fillRect(px+6, py+45, 1, 6);
         return;
       }
-      // チェア - より立体的
+      // チェア - 高品質ピクセルアート（ヘッドレスト・メッシュ・アームレスト・車輪）
       if (type === T.CHAIR) {
-        // 車輪ベース（星形）
-        ctx.fillStyle = '#505060';
-        ctx.fillRect(px+dt/2-12, py+dt-5, 24, 3);
-        ctx.fillRect(px+dt/2-2, py+dt-8, 4, 6);
-        // 車輪
-        ctx.fillStyle = '#404050';
-        fillCirc(ctx, px+dt/2-10, py+dt-3, 2);
-        fillCirc(ctx, px+dt/2+10, py+dt-3, 2);
-        fillCirc(ctx, px+dt/2, py+dt-3, 2);
-        // ガスシリンダー
-        ctx.fillStyle = '#606070'; ctx.fillRect(px+dt/2-2, py+dt-14, 4, 8);
-        // 座面
-        ctx.fillStyle = '#3a5888'; ctx.fillRect(px+12, py+dt-20, dt-24, 8);
-        ctx.fillStyle = '#4a68a0'; ctx.fillRect(px+14, py+dt-19, dt-28, 6);
-        // 背もたれ
-        ctx.fillStyle = '#3a5888'; ctx.fillRect(px+14, py+6, dt-28, dt-22);
-        ctx.fillStyle = '#4a68a0'; ctx.fillRect(px+16, py+8, dt-32, dt-28);
-        // メッシュパターン
+        // 影
+        ctx.fillStyle = 'rgba(0,0,0,0.15)';
+        ctx.beginPath(); ctx.ellipse(px+dt/2, py+dt-2, 14, 3, 0, 0, Math.PI*2); ctx.fill();
+        // 車輪ベース（5本脚、星形）
+        ctx.fillStyle = '#454558';
+        ctx.fillRect(px+dt/2-14, py+dt-5, 28, 3);
+        ctx.fillRect(px+dt/2-2, py+dt-5, 4, 3);
+        // 対角の脚
+        ctx.fillRect(px+dt/2-12, py+dt-6, 3, 4);
+        ctx.fillRect(px+dt/2+10, py+dt-6, 3, 4);
+        // 車輪（5個）
+        ctx.fillStyle = '#303040';
+        fillCirc(ctx, px+dt/2-13, py+dt-2, 2.5);
+        fillCirc(ctx, px+dt/2+13, py+dt-2, 2.5);
+        fillCirc(ctx, px+dt/2-7, py+dt-2, 2.5);
+        fillCirc(ctx, px+dt/2+7, py+dt-2, 2.5);
+        fillCirc(ctx, px+dt/2, py+dt-2, 2.5);
+        // 車輪ハイライト
+        ctx.fillStyle = '#505068';
+        fillCirc(ctx, px+dt/2-13, py+dt-3, 1);
+        fillCirc(ctx, px+dt/2+13, py+dt-3, 1);
+        fillCirc(ctx, px+dt/2, py+dt-3, 1);
+        // ガスシリンダー（クロームパイプ）
+        ctx.fillStyle = '#505060'; ctx.fillRect(px+dt/2-2, py+dt-14, 5, 10);
+        ctx.fillStyle = '#707082'; ctx.fillRect(px+dt/2-1, py+dt-14, 2, 10);
+        ctx.fillStyle = '#404050'; ctx.fillRect(px+dt/2+2, py+dt-14, 1, 10);
+        // 高さ調整レバー
+        ctx.fillStyle = '#404050'; ctx.fillRect(px+dt/2+4, py+dt-12, 4, 2);
+        ctx.fillStyle = '#555568'; ctx.fillRect(px+dt/2+4, py+dt-12, 4, 1);
+        // 座面（厚みのあるクッション）
+        ctx.fillStyle = '#2a4a78'; ctx.fillRect(px+10, py+dt-22, dt-20, 10);
+        ctx.fillStyle = '#3a5a90'; ctx.fillRect(px+11, py+dt-21, dt-22, 7);
+        ctx.fillStyle = '#4a6aa0'; ctx.fillRect(px+12, py+dt-21, dt-24, 4);
+        // 座面前面エッジ（丸みを表現）
+        ctx.fillStyle = '#2a4a78'; ctx.fillRect(px+10, py+dt-14, dt-20, 2);
+        ctx.fillStyle = '#3a5888'; ctx.fillRect(px+11, py+dt-14, dt-22, 1);
+        // アームレスト（パッド付き）
+        ctx.fillStyle = '#2a2a3a'; ctx.fillRect(px+8, py+22, 4, 22);
+        ctx.fillRect(px+dt-12, py+22, 4, 22);
+        ctx.fillStyle = '#3a3a4a'; ctx.fillRect(px+8, py+22, 4, 2);
+        ctx.fillRect(px+dt-12, py+22, 4, 2);
+        // アームレストパッド
+        ctx.fillStyle = '#3a5888'; ctx.fillRect(px+6, py+20, 8, 4);
+        ctx.fillRect(px+dt-14, py+20, 8, 4);
+        ctx.fillStyle = '#4a68a0'; ctx.fillRect(px+7, py+20, 6, 2);
+        ctx.fillRect(px+dt-13, py+20, 6, 2);
+        // 背もたれフレーム
+        ctx.fillStyle = '#2a2a3a'; ctx.fillRect(px+12, py+4, dt-24, dt-20);
+        // 背もたれメッシュ部分
+        ctx.fillStyle = '#3a5888'; ctx.fillRect(px+14, py+6, dt-28, dt-26);
+        ctx.fillStyle = '#4a68a0'; ctx.fillRect(px+15, py+7, dt-30, dt-28);
+        // メッシュテクスチャ（横線）
         ctx.fillStyle = '#3a5888';
-        ctx.fillRect(px+16, py+14, dt-32, 1);
-        ctx.fillRect(px+16, py+20, dt-32, 1);
-        ctx.fillRect(px+16, py+26, dt-32, 1);
-        // ランバーサポート
-        ctx.fillStyle = '#3060a0'; ctx.fillRect(px+14, py+dt-26, dt-28, 4);
+        for (let m = 0; m < 8; m++) ctx.fillRect(px+15, py+8+m*3, dt-30, 1);
+        // メッシュテクスチャ（縦線、薄い）
+        ctx.fillStyle = 'rgba(58,88,136,0.5)';
+        for (let m = 0; m < 5; m++) ctx.fillRect(px+17+m*5, py+7, 1, dt-28);
+        // ランバーサポート（カーブ）
+        ctx.fillStyle = '#3060a0'; ctx.fillRect(px+13, py+dt-28, dt-26, 5);
+        ctx.fillStyle = '#3a70b0'; ctx.fillRect(px+14, py+dt-28, dt-28, 3);
+        // ヘッドレスト
+        ctx.fillStyle = '#2a4a78'; ctx.fillRect(px+16, py+1, dt-32, 5);
+        ctx.fillStyle = '#3a5a90'; ctx.fillRect(px+17, py+1, dt-34, 3);
+        ctx.fillStyle = '#4a6aa0'; ctx.fillRect(px+18, py+1, dt-36, 1);
+        // ヘッドレスト接続
+        ctx.fillStyle = '#2a2a3a'; ctx.fillRect(px+dt/2-2, py+4, 4, 3);
+        // 背もたれハイライト（上左）
+        ctx.fillStyle = 'rgba(100,140,200,0.15)'; ctx.fillRect(px+15, py+7, 8, dt-28);
         return;
       }
-      // 観葉植物 - 細かい葉のディテール
+      // 観葉植物 - 高品質ピクセルアート（自然な葉形状・装飾鉢・枝分かれ）
       if (type === T.PLANT) {
-        // 鉢（テラコッタ風）
-        ctx.fillStyle = '#c07040'; ctx.fillRect(px+dt/2-10, py+dt-16, 20, 14);
-        ctx.fillStyle = '#d08050'; ctx.fillRect(px+dt/2-12, py+dt-16, 24, 4);
-        ctx.fillStyle = '#b06030'; ctx.fillRect(px+dt/2-8, py+dt-4, 16, 3);
+        // 影
+        ctx.fillStyle = 'rgba(0,0,0,0.12)';
+        ctx.beginPath(); ctx.ellipse(px+dt/2, py+dt-2, 12, 3, 0, 0, Math.PI*2); ctx.fill();
+        // 鉢（装飾的テラコッタ）- 台形
+        ctx.fillStyle = '#b06030'; ctx.fillRect(px+dt/2-12, py+dt-18, 24, 16);
+        ctx.fillStyle = '#c07040'; ctx.fillRect(px+dt/2-10, py+dt-18, 20, 14);
+        // 鉢リム（上部の出っ張り）
+        ctx.fillStyle = '#d08050'; ctx.fillRect(px+dt/2-13, py+dt-18, 26, 4);
+        ctx.fillStyle = '#e09060'; ctx.fillRect(px+dt/2-12, py+dt-18, 24, 2);
+        // 鉢底部
+        ctx.fillStyle = '#a05828'; ctx.fillRect(px+dt/2-9, py+dt-4, 18, 3);
+        // 鉢の装飾パターン（ギリシャ風ライン）
+        ctx.fillStyle = '#a06038';
+        ctx.fillRect(px+dt/2-9, py+dt-12, 18, 1);
+        ctx.fillRect(px+dt/2-8, py+dt-10, 16, 1);
+        // 鉢の3Dハイライト（左面明るい）
+        ctx.fillStyle = '#d88060'; ctx.fillRect(px+dt/2-10, py+dt-16, 2, 12);
+        // 鉢の3D影（右面暗い）
+        ctx.fillStyle = '#904820'; ctx.fillRect(px+dt/2+8, py+dt-16, 2, 12);
         // 土
-        ctx.fillStyle = '#5a3a20'; ctx.fillRect(px+dt/2-9, py+dt-16, 18, 3);
-        // 幹
-        ctx.fillStyle = '#6a5030'; ctx.fillRect(px+dt/2-2, py+dt-26, 4, 12);
-        ctx.fillStyle = '#7a6040'; ctx.fillRect(px+dt/2-1, py+dt-26, 2, 12);
-        // 葉（多層）
-        const cx = px+dt/2, cy = py+dt/2-12;
-        ctx.fillStyle = '#3a8a30'; fillCirc(ctx, cx, cy, 16);
-        ctx.fillStyle = '#4aa840'; fillCirc(ctx, cx-7, cy-6, 10);
-        ctx.fillStyle = '#4aa840'; fillCirc(ctx, cx+7, cy-6, 10);
-        ctx.fillStyle = '#5ac050'; fillCirc(ctx, cx, cy-10, 8);
-        ctx.fillStyle = '#3a9a30'; fillCirc(ctx, cx-10, cy+4, 8);
-        ctx.fillStyle = '#3a9a30'; fillCirc(ctx, cx+10, cy+4, 8);
-        // 葉のハイライト
-        ctx.fillStyle = '#6ad060';
-        fillCirc(ctx, cx-4, cy-8, 4);
-        fillCirc(ctx, cx+6, cy-4, 3);
-        // 葉のディテール（小さい点）
-        ctx.fillStyle = '#2a7a20';
-        for (let i = 0; i < 6; i++) {
-          const ax = cx + Math.cos(i*1.05)*12, ay = cy + Math.sin(i*1.05)*10;
+        ctx.fillStyle = '#5a3a20'; ctx.fillRect(px+dt/2-9, py+dt-18, 18, 3);
+        ctx.fillStyle = '#6a4a2a'; ctx.fillRect(px+dt/2-7, py+dt-17, 14, 1);
+        // 土のテクスチャ
+        ctx.fillStyle = '#4a2a10'; ctx.fillRect(px+dt/2-5, py+dt-17, 2, 1); ctx.fillRect(px+dt/2+3, py+dt-18, 2, 1);
+        // 幹（メイン）
+        ctx.fillStyle = '#5a4028'; ctx.fillRect(px+dt/2-2, py+dt-30, 5, 14);
+        ctx.fillStyle = '#6a5038'; ctx.fillRect(px+dt/2-1, py+dt-30, 3, 14);
+        ctx.fillStyle = '#7a6048'; ctx.fillRect(px+dt/2, py+dt-30, 1, 14);
+        // 枝（左）
+        ctx.fillStyle = '#5a4028'; ctx.fillRect(px+dt/2-8, py+dt-32, 8, 3);
+        ctx.fillStyle = '#6a5038'; ctx.fillRect(px+dt/2-7, py+dt-32, 6, 2);
+        // 枝（右）
+        ctx.fillStyle = '#5a4028'; ctx.fillRect(px+dt/2+2, py+dt-34, 8, 3);
+        ctx.fillStyle = '#6a5038'; ctx.fillRect(px+dt/2+3, py+dt-34, 6, 2);
+        // 葉クラスター（多層、自然な形状）
+        const lx = px+dt/2, ly = py+14;
+        // 奥の暗い葉
+        ctx.fillStyle = '#2a7a22';
+        fillCirc(ctx, lx-10, ly+6, 9); fillCirc(ctx, lx+10, ly+6, 9);
+        fillCirc(ctx, lx, ly+8, 8);
+        // 中間の葉
+        ctx.fillStyle = '#3a8a30';
+        fillCirc(ctx, lx-8, ly, 10); fillCirc(ctx, lx+8, ly, 10);
+        fillCirc(ctx, lx, ly+2, 10);
+        // 手前の明るい葉
+        ctx.fillStyle = '#4aa840';
+        fillCirc(ctx, lx-5, ly-5, 8); fillCirc(ctx, lx+6, ly-4, 7);
+        fillCirc(ctx, lx, ly-2, 9);
+        // 上部の新芽
+        ctx.fillStyle = '#5ac050';
+        fillCirc(ctx, lx-3, ly-10, 5); fillCirc(ctx, lx+4, ly-8, 5);
+        fillCirc(ctx, lx, ly-12, 4);
+        // 葉のハイライト（上左光源）
+        ctx.fillStyle = '#6ad860';
+        fillCirc(ctx, lx-6, ly-7, 4); fillCirc(ctx, lx-2, ly-10, 3);
+        fillCirc(ctx, lx+3, ly-6, 3);
+        // 葉のディテール（葉脈風ドット）
+        ctx.fillStyle = '#2a7a22';
+        for (let i = 0; i < 8; i++) {
+          const ax = lx + Math.cos(i*0.79)*11, ay = ly + Math.sin(i*0.79)*9;
           ctx.fillRect(ax, ay, 2, 2);
         }
+        // 小さい垂れ下がる葉
+        ctx.fillStyle = '#3a9a30';
+        ctx.fillRect(lx-14, ly+10, 4, 3); ctx.fillRect(lx+11, ly+8, 4, 3);
+        ctx.fillStyle = '#4aa840';
+        ctx.fillRect(lx-13, ly+10, 2, 2); ctx.fillRect(lx+12, ly+8, 2, 2);
         return;
       }
-      // ドア - マットと光効果
+      // ドア - 高品質ピクセルアート（ガラスパネル・ドアクローザー・ルームプレート）
       if (type === T.DOOR_WORK || type === T.DOOR_MEET) {
         const isW = type === T.DOOR_WORK;
-        // ドアマット
-        ctx.fillStyle = '#4a4a3a'; ctx.fillRect(px+6, py+dt-8, dt-12, 6);
-        ctx.fillStyle = '#5a5a4a'; ctx.fillRect(px+8, py+dt-7, dt-16, 4);
-        // ドアフレーム
-        ctx.fillStyle = '#8a7a6a'; ctx.fillRect(px+8, py+1, dt-16, dt-8);
+        // フロア敷居
+        ctx.fillStyle = '#706858'; ctx.fillRect(px+6, py+dt-4, dt-12, 4);
+        ctx.fillStyle = '#807868'; ctx.fillRect(px+7, py+dt-4, dt-14, 2);
+        ctx.fillStyle = '#908878'; ctx.fillRect(px+8, py+dt-4, dt-16, 1);
+        // ドアマット（テクスチャ付き）
+        ctx.fillStyle = '#4a4a3a'; ctx.fillRect(px+8, py+dt-10, dt-16, 7);
+        ctx.fillStyle = '#5a5a4a'; ctx.fillRect(px+10, py+dt-9, dt-20, 5);
+        // マットテクスチャ
+        ctx.fillStyle = '#3a3a2a';
+        for (let mm=0; mm<5; mm++) ctx.fillRect(px+12+mm*6, py+dt-8, 4, 1);
+        // ドアフレーム（木製、立体的）
+        ctx.fillStyle = '#7a6a5a'; ctx.fillRect(px+6, py+0, dt-12, dt-8);
+        ctx.fillStyle = '#8a7a6a'; ctx.fillRect(px+7, py+0, dt-14, dt-9);
+        // フレームのベベル
+        ctx.fillStyle = '#9a8a7a'; ctx.fillRect(px+7, py+0, dt-14, 1);
+        ctx.fillRect(px+7, py+0, 1, dt-9);
+        ctx.fillStyle = '#6a5a4a'; ctx.fillRect(px+dt-8, py+0, 1, dt-9);
+        // ドアクローザー（上部）
+        ctx.fillStyle = '#505060'; ctx.fillRect(px+10, py+2, 16, 3);
+        ctx.fillStyle = '#606070'; ctx.fillRect(px+10, py+2, 16, 1);
+        ctx.fillStyle = '#404050'; ctx.fillRect(px+24, py+3, 6, 2);
         // ドア本体
+        ctx.fillStyle = isW ? '#5a7aa0' : '#5aa0a8';
+        ctx.fillRect(px+9, py+6, dt-18, dt-16);
         ctx.fillStyle = isW ? '#6a8ab0' : '#6ab0b8';
-        ctx.fillRect(px+10, py+3, dt-20, dt-12);
-        // ドアのパネル（上下2段）
+        ctx.fillRect(px+10, py+7, dt-20, dt-18);
+        // ガラスパネル（上部）
+        ctx.fillStyle = isW ? '#8ab0d0' : '#8ad0d8';
+        ctx.fillRect(px+13, py+9, dt-26, 18);
+        ctx.fillStyle = isW ? '#a0c8e0' : '#a0e0e8';
+        ctx.fillRect(px+14, py+10, dt-28, 16);
+        // ガラス反射
+        ctx.fillStyle = 'rgba(255,255,255,0.2)';
+        ctx.fillRect(px+15, py+11, 6, 8);
+        ctx.fillStyle = 'rgba(255,255,255,0.1)';
+        ctx.fillRect(px+23, py+13, 4, 10);
+        // ガラスフレーム（十字桟）
+        ctx.fillStyle = isW ? '#5a7aa0' : '#5aa0a8';
+        ctx.fillRect(px+dt/2-1, py+10, 2, 16);
+        ctx.fillRect(px+14, py+17, dt-28, 2);
+        // 下部パネル（ソリッド）
         ctx.fillStyle = isW ? '#7a9ac0' : '#7ac0c8';
-        ctx.fillRect(px+13, py+6, dt-26, (dt-20)/2-2);
-        ctx.fillRect(px+13, py+dt/2, dt-26, (dt-20)/2-4);
+        ctx.fillRect(px+13, py+30, dt-26, dt-44);
         // パネル凹み影
         ctx.fillStyle = isW ? '#5a7a9a' : '#5a9aa0';
-        ctx.fillRect(px+13, py+6, dt-26, 1);
-        ctx.fillRect(px+13, py+6, 1, (dt-20)/2-2);
-        // ドアノブ
-        ctx.fillStyle = '#e0d0a0'; fillCirc(ctx, px+dt-17, py+dt/2-2, 3);
-        ctx.fillStyle = '#c0b080'; fillCirc(ctx, px+dt-17, py+dt/2-2, 2);
-        // ラベル
-        ctx.fillStyle = '#fff'; ctx.font = `bold ${Math.round(SCALE*4.5)}px 'DotGothic16',monospace`;
+        ctx.fillRect(px+13, py+30, dt-26, 1);
+        ctx.fillRect(px+13, py+30, 1, dt-44);
+        // パネルハイライト
+        ctx.fillStyle = isW ? '#8aaad0' : '#8ad0d8';
+        ctx.fillRect(px+dt-14, py+31, 1, dt-46);
+        ctx.fillRect(px+14, py+dt-15, dt-28, 1);
+        // ドアノブ（レバーハンドル）
+        ctx.fillStyle = '#c0b080'; ctx.fillRect(px+dt-18, py+dt/2-1, 8, 3);
+        ctx.fillStyle = '#e0d0a0'; ctx.fillRect(px+dt-18, py+dt/2-1, 8, 1);
+        ctx.fillStyle = '#d8c890'; fillCirc(ctx, px+dt-18, py+dt/2, 2.5);
+        ctx.fillStyle = '#e8d8a0'; fillCirc(ctx, px+dt-18, py+dt/2-0.5, 1.5);
+        // 鍵穴
+        ctx.fillStyle = '#888'; ctx.fillRect(px+dt-18, py+dt/2+4, 2, 2);
+        // ルームナンバープレート
+        ctx.fillStyle = '#e0d8c8'; ctx.fillRect(px+16, py+32, 14, 8);
+        ctx.fillStyle = '#d0c8b8'; ctx.fillRect(px+17, py+33, 12, 6);
+        ctx.fillStyle = '#555'; ctx.font = `bold ${Math.round(SCALE*3.5)}px 'DotGothic16',monospace`;
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(isW ? 'WORK' : 'MEET', px+dt/2, py+dt/2-2);
-        // 光漏れ
-        ctx.fillStyle = 'rgba(255,240,200,0.15)';
-        ctx.fillRect(px+10, py+dt-12, dt-20, 2);
+        ctx.fillText(isW ? '101' : '102', px+23, py+36);
+        // ラベル（ガラス上）
+        ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.font = `bold ${Math.round(SCALE*4)}px 'DotGothic16',monospace`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(isW ? 'WORK' : 'MEET', px+dt/2, py+18);
+        // 光漏れ（ドア下部）
+        ctx.fillStyle = 'rgba(255,240,200,0.2)';
+        ctx.fillRect(px+10, py+dt-12, dt-20, 3);
+        ctx.fillStyle = 'rgba(255,240,200,0.1)';
+        ctx.fillRect(px+8, py+dt-10, dt-16, 1);
         return;
       }
-      // ホワイトボード - 付箋・図形付き
+      // ホワイトボード - 高品質ピクセルアート（磁石・図形・付箋影・マーカー）
       if (type === T.BOARD) {
-        ctx.fillStyle = '#b0b8c0'; ctx.fillRect(px+3, py+1, dt-6, dt-6);
+        // ボードフレーム（アルミ風）
+        ctx.fillStyle = '#a0a8b0'; ctx.fillRect(px+2, py+0, dt-4, dt-5);
+        // フレームベベル
+        ctx.fillStyle = '#b8c0c8'; ctx.fillRect(px+2, py+0, dt-4, 2); ctx.fillRect(px+2, py+0, 2, dt-5);
+        ctx.fillStyle = '#888898'; ctx.fillRect(px+dt-4, py+0, 2, dt-5); ctx.fillRect(px+2, py+dt-7, dt-4, 2);
+        // ボード表面
         ctx.fillStyle = '#f4f4f0'; ctx.fillRect(px+5, py+3, dt-10, dt-12);
-        // 図形（フロー図）
+        ctx.fillStyle = '#f8f8f4'; ctx.fillRect(px+6, py+4, dt-12, dt-14);
+        // グリッドライン（薄い）
+        ctx.fillStyle = 'rgba(200,200,200,0.3)';
+        for (let gy=0; gy<5; gy++) ctx.fillRect(px+6, py+8+gy*8, dt-12, 1);
+        for (let gx=0; gx<5; gx++) ctx.fillRect(px+10+gx*9, py+4, 1, dt-14);
+        // フローチャート（箱）
         ctx.fillStyle = '#4a7aaa'; ctx.fillRect(px+8, py+6, 14, 8);
-        ctx.strokeStyle = '#4a7aaa'; ctx.lineWidth = 1;
+        ctx.fillStyle = '#5a8aba'; ctx.fillRect(px+9, py+7, 12, 6);
+        // テキスト in box
+        ctx.fillStyle = '#fff'; ctx.fillRect(px+10, py+9, 8, 1); ctx.fillRect(px+11, py+11, 6, 1);
+        // 矢印下
+        ctx.strokeStyle = '#4a7aaa'; ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.moveTo(px+15, py+14); ctx.lineTo(px+15, py+20); ctx.stroke();
-        ctx.fillRect(px+8, py+20, 14, 6);
-        // 矢印
-        ctx.beginPath(); ctx.moveTo(px+22, py+10); ctx.lineTo(px+30, py+10); ctx.stroke();
-        // 付箋
-        ctx.fillStyle = '#fff3a0'; ctx.fillRect(px+30, py+6, 12, 10);
-        ctx.fillStyle = '#f0c0c0'; ctx.fillRect(px+30, py+20, 12, 10);
-        ctx.fillStyle = '#c0f0c0'; ctx.fillRect(px+44, py+6, 10, 10);
-        // 付箋のテキスト
-        ctx.fillStyle = '#888'; ctx.fillRect(px+32, py+9, 8, 1);
-        ctx.fillRect(px+32, py+12, 6, 1);
-        ctx.fillRect(px+32, py+23, 8, 1);
-        // マーカートレイ
-        ctx.fillStyle = '#a0a0a0'; ctx.fillRect(px+8, py+dt-8, dt-16, 3);
-        ctx.fillStyle = '#e04040'; ctx.fillRect(px+12, py+dt-10, 4, 4);
-        ctx.fillStyle = '#4040e0'; ctx.fillRect(px+18, py+dt-10, 4, 4);
-        ctx.fillStyle = '#40a040'; ctx.fillRect(px+24, py+dt-10, 4, 4);
-        // イレーサー
-        ctx.fillStyle = '#e0e0e0'; ctx.fillRect(px+dt-22, py+dt-10, 10, 4);
-        return;
-      }
-      // ラグ - ペルシャ風パターン
-      if (type === T.RUG) {
-        // ラグベース
-        ctx.fillStyle = '#5a3a50'; ctx.fillRect(px+1, py+1, dt-2, dt-2);
-        // ボーダー
-        ctx.fillStyle = '#7a5a6a'; ctx.fillRect(px+3, py+3, dt-6, dt-6);
-        ctx.fillStyle = '#5a3a50'; ctx.fillRect(px+5, py+5, dt-10, dt-10);
-        // 中央パターン
-        ctx.fillStyle = '#8a6a78'; ctx.fillRect(px+dt/2-8, py+dt/2-8, 16, 16);
-        ctx.fillStyle = '#9a7a88'; ctx.fillRect(px+dt/2-6, py+dt/2-6, 12, 12);
-        ctx.fillStyle = '#aa8a98'; ctx.fillRect(px+dt/2-3, py+dt/2-3, 6, 6);
-        // 角の装飾
-        ctx.fillStyle = '#c8a0a0';
-        ctx.fillRect(px+6, py+6, 4, 4); ctx.fillRect(px+dt-10, py+6, 4, 4);
-        ctx.fillRect(px+6, py+dt-10, 4, 4); ctx.fillRect(px+dt-10, py+dt-10, 4, 4);
-        // フリンジ
-        ctx.fillStyle = '#7a5a6a';
-        for (let f = 0; f < 8; f++) { ctx.fillRect(px+4+f*7, py, 2, 2); ctx.fillRect(px+4+f*7, py+dt-2, 2, 2); }
-        return;
-      }
-      // 受付カウンター - ベル・書類付き
-      if (type === T.COUNTER) {
-        // カウンター本体
-        ctx.fillStyle = '#5a4030'; ctx.fillRect(px+1, py+8, dt-2, dt-10);
-        ctx.fillStyle = '#6a5040'; ctx.fillRect(px+3, py+10, dt-6, dt-14);
-        // パネルディテール
-        ctx.fillStyle = '#504030'; ctx.fillRect(px+dt/2-1, py+10, 2, dt-14);
-        // カウンタートップ
-        ctx.fillStyle = '#f0e8d0'; ctx.fillRect(px, py+4, dt, 6);
-        ctx.fillStyle = '#e8e0c8'; ctx.fillRect(px+1, py+5, dt-2, 4);
-        // エッジハイライト
-        ctx.fillStyle = '#f8f0d8'; ctx.fillRect(px+2, py+4, dt-4, 1);
-        // ベル
-        ctx.fillStyle = '#e0c060'; fillCirc(ctx, px+14, py+6, 4);
-        ctx.fillStyle = '#d0b050'; fillCirc(ctx, px+14, py+5, 3);
-        ctx.fillStyle = '#c0a040'; ctx.fillRect(px+13, py+3, 2, 2);
-        // 書類/ファイル
-        ctx.fillStyle = '#f8f8f0'; ctx.fillRect(px+30, py+4, 14, 4);
-        ctx.fillStyle = '#e8e8e0'; ctx.fillRect(px+32, py+3, 10, 4);
-        return;
-      }
-      // ソファ - クッション模様付き
-      if (type === T.SOFA_T) {
-        // ベースフレーム
-        ctx.fillStyle = '#2a4a6a'; ctx.fillRect(px+3, py+8, dt-6, dt-10);
-        // クッション（2個）
-        ctx.fillStyle = '#3a6a9a'; ctx.fillRect(px+6, py+14, dt/2-6, dt-22);
-        ctx.fillStyle = '#3a6a9a'; ctx.fillRect(px+dt/2+2, py+14, dt/2-8, dt-22);
-        // クッションハイライト
+        // 矢印ヘッド
         ctx.fillStyle = '#4a7aaa';
-        ctx.fillRect(px+8, py+16, dt/2-10, dt-28);
-        ctx.fillRect(px+dt/2+4, py+16, dt/2-12, dt-28);
-        // 背もたれ
-        ctx.fillStyle = '#2a5a80'; ctx.fillRect(px+3, py+6, dt-6, 12);
-        ctx.fillStyle = '#3a6a90'; ctx.fillRect(px+5, py+8, dt-10, 8);
-        // アームレスト
-        ctx.fillStyle = '#2a4a6a';
-        ctx.fillRect(px+1, py+8, 5, dt-12);
-        ctx.fillRect(px+dt-6, py+8, 5, dt-12);
-        // アームレスト丸み
-        ctx.fillStyle = '#3a5a7a';
-        ctx.fillRect(px+2, py+8, 3, 4);
-        ctx.fillRect(px+dt-5, py+8, 3, 4);
-        // ステッチライン
-        ctx.fillStyle = '#2a5a80';
-        ctx.fillRect(px+dt/2, py+14, 1, dt-22);
+        ctx.beginPath(); ctx.moveTo(px+12, py+18); ctx.lineTo(px+18, py+18); ctx.lineTo(px+15, py+21); ctx.fill();
+        // 下の箱
+        ctx.fillStyle = '#4a7aaa'; ctx.fillRect(px+8, py+21, 14, 7);
+        ctx.fillStyle = '#5a8aba'; ctx.fillRect(px+9, py+22, 12, 5);
+        ctx.fillStyle = '#fff'; ctx.fillRect(px+10, py+24, 8, 1);
+        // 横矢印
+        ctx.strokeStyle = '#4a7aaa'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(px+22, py+10); ctx.lineTo(px+28, py+10); ctx.stroke();
+        // 付箋（影付き）
+        ctx.fillStyle = 'rgba(0,0,0,0.08)'; ctx.fillRect(px+31, py+7, 12, 10);
+        ctx.fillStyle = '#fff3a0'; ctx.fillRect(px+29, py+5, 12, 10);
+        ctx.fillStyle = '#efe890'; ctx.fillRect(px+29, py+5, 12, 2);
+        // 付箋テキスト
+        ctx.fillStyle = '#888'; ctx.fillRect(px+31, py+8, 8, 1); ctx.fillRect(px+31, py+10, 6, 1); ctx.fillRect(px+31, py+12, 7, 1);
+        // ピンク付箋
+        ctx.fillStyle = 'rgba(0,0,0,0.08)'; ctx.fillRect(px+31, py+21, 12, 10);
+        ctx.fillStyle = '#f0c0c0'; ctx.fillRect(px+29, py+19, 12, 10);
+        ctx.fillStyle = '#e0b0b0'; ctx.fillRect(px+29, py+19, 12, 2);
+        ctx.fillStyle = '#888'; ctx.fillRect(px+31, py+22, 8, 1); ctx.fillRect(px+31, py+24, 5, 1);
+        // 緑付箋
+        ctx.fillStyle = 'rgba(0,0,0,0.08)'; ctx.fillRect(px+45, py+7, 10, 10);
+        ctx.fillStyle = '#c0f0c0'; ctx.fillRect(px+43, py+5, 10, 10);
+        ctx.fillStyle = '#b0e0b0'; ctx.fillRect(px+43, py+5, 10, 2);
+        ctx.fillStyle = '#888'; ctx.fillRect(px+45, py+8, 6, 1); ctx.fillRect(px+45, py+10, 4, 1);
+        // 磁石（丸、カラフル）
+        ctx.fillStyle = '#e04040'; fillCirc(ctx, px+46, py+20, 2.5);
+        ctx.fillStyle = '#f05050'; fillCirc(ctx, px+46, py+19.5, 1.5);
+        ctx.fillStyle = '#4060e0'; fillCirc(ctx, px+10, py+32, 2.5);
+        ctx.fillStyle = '#5070f0'; fillCirc(ctx, px+10, py+31.5, 1.5);
+        // 手描き線（赤マーカー）
+        ctx.strokeStyle = '#d04040'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(px+20, py+32); ctx.lineTo(px+36, py+32); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(px+20, py+35); ctx.lineTo(px+30, py+35); ctx.stroke();
+        // マーカートレイ（金属）
+        ctx.fillStyle = '#909098'; ctx.fillRect(px+6, py+dt-8, dt-12, 4);
+        ctx.fillStyle = '#a0a0a8'; ctx.fillRect(px+7, py+dt-8, dt-14, 2);
+        ctx.fillStyle = '#808088'; ctx.fillRect(px+7, py+dt-5, dt-14, 1);
+        // マーカー（丸いキャップ付き）
+        ctx.fillStyle = '#d03030'; ctx.fillRect(px+10, py+dt-12, 3, 5);
+        ctx.fillStyle = '#e04040'; ctx.fillRect(px+10, py+dt-12, 3, 2);
+        ctx.fillStyle = '#3030d0'; ctx.fillRect(px+15, py+dt-12, 3, 5);
+        ctx.fillStyle = '#4040e0'; ctx.fillRect(px+15, py+dt-12, 3, 2);
+        ctx.fillStyle = '#30a030'; ctx.fillRect(px+20, py+dt-12, 3, 5);
+        ctx.fillStyle = '#40b040'; ctx.fillRect(px+20, py+dt-12, 3, 2);
+        ctx.fillStyle = '#222'; ctx.fillRect(px+25, py+dt-12, 3, 5);
+        ctx.fillStyle = '#333'; ctx.fillRect(px+25, py+dt-12, 3, 2);
+        // イレーサー（3D）
+        ctx.fillStyle = '#c0c0c0'; ctx.fillRect(px+dt-24, py+dt-12, 12, 5);
+        ctx.fillStyle = '#d8d8d8'; ctx.fillRect(px+dt-24, py+dt-12, 12, 2);
+        ctx.fillStyle = '#a0a0a0'; ctx.fillRect(px+dt-24, py+dt-8, 12, 1);
+        // イレーサーの汚れ
+        ctx.fillStyle = '#b0b0b0'; ctx.fillRect(px+dt-22, py+dt-10, 8, 1);
         return;
       }
-      // 棚 - 本・ファイル・小物
+      // ラグ - 高品質ピクセルアート（ペルシャ風、タッセル、影、幾何学模様）
+      if (type === T.RUG) {
+        // 影（ラグ下部）
+        ctx.fillStyle = 'rgba(0,0,0,0.08)'; ctx.fillRect(px+2, py+2, dt-2, dt-2);
+        // ラグベース
+        ctx.fillStyle = '#5a2a40'; ctx.fillRect(px, py+2, dt, dt-4);
+        // 外枠ボーダー
+        ctx.fillStyle = '#8a5a68'; ctx.fillRect(px+2, py+4, dt-4, dt-8);
+        // 内枠ボーダー（ゴールド装飾）
+        ctx.fillStyle = '#c8a060'; ctx.fillRect(px+4, py+6, dt-8, dt-12);
+        ctx.fillStyle = '#5a2a40'; ctx.fillRect(px+6, py+8, dt-12, dt-16);
+        // 二重枠（内側）
+        ctx.fillStyle = '#7a4a58'; ctx.fillRect(px+8, py+10, dt-16, dt-20);
+        ctx.fillStyle = '#5a2a40'; ctx.fillRect(px+10, py+12, dt-20, dt-24);
+        // 中央メダリオン（ペルシャ風）
+        ctx.fillStyle = '#9a6a78'; ctx.fillRect(px+dt/2-10, py+dt/2-10, 20, 20);
+        ctx.fillStyle = '#aa7a88'; ctx.fillRect(px+dt/2-8, py+dt/2-8, 16, 16);
+        ctx.fillStyle = '#c8a060'; ctx.fillRect(px+dt/2-6, py+dt/2-6, 12, 12);
+        ctx.fillStyle = '#ba9050'; ctx.fillRect(px+dt/2-4, py+dt/2-4, 8, 8);
+        ctx.fillStyle = '#5a2a40'; ctx.fillRect(px+dt/2-2, py+dt/2-2, 4, 4);
+        ctx.fillStyle = '#c8a060'; ctx.fillRect(px+dt/2-1, py+dt/2-1, 2, 2);
+        // メダリオンから伸びる十字ライン
+        ctx.fillStyle = '#c8a060';
+        ctx.fillRect(px+10, py+dt/2-1, dt-20, 2);
+        ctx.fillRect(px+dt/2-1, py+12, 2, dt-24);
+        // 角の装飾モチーフ（花模様風）
+        ctx.fillStyle = '#c8a0a0';
+        ctx.fillRect(px+10, py+12, 6, 6); ctx.fillRect(px+dt-16, py+12, 6, 6);
+        ctx.fillRect(px+10, py+dt-18, 6, 6); ctx.fillRect(px+dt-16, py+dt-18, 6, 6);
+        // 角のモチーフ中心
+        ctx.fillStyle = '#c8a060';
+        ctx.fillRect(px+12, py+14, 2, 2); ctx.fillRect(px+dt-14, py+14, 2, 2);
+        ctx.fillRect(px+12, py+dt-16, 2, 2); ctx.fillRect(px+dt-14, py+dt-16, 2, 2);
+        // 幾何学模様（ボーダー沿い）
+        ctx.fillStyle = '#c8a060';
+        for (let g=0; g<4; g++) {
+          ctx.fillRect(px+18+g*8, py+7, 3, 2);
+          ctx.fillRect(px+18+g*8, py+dt-9, 3, 2);
+          ctx.fillRect(px+5, py+18+g*8, 2, 3);
+          ctx.fillRect(px+dt-7, py+18+g*8, 2, 3);
+        }
+        // テクスチャ（織りの細かいドット）
+        ctx.fillStyle = 'rgba(200,160,96,0.2)';
+        for (let ti=0; ti<6; ti++) for (let tj=0; tj<6; tj++) {
+          if ((ti+tj)%3===0) ctx.fillRect(px+8+ti*8, py+10+tj*7, 2, 2);
+        }
+        // フリンジ/タッセル（上下）
+        ctx.fillStyle = '#8a5a68';
+        for (let f = 0; f < 10; f++) {
+          ctx.fillRect(px+3+f*6, py, 2, 3);
+          ctx.fillRect(px+3+f*6, py+dt-3, 2, 3);
+        }
+        // タッセルのハイライト
+        ctx.fillStyle = '#9a6a78';
+        for (let f = 0; f < 10; f++) {
+          ctx.fillRect(px+3+f*6, py, 1, 2);
+          ctx.fillRect(px+3+f*6, py+dt-3, 1, 2);
+        }
+        return;
+      }
+      // 受付カウンター - 高品質ピクセルアート（木目・レシートプリンター・モニター・ベル）
+      if (type === T.COUNTER) {
+        // 影
+        ctx.fillStyle = 'rgba(0,0,0,0.1)'; ctx.fillRect(px+3, py+dt-3, dt-3, 3);
+        // カウンター本体（木製パネル）
+        ctx.fillStyle = '#4a3020'; ctx.fillRect(px+0, py+8, dt, dt-10);
+        ctx.fillStyle = '#5a4030'; ctx.fillRect(px+1, py+9, dt-2, dt-12);
+        ctx.fillStyle = '#6a5040'; ctx.fillRect(px+2, py+10, dt-4, dt-14);
+        // 木目パネル模様
+        ctx.fillStyle = '#5a4030';
+        ctx.fillRect(px+dt/2-1, py+10, 2, dt-14); // 中央区切り
+        ctx.fillRect(px+2, py+dt/2+4, dt-4, 2); // 横区切り
+        // パネル内の木目テクスチャ
+        ctx.fillStyle = '#6a5848';
+        ctx.fillRect(px+6, py+14, 20, 1); ctx.fillRect(px+10, py+20, 16, 1);
+        ctx.fillRect(px+36, py+16, 18, 1); ctx.fillRect(px+38, py+22, 14, 1);
+        ctx.fillRect(px+8, py+dt/2+10, 18, 1); ctx.fillRect(px+38, py+dt/2+12, 16, 1);
+        // パネルハイライト（左面）
+        ctx.fillStyle = '#7a6050'; ctx.fillRect(px+2, py+10, 1, dt-14);
+        // パネル影（右面）
+        ctx.fillStyle = '#3a2818'; ctx.fillRect(px+dt-3, py+10, 1, dt-14);
+        // カウンタートップ（大理石風）
+        ctx.fillStyle = '#e8e0c8'; ctx.fillRect(px-1, py+3, dt+2, 7);
+        ctx.fillStyle = '#f0e8d0'; ctx.fillRect(px, py+4, dt, 5);
+        ctx.fillStyle = '#f8f0d8'; ctx.fillRect(px+1, py+4, dt-2, 2);
+        // 大理石テクスチャ
+        ctx.fillStyle = '#e0d8c0'; ctx.fillRect(px+8, py+5, 12, 1); ctx.fillRect(px+30, py+6, 8, 1);
+        // トップ前面エッジ
+        ctx.fillStyle = '#d8d0b8'; ctx.fillRect(px, py+8, dt, 2);
+        // サービスベル（3D、光沢）
+        ctx.fillStyle = '#c0a040'; ctx.fillRect(px+10, py+6, 12, 2); // 底面
+        ctx.fillStyle = '#d0b050'; fillCirc(ctx, px+16, py+4, 5);
+        ctx.fillStyle = '#e0c060'; fillCirc(ctx, px+16, py+3.5, 4);
+        ctx.fillStyle = '#f0d870'; fillCirc(ctx, px+15, py+3, 2.5); // ハイライト
+        // ベルトップボタン
+        ctx.fillStyle = '#b09030'; ctx.fillRect(px+15, py+0, 2, 2);
+        ctx.fillStyle = '#c0a040'; ctx.fillRect(px+15, py+0, 2, 1);
+        // ベルの光沢
+        ctx.fillStyle = 'rgba(255,255,200,0.3)'; fillCirc(ctx, px+14, py+2, 1.5);
+        // レシートプリンター
+        ctx.fillStyle = '#e0e0e0'; ctx.fillRect(px+24, py+2, 10, 6);
+        ctx.fillStyle = '#c8c8c8'; ctx.fillRect(px+25, py+3, 8, 4);
+        ctx.fillStyle = '#d0d0d0'; ctx.fillRect(px+25, py+2, 8, 2);
+        // レシート紙
+        ctx.fillStyle = '#f8f8f0'; ctx.fillRect(px+27, py+0, 4, 3);
+        ctx.fillStyle = '#ddd'; ctx.fillRect(px+28, py+0, 2, 1);
+        // モニター（小型POS）
+        ctx.fillStyle = '#1a1a2a'; ctx.fillRect(px+38, py+0, 16, 8);
+        ctx.fillStyle = '#2a3a4a'; ctx.fillRect(px+39, py+1, 14, 5);
+        ctx.fillStyle = '#3a5a6a'; ctx.fillRect(px+40, py+2, 12, 3);
+        ctx.fillStyle = '#4a8aaa'; ctx.fillRect(px+41, py+2, 4, 1); ctx.fillRect(px+41, py+3, 8, 1);
+        // モニタースタンド
+        ctx.fillStyle = '#1a1a2a'; ctx.fillRect(px+44, py+6, 4, 3);
+        // 書類/ファイルスタック
+        ctx.fillStyle = '#f8f8f0'; ctx.fillRect(px+dt-16, py+4, 12, 3);
+        ctx.fillStyle = '#e8e8e0'; ctx.fillRect(px+dt-15, py+3, 10, 3);
+        ctx.fillStyle = '#f0f0e8'; ctx.fillRect(px+dt-14, py+2, 8, 3);
+        return;
+      }
+      // ソファ - 高品質ピクセルアート（ボタンタフト・クッション・投げ枕・木製脚）
+      if (type === T.SOFA_T) {
+        // 影
+        ctx.fillStyle = 'rgba(0,0,0,0.12)'; ctx.fillRect(px+4, py+dt-4, dt-4, 4);
+        // 木製脚（4本）
+        ctx.fillStyle = '#6a5030'; ctx.fillRect(px+6, py+dt-6, 4, 6);
+        ctx.fillRect(px+dt-10, py+dt-6, 4, 6);
+        ctx.fillRect(px+dt/2-6, py+dt-5, 3, 5);
+        ctx.fillRect(px+dt/2+3, py+dt-5, 3, 5);
+        ctx.fillStyle = '#7a6040'; ctx.fillRect(px+6, py+dt-6, 4, 2);
+        ctx.fillRect(px+dt-10, py+dt-6, 4, 2);
+        // ベースフレーム
+        ctx.fillStyle = '#1a3a5a'; ctx.fillRect(px+2, py+10, dt-4, dt-14);
+        ctx.fillStyle = '#2a4a6a'; ctx.fillRect(px+3, py+11, dt-6, dt-16);
+        // 座面クッション（2個、ぷっくり）
+        ctx.fillStyle = '#3a6a9a'; ctx.fillRect(px+6, py+26, dt/2-7, dt-32);
+        ctx.fillStyle = '#3a6a9a'; ctx.fillRect(px+dt/2+1, py+26, dt/2-7, dt-32);
+        // クッションハイライト（上面）
+        ctx.fillStyle = '#4a7aaa';
+        ctx.fillRect(px+7, py+27, dt/2-9, dt-36);
+        ctx.fillRect(px+dt/2+2, py+27, dt/2-9, dt-36);
+        // クッション光沢
+        ctx.fillStyle = '#5a8aba';
+        ctx.fillRect(px+8, py+28, dt/2-12, 4);
+        ctx.fillRect(px+dt/2+3, py+28, dt/2-12, 4);
+        // クッション影（底面）
+        ctx.fillStyle = '#2a5a80';
+        ctx.fillRect(px+6, py+dt-8, dt/2-7, 2);
+        ctx.fillRect(px+dt/2+1, py+dt-8, dt/2-7, 2);
+        // クッション分割ステッチ
+        ctx.fillStyle = '#2a5a80'; ctx.fillRect(px+dt/2-1, py+26, 2, dt-32);
+        // 背もたれ（3分割、ボタンタフト）
+        ctx.fillStyle = '#2a5a80'; ctx.fillRect(px+3, py+6, dt-6, 22);
+        ctx.fillStyle = '#3a6a90'; ctx.fillRect(px+4, py+7, dt-8, 20);
+        ctx.fillStyle = '#4a7aa0'; ctx.fillRect(px+5, py+8, dt-10, 16);
+        // 背もたれの3分割ライン
+        ctx.fillStyle = '#2a5a80';
+        ctx.fillRect(px+dt/3+1, py+8, 1, 16);
+        ctx.fillRect(px+dt*2/3-1, py+8, 1, 16);
+        // ボタンタフト（各セクション中央）
+        ctx.fillStyle = '#1a4a70';
+        fillCirc(ctx, px+dt/6+3, py+16, 2);
+        fillCirc(ctx, px+dt/2, py+16, 2);
+        fillCirc(ctx, px+dt*5/6-3, py+16, 2);
+        ctx.fillStyle = '#2a5a80';
+        fillCirc(ctx, px+dt/6+3, py+16, 1);
+        fillCirc(ctx, px+dt/2, py+16, 1);
+        fillCirc(ctx, px+dt*5/6-3, py+16, 1);
+        // 背もたれハイライト
+        ctx.fillStyle = '#5a8ab0'; ctx.fillRect(px+5, py+8, dt-10, 3);
+        // アームレスト（丸みを帯びた）
+        ctx.fillStyle = '#1a3a5a';
+        ctx.fillRect(px+0, py+8, 5, dt-14);
+        ctx.fillRect(px+dt-5, py+8, 5, dt-14);
+        // アームレスト上面
+        ctx.fillStyle = '#2a4a6a';
+        ctx.fillRect(px+0, py+8, 5, 6);
+        ctx.fillRect(px+dt-5, py+8, 5, 6);
+        // アームレスト丸み（ハイライト）
+        ctx.fillStyle = '#3a5a7a';
+        ctx.fillRect(px+1, py+8, 3, 3);
+        ctx.fillRect(px+dt-4, py+8, 3, 3);
+        // 投げ枕（左、暖色）
+        ctx.fillStyle = '#c06040'; ctx.fillRect(px+8, py+20, 10, 8);
+        ctx.fillStyle = '#d07050'; ctx.fillRect(px+9, py+21, 8, 6);
+        ctx.fillStyle = '#e08060'; ctx.fillRect(px+10, py+21, 4, 3);
+        // 投げ枕（右、アクセント色）
+        ctx.fillStyle = '#c0a040'; ctx.fillRect(px+dt-18, py+21, 10, 7);
+        ctx.fillStyle = '#d0b050'; ctx.fillRect(px+dt-17, py+22, 8, 5);
+        ctx.fillStyle = '#e0c060'; ctx.fillRect(px+dt-16, py+22, 4, 2);
+        return;
+      }
+      // 棚 - 高品質ピクセルアート（本の背表紙・フォトフレーム・バインダー・植物）
       if (type === T.SHELF) {
-        // 棚本体
-        ctx.fillStyle = '#5a4030'; ctx.fillRect(px+3, py+1, dt-6, dt-2);
-        ctx.fillStyle = '#6a5040'; ctx.fillRect(px+5, py+3, dt-10, dt-6);
-        // 棚板（3段）
+        // 影
+        ctx.fillStyle = 'rgba(0,0,0,0.1)'; ctx.fillRect(px+5, py+3, dt-4, dt-2);
+        // 棚本体（木製フレーム）
+        ctx.fillStyle = '#4a3020'; ctx.fillRect(px+2, py+0, dt-4, dt-1);
+        ctx.fillStyle = '#5a4030'; ctx.fillRect(px+3, py+1, dt-6, dt-3);
+        ctx.fillStyle = '#6a5040'; ctx.fillRect(px+4, py+2, dt-8, dt-5);
+        // 棚の左右側板（3Dベベル）
+        ctx.fillStyle = '#7a6050'; ctx.fillRect(px+4, py+2, 2, dt-5); // 左面ハイライト
+        ctx.fillStyle = '#4a3020'; ctx.fillRect(px+dt-6, py+2, 2, dt-5); // 右面影
+        // 棚板（3段、厚みあり）
         const shelfY = [py+dt/4, py+dt/2+2, py+dt*3/4+2];
         ctx.fillStyle = '#4a3020';
-        for (const sy of shelfY) ctx.fillRect(px+4, sy, dt-8, 2);
-        // 上段: 本
-        const bookColors = ['#4a6aaa','#aa4a4a','#4aaa6a','#8a6aaa','#aa8a4a'];
-        for (let b = 0; b < 5; b++) {
-          const bx = px+6+b*9, bh = 10 + (b*3)%4;
-          ctx.fillStyle = bookColors[b]; ctx.fillRect(bx, shelfY[0]-bh, 7, bh);
-          ctx.fillStyle = adjustColor(bookColors[b], 20); ctx.fillRect(bx+1, shelfY[0]-bh+1, 1, bh-2);
+        for (const sy of shelfY) {
+          ctx.fillRect(px+3, sy, dt-6, 3);
+          ctx.fillStyle = '#5a4030'; ctx.fillRect(px+4, sy, dt-8, 1); // 板上面ハイライト
+          ctx.fillStyle = '#3a2010'; ctx.fillRect(px+4, sy+2, dt-8, 1); // 板下面影
+          ctx.fillStyle = '#4a3020';
         }
-        // 中段: バインダー・ファイル
+        // 上段: 本（バリエーション豊かな高さ・色・幅）
+        const bookColors = ['#4a6aaa','#aa4a4a','#4aaa6a','#8a6aaa','#aa8a4a','#6a8a6a'];
+        const bookW = [6, 5, 7, 5, 8, 4];
+        const bookH = [12, 10, 13, 11, 12, 9];
+        let bx2 = px+6;
+        for (let b = 0; b < 6; b++) {
+          const bh = bookH[b], bw = bookW[b];
+          // 本体
+          ctx.fillStyle = bookColors[b]; ctx.fillRect(bx2, shelfY[0]-bh, bw, bh);
+          // 背表紙ハイライト（左エッジ）
+          ctx.fillStyle = adjustColor(bookColors[b], 25); ctx.fillRect(bx2, shelfY[0]-bh, 1, bh);
+          // 背表紙影（右エッジ）
+          ctx.fillStyle = adjustColor(bookColors[b], -15); ctx.fillRect(bx2+bw-1, shelfY[0]-bh, 1, bh);
+          // 背表紙のタイトルライン
+          ctx.fillStyle = adjustColor(bookColors[b], 35);
+          ctx.fillRect(bx2+1, shelfY[0]-bh+2, bw-2, 1);
+          // 一部の本に太いバンド
+          if (b%2===0) {
+            ctx.fillStyle = adjustColor(bookColors[b], -20);
+            ctx.fillRect(bx2, shelfY[0]-bh+bh/2-1, bw, 2);
+          }
+          bx2 += bw+1;
+        }
+        // 本の傾き（最後の1冊、斜め表現）
+        ctx.fillStyle = '#aa6a4a'; ctx.fillRect(px+dt-14, shelfY[0]-8, 6, 8);
+        ctx.fillStyle = '#ba7a5a'; ctx.fillRect(px+dt-14, shelfY[0]-8, 1, 8);
+        // 中段: バインダー・ファイル（ラベルタブ付き）
+        // 白バインダー
         ctx.fillStyle = '#e0d8c0'; ctx.fillRect(px+6, shelfY[1]-12, 10, 12);
-        ctx.fillStyle = '#d0c8b0'; ctx.fillRect(px+18, shelfY[1]-14, 10, 14);
-        ctx.fillStyle = '#c0b8a0'; ctx.fillRect(px+30, shelfY[1]-10, 12, 10);
+        ctx.fillStyle = '#f0e8d0'; ctx.fillRect(px+7, shelfY[1]-11, 8, 10);
+        ctx.fillStyle = '#d0c8b0'; ctx.fillRect(px+6, shelfY[1]-12, 10, 2); // 上エッジ
         // ラベル
-        ctx.fillStyle = '#8a8a8a'; ctx.fillRect(px+8, shelfY[1]-8, 6, 3);
-        ctx.fillRect(px+20, shelfY[1]-10, 6, 3);
-        // 下段: 箱・小物
-        ctx.fillStyle = '#8a7a6a'; ctx.fillRect(px+6, shelfY[2]-10, 14, 10);
-        ctx.fillStyle = '#9a8a7a'; ctx.fillRect(px+7, shelfY[2]-9, 12, 8);
-        ctx.fillStyle = '#6aaa6a'; fillCirc(ctx, px+36, shelfY[2]-6, 5); // 植物
-        ctx.fillStyle = '#5a8a5a'; fillCirc(ctx, px+36, shelfY[2]-8, 3);
+        ctx.fillStyle = '#f0f0f0'; ctx.fillRect(px+8, shelfY[1]-8, 6, 4);
+        ctx.fillStyle = '#4a7aaa'; ctx.fillRect(px+9, shelfY[1]-7, 4, 2);
+        // 青バインダー
+        ctx.fillStyle = '#4a6a9a'; ctx.fillRect(px+18, shelfY[1]-14, 10, 14);
+        ctx.fillStyle = '#5a7aaa'; ctx.fillRect(px+19, shelfY[1]-13, 8, 12);
+        ctx.fillStyle = '#3a5a88'; ctx.fillRect(px+18, shelfY[1]-14, 10, 2);
+        // ラベルタブ
+        ctx.fillStyle = '#f0f0f0'; ctx.fillRect(px+20, shelfY[1]-10, 6, 3);
+        ctx.fillStyle = '#e04040'; ctx.fillRect(px+21, shelfY[1]-9, 4, 1);
+        // フォトフレーム
+        ctx.fillStyle = '#3a3020'; ctx.fillRect(px+32, shelfY[1]-12, 10, 12);
+        ctx.fillStyle = '#5a4a38'; ctx.fillRect(px+33, shelfY[1]-11, 8, 10);
+        ctx.fillStyle = '#88aacc'; ctx.fillRect(px+34, shelfY[1]-10, 6, 8); // 写真（空色）
+        ctx.fillStyle = '#aaccaa'; ctx.fillRect(px+34, shelfY[1]-5, 6, 3); // 写真（緑地面）
+        // 小物（時計/置物）
+        ctx.fillStyle = '#c8b898'; fillCirc(ctx, px+48, shelfY[1]-5, 4);
+        ctx.fillStyle = '#d8c8a8'; fillCirc(ctx, px+48, shelfY[1]-5, 3);
+        ctx.fillStyle = '#333'; ctx.fillRect(px+47, shelfY[1]-6, 1, 3); ctx.fillRect(px+48, shelfY[1]-5, 2, 1);
+        // 下段: 収納ボックス、植物、トロフィー
+        // 収納ボックス（編みカゴ風）
+        ctx.fillStyle = '#8a7a60'; ctx.fillRect(px+6, shelfY[2]-10, 14, 10);
+        ctx.fillStyle = '#9a8a70'; ctx.fillRect(px+7, shelfY[2]-9, 12, 8);
+        // カゴテクスチャ
+        ctx.fillStyle = '#7a6a50';
+        for (let ci=0; ci<3; ci++) ctx.fillRect(px+8, shelfY[2]-8+ci*3, 10, 1);
+        // 小さい鉢植え
+        ctx.fillStyle = '#c07040'; ctx.fillRect(px+24, shelfY[2]-4, 8, 4);
+        ctx.fillStyle = '#d08050'; ctx.fillRect(px+24, shelfY[2]-4, 8, 2);
+        ctx.fillStyle = '#3a8a30'; fillCirc(ctx, px+28, shelfY[2]-7, 4);
+        ctx.fillStyle = '#4aa840'; fillCirc(ctx, px+27, shelfY[2]-8, 3);
+        ctx.fillStyle = '#5ac050'; fillCirc(ctx, px+28, shelfY[2]-9, 2);
+        // デコレーション（小さいトロフィー/オブジェ）
+        ctx.fillStyle = '#d0a030'; ctx.fillRect(px+38, shelfY[2]-8, 4, 8);
+        ctx.fillStyle = '#e0b040'; ctx.fillRect(px+37, shelfY[2]-8, 6, 3);
+        ctx.fillStyle = '#c09020'; ctx.fillRect(px+38, shelfY[2]-2, 4, 2);
+        ctx.fillStyle = '#e0c050'; ctx.fillRect(px+39, shelfY[2]-7, 2, 1); // 光沢
+        // さらに右に小物
+        ctx.fillStyle = '#f0e8d8'; ctx.fillRect(px+46, shelfY[2]-6, 6, 6);
+        ctx.fillStyle = '#e8e0d0'; ctx.fillRect(px+47, shelfY[2]-5, 4, 4);
         return;
       }
     }
@@ -1657,12 +2125,26 @@
       // チェッカーボード微妙パターン
       const hash = (x+y) % 2;
       if (hash) { ctx.fillStyle = adjustColor(base, -6); ctx.fillRect(px, py, dt, dt); }
-      // 織りテクスチャ
-      ctx.fillStyle = adjustColor(base, hash ? 4 : -4);
-      const s = (x*7 + y*13) % 4;
-      if (s===0) { ctx.fillRect(px+8,py+8,2,2); ctx.fillRect(px+40,py+36,2,2); }
-      if (s===1) { ctx.fillRect(px+24,py+12,2,2); ctx.fillRect(px+12,py+44,2,2); }
-      if (s===2) { ctx.fillRect(px+36,py+24,2,2); ctx.fillRect(px+20,py+48,2,2); }
+      // 織りテクスチャ（リッチパターン）
+      const seed = (x*17 + y*31) % 7;
+      ctx.fillStyle = adjustColor(base, hash ? 5 : -5);
+      for (let ti = 0; ti < 4; ti++) for (let tj = 0; tj < 4; tj++) {
+        if (((ti+tj+seed) * 7) % 5 === 0)
+          ctx.fillRect(px + ti*16 + 4, py + tj*16 + 4, 2, 2);
+      }
+      // カーペット繊維テクスチャ（微細ドット）
+      ctx.fillStyle = adjustColor(base, hash ? 8 : -3);
+      for (let fi = 0; fi < 3; fi++) for (let fj = 0; fj < 3; fj++) {
+        if (((x*3+fi) * 11 + (y*3+fj) * 7 + seed) % 6 === 0)
+          ctx.fillRect(px + fi*22 + 6, py + fj*22 + 8, 1, 1);
+      }
+      // タイルの微妙なハイライト（上左エッジ）
+      ctx.fillStyle = adjustColor(base, 4);
+      ctx.fillRect(px, py, dt, 1); ctx.fillRect(px, py, 1, dt);
+      // タイルの微妙な影（下右エッジ）
+      ctx.fillStyle = adjustColor(base, -8);
+      ctx.fillRect(px, py+dt-1, dt, 1); ctx.fillRect(px+dt-1, py, 1, dt);
+      // グリッドライン
       ctx.strokeStyle = adjustColor(base, -14); ctx.lineWidth = 0.5; ctx.strokeRect(px+0.5, py+0.5, dt-1, dt-1);
       // 環境光オーバーレイ（時間帯による）
       const amb = window._ambientTint;
@@ -1712,21 +2194,371 @@
       c.beginPath(); c.arc(cx,cy,r,0,Math.PI*2); c.fill();
     }
 
-    // ===== 家具描画 =====
+    // ===== 家具描画（高品質ピクセルアート） =====
     function drawFurniture(c,type,px,py,dt) {
       const o=2;
-      if(type==='sofa'){c.fillStyle='#a03030';c.fillRect(px+3,py+8,dt-6,dt-12);c.fillStyle='#e06050';c.fillRect(px+4,py+12,dt-8,dt-18);c.fillStyle='#c84040';c.fillRect(px+4,py+8,dt-8,8);c.fillStyle='#f08070';c.fillRect(px+8,py+16,10,10);c.fillRect(px+dt-18,py+16,10,10);}
-      else if(type==='table'){c.fillStyle='#8a6a4a';c.fillRect(px+10,py+dt-10,6,10);c.fillRect(px+dt-16,py+dt-10,6,10);c.fillStyle='#b8905a';c.fillRect(px+6,py+8,dt-12,dt-14);c.fillStyle='#d4a86a';c.fillRect(px+8,py+10,dt-16,dt-20);c.fillStyle='#c09850';c.fillRect(px+8,py+8,dt-16,4);}
-      else if(type==='lamp'){c.fillStyle='#8a8a8a';c.fillRect(px+dt/2-3,py+18,6,dt-24);c.fillRect(px+dt/2-8,py+dt-8,16,6);c.fillStyle='#ffe066';c.fillRect(px+dt/2-12,py+4,24,18);c.fillStyle='#fff8c0';c.fillRect(px+dt/2-8,py+8,16,10);c.fillStyle='#fff';c.globalAlpha=0.3;fillCirc(c,px+dt/2,py+14,14);c.globalAlpha=1;}
-      else if(type==='bookshelf'){c.fillStyle='#6a4a2a';c.fillRect(px+3,py+3,dt-6,dt-6);c.fillStyle='#8a6a4a';c.fillRect(px+5,py+5,dt-10,dt-10);c.fillStyle='#5a3a1a';c.fillRect(px+5,py+dt/3+2,dt-10,3);c.fillRect(px+5,py+dt*2/3+2,dt-10,3);c.fillStyle='#e06050';c.fillRect(px+8,py+6,8,dt/3-4);c.fillStyle='#4a90d9';c.fillRect(px+18,py+6,8,dt/3-4);c.fillStyle='#5cb85c';c.fillRect(px+28,py+6,10,dt/3-4);c.fillStyle='#f0ad4e';c.fillRect(px+8,py+dt/3+6,10,dt/3-6);c.fillStyle='#9b59b6';c.fillRect(px+20,py+dt/3+6,8,dt/3-6);}
-      else if(type==='rug_small'){c.fillStyle='#d4a06a';c.fillRect(px+6,py+10,dt-12,dt-20);c.fillStyle='#c49060';c.fillRect(px+10,py+14,dt-20,dt-28);c.fillStyle='#e4b07a';c.fillRect(px+dt/2-5,py+dt/2-5,10,10);}
-      else if(type==='plant_big'){c.fillStyle='#8a6a4a';c.fillRect(px+dt/2-10,py+dt-16,20,14);c.fillStyle='#4caf50';fillCirc(c,px+dt/2,py+dt/2-6,18);c.fillStyle='#66bb6a';fillCirc(c,px+dt/2-6,py+dt/2-14,11);fillCirc(c,px+dt/2+6,py+dt/2-14,11);}
-      else if(type==='vending'){c.fillStyle='#c0392b';c.fillRect(px+6,py+3,dt-12,dt-6);c.fillStyle='#333';c.fillRect(px+10,py+7,dt-20,dt-20);c.fillStyle='#4ae';c.fillRect(px+12,py+10,8,8);c.fillStyle='#5cb85c';c.fillRect(px+22,py+10,8,8);c.fillStyle='#f0ad4e';c.fillRect(px+12,py+22,8,8);c.fillStyle='#ddd';c.fillRect(px+dt-16,py+dt-14,6,6);}
-      else if(type==='poster'){c.fillStyle='#fff';c.fillRect(px+10,py+3,dt-20,dt-10);c.fillStyle='#ffa';c.fillRect(px+12,py+5,dt-24,dt-16);c.fillStyle='#e94560';c.fillRect(px+14,py+8,dt-28,10);}
-      else if(type==='clock'){c.fillStyle='#8a6a4a';fillCirc(c,px+dt/2,py+dt/2,dt/2-5);c.fillStyle='#f5f5f0';fillCirc(c,px+dt/2,py+dt/2,dt/2-9);c.fillStyle='#333';c.fillRect(px+dt/2-1,py+dt/2-12,3,12);c.fillRect(px+dt/2,py+dt/2-1,10,3);}
-      else if(type==='trophy'){c.fillStyle='#ffd700';c.fillRect(px+dt/2-10,py+8,20,18);c.fillStyle='#daa520';c.fillRect(px+dt/2-5,py+26,10,8);c.fillRect(px+dt/2-10,py+34,20,5);c.fillStyle='#fff';c.globalAlpha=0.3;c.fillRect(px+dt/2-6,py+12,4,8);c.globalAlpha=1;}
-      else if(type==='tv'){c.fillStyle='#222';c.fillRect(px+6,py+6,dt-12,dt-14);c.fillStyle='#3af';c.fillRect(px+9,py+9,dt-18,dt-22);c.fillStyle='#444';c.fillRect(px+dt/2-8,py+dt-10,16,5);c.fillRect(px+dt/2-3,py+dt-14,6,6);}
-      else if(type==='aquarium'){c.fillStyle='#4a8a9a';c.fillRect(px+3,py+8,dt-6,dt-12);c.fillStyle='#5bc0de';c.fillRect(px+5,py+10,dt-10,dt-18);c.fillStyle='#87ceeb';c.fillRect(px+6,py+12,dt-12,dt-22);c.fillStyle='#ff6b6b';c.fillRect(px+14,py+20,8,5);c.fillStyle='#ffa500';c.fillRect(px+28,py+26,6,4);c.fillStyle='#4caf50';c.fillRect(px+10,py+dt-16,4,10);c.fillRect(px+dt-18,py+dt-18,4,12);}
+      if(type==='sofa'){
+        // 影
+        c.fillStyle='rgba(0,0,0,0.1)';c.fillRect(px+4,py+dt-4,dt-4,4);
+        // 木製脚
+        c.fillStyle='#6a5030';c.fillRect(px+6,py+dt-5,4,5);c.fillRect(px+dt-10,py+dt-5,4,5);
+        c.fillStyle='#7a6040';c.fillRect(px+6,py+dt-5,4,2);c.fillRect(px+dt-10,py+dt-5,4,2);
+        // フレーム
+        c.fillStyle='#8a2020';c.fillRect(px+2,py+8,dt-4,dt-12);
+        c.fillStyle='#a03030';c.fillRect(px+3,py+9,dt-6,dt-14);
+        // 背もたれ（カーブ風）
+        c.fillStyle='#b03838';c.fillRect(px+3,py+6,dt-6,10);
+        c.fillStyle='#c04848';c.fillRect(px+4,py+7,dt-8,7);
+        c.fillStyle='#d05858';c.fillRect(px+5,py+7,dt-10,3);
+        // 座面クッション（2個）
+        c.fillStyle='#d85848';c.fillRect(px+5,py+18,dt/2-5,dt-24);
+        c.fillRect(px+dt/2+1,py+18,dt/2-6,dt-24);
+        c.fillStyle='#e86858';c.fillRect(px+6,py+19,dt/2-7,dt-28);
+        c.fillRect(px+dt/2+2,py+19,dt/2-8,dt-28);
+        // クッション光沢
+        c.fillStyle='#f08070';c.fillRect(px+7,py+20,dt/2-10,4);
+        c.fillRect(px+dt/2+3,py+20,dt/2-10,4);
+        // ステッチ
+        c.fillStyle='#b03838';c.fillRect(px+dt/2-1,py+18,2,dt-24);
+        // 投げ枕
+        c.fillStyle='#e8c040';c.fillRect(px+8,py+14,10,8);
+        c.fillStyle='#f0d050';c.fillRect(px+9,py+15,8,6);
+        c.fillStyle='#f8e060';c.fillRect(px+10,py+15,4,3);
+        c.fillStyle='#40a0e0';c.fillRect(px+dt-18,py+15,10,7);
+        c.fillStyle='#50b0f0';c.fillRect(px+dt-17,py+16,8,5);
+        // アームレスト
+        c.fillStyle='#8a2020';c.fillRect(px+0,py+8,4,dt-14);
+        c.fillRect(px+dt-4,py+8,4,dt-14);
+        c.fillStyle='#a03030';c.fillRect(px+0,py+8,4,4);
+        c.fillRect(px+dt-4,py+8,4,4);
+      }
+      else if(type==='table'){
+        // 影
+        c.fillStyle='rgba(0,0,0,0.1)';c.fillRect(px+8,py+dt-4,dt-8,4);
+        // 脚（4本、丸みのある）
+        c.fillStyle='#7a5a3a';c.fillRect(px+10,py+dt-10,5,10);c.fillRect(px+dt-15,py+dt-10,5,10);
+        c.fillStyle='#8a6a4a';c.fillRect(px+11,py+dt-10,2,10);c.fillRect(px+dt-14,py+dt-10,2,10);
+        // テーブルトップ（木製、木目テクスチャ）
+        c.fillStyle='#a8804a';c.fillRect(px+4,py+8,dt-8,dt-14);
+        c.fillStyle='#b8905a';c.fillRect(px+5,py+8,dt-10,dt-16);
+        c.fillStyle='#d4a86a';c.fillRect(px+6,py+9,dt-12,dt-20);
+        // 天板ハイライト
+        c.fillStyle='#e0b87a';c.fillRect(px+6,py+8,dt-12,2);
+        c.fillStyle='#c8a060';c.fillRect(px+6,py+dt-11,dt-12,2);
+        // 木目
+        c.fillStyle='#c09850';c.fillRect(px+10,py+12,20,1);c.fillRect(px+14,py+16,16,1);
+        c.fillRect(px+8,py+20,24,1);
+        // エッジベベル
+        c.fillStyle='#e4bc7a';c.fillRect(px+5,py+8,1,dt-16);
+        c.fillStyle='#a07840';c.fillRect(px+dt-6,py+8,1,dt-16);
+      }
+      else if(type==='lamp'){
+        // 影（光の輪）
+        c.fillStyle='rgba(255,240,180,0.15)';fillCirc(c,px+dt/2,py+dt/2,dt/2);
+        // ベースプレート
+        c.fillStyle='#707070';c.fillRect(px+dt/2-10,py+dt-8,20,6);
+        c.fillStyle='#888888';c.fillRect(px+dt/2-9,py+dt-8,18,3);
+        c.fillStyle='#606060';c.fillRect(px+dt/2-9,py+dt-4,18,2);
+        // ポール（クロームパイプ）
+        c.fillStyle='#707070';c.fillRect(px+dt/2-2,py+16,5,dt-24);
+        c.fillStyle='#909090';c.fillRect(px+dt/2-1,py+16,2,dt-24);
+        c.fillStyle='#606060';c.fillRect(px+dt/2+2,py+16,1,dt-24);
+        // ランプシェード（テーパー形状）
+        c.fillStyle='#e8c040';c.fillRect(px+dt/2-14,py+4,28,16);
+        c.fillStyle='#f0d050';c.fillRect(px+dt/2-12,py+5,24,13);
+        c.fillStyle='#f8e060';c.fillRect(px+dt/2-10,py+6,20,10);
+        // シェード影（下部暗い）
+        c.fillStyle='#d8b030';c.fillRect(px+dt/2-14,py+16,28,4);
+        c.fillStyle='#c8a020';c.fillRect(px+dt/2-12,py+18,24,2);
+        // シェードハイライト
+        c.fillStyle='#fff8c0';c.fillRect(px+dt/2-8,py+7,10,6);
+        // 光の効果（グロー）
+        c.fillStyle='rgba(255,255,200,0.2)';fillCirc(c,px+dt/2,py+14,16);
+        c.fillStyle='rgba(255,255,240,0.1)';fillCirc(c,px+dt/2,py+14,20);
+        // ランプ内の電球
+        c.fillStyle='#fff8d0';fillCirc(c,px+dt/2,py+16,3);
+        c.fillStyle='rgba(255,255,255,0.5)';fillCirc(c,px+dt/2,py+15,1.5);
+      }
+      else if(type==='bookshelf'){
+        // 影
+        c.fillStyle='rgba(0,0,0,0.1)';c.fillRect(px+5,py+5,dt-4,dt-4);
+        // 棚本体
+        c.fillStyle='#5a3a1a';c.fillRect(px+2,py+2,dt-4,dt-4);
+        c.fillStyle='#6a4a2a';c.fillRect(px+3,py+3,dt-6,dt-6);
+        c.fillStyle='#8a6a4a';c.fillRect(px+4,py+4,dt-8,dt-8);
+        // 側板ベベル
+        c.fillStyle='#9a7a5a';c.fillRect(px+4,py+4,2,dt-8);
+        c.fillStyle='#5a3a1a';c.fillRect(px+dt-6,py+4,2,dt-8);
+        // 棚板（3段）
+        c.fillStyle='#5a3a1a';
+        c.fillRect(px+4,py+dt/3+2,dt-8,3);
+        c.fillRect(px+4,py+dt*2/3+2,dt-8,3);
+        c.fillStyle='#6a4a2a';
+        c.fillRect(px+5,py+dt/3+2,dt-10,1);
+        c.fillRect(px+5,py+dt*2/3+2,dt-10,1);
+        // 上段: 本（多様なサイズ・色）
+        const bc=['#d05040','#4080c0','#50a050','#e0a030','#8050a0','#c06080'];
+        const bw=[7,6,8,6,7,5];
+        let bxx=px+6;
+        for(let b=0;b<6&&bxx<px+dt-8;b++){
+          const bh=dt/3-6-(b%3);
+          c.fillStyle=bc[b];c.fillRect(bxx,py+5,bw[b],bh);
+          c.fillStyle=adjustColor(bc[b],20);c.fillRect(bxx,py+5,1,bh);
+          c.fillStyle=adjustColor(bc[b],-15);c.fillRect(bxx+bw[b]-1,py+5,1,bh);
+          c.fillStyle=adjustColor(bc[b],30);c.fillRect(bxx+1,py+7,bw[b]-2,1);
+          bxx+=bw[b]+1;
+        }
+        // 中段: バインダー・ファイル
+        c.fillStyle='#e0d0b0';c.fillRect(px+7,py+dt/3+6,10,dt/3-7);
+        c.fillStyle='#f0e0c0';c.fillRect(px+8,py+dt/3+7,8,dt/3-9);
+        c.fillStyle='#4a6a9a';c.fillRect(px+19,py+dt/3+6,8,dt/3-7);
+        c.fillStyle='#5a7aaa';c.fillRect(px+20,py+dt/3+7,6,dt/3-9);
+        c.fillStyle='#9b59b6';c.fillRect(px+29,py+dt/3+6,8,dt/3-7);
+        c.fillStyle='#ab69c6';c.fillRect(px+30,py+dt/3+7,6,dt/3-9);
+        // ラベル
+        c.fillStyle='#f0f0f0';c.fillRect(px+9,py+dt/3+10,6,3);
+        c.fillStyle='#f0f0f0';c.fillRect(px+21,py+dt/3+10,4,3);
+        // 下段: ボックスと植物
+        c.fillStyle='#c8b898';c.fillRect(px+7,py+dt*2/3+6,14,dt/3-9);
+        c.fillStyle='#d8c8a8';c.fillRect(px+8,py+dt*2/3+7,12,dt/3-11);
+        // 小さな鉢植え
+        c.fillStyle='#c07040';c.fillRect(px+28,py+dt-10,8,6);
+        c.fillStyle='#3a8a30';fillCirc(c,px+32,py+dt-13,5);
+        c.fillStyle='#4aa840';fillCirc(c,px+31,py+dt-14,3);
+        // オブジェ
+        c.fillStyle='#f0c040';c.fillRect(px+40,py+dt*2/3+6,6,dt/3-9);
+        c.fillStyle='#f8d050';c.fillRect(px+41,py+dt*2/3+7,4,dt/3-11);
+      }
+      else if(type==='rug_small'){
+        // 影
+        c.fillStyle='rgba(0,0,0,0.06)';c.fillRect(px+7,py+11,dt-12,dt-20);
+        // ラグベース
+        c.fillStyle='#c49060';c.fillRect(px+6,py+10,dt-12,dt-20);
+        // 外枠
+        c.fillStyle='#d4a06a';c.fillRect(px+7,py+11,dt-14,dt-22);
+        // 内枠
+        c.fillStyle='#b48050';c.fillRect(px+9,py+13,dt-18,dt-26);
+        c.fillStyle='#c49060';c.fillRect(px+10,py+14,dt-20,dt-28);
+        // 中央模様
+        c.fillStyle='#e4b87a';c.fillRect(px+dt/2-6,py+dt/2-6,12,12);
+        c.fillStyle='#d4a86a';c.fillRect(px+dt/2-4,py+dt/2-4,8,8);
+        c.fillStyle='#f0c88a';c.fillRect(px+dt/2-2,py+dt/2-2,4,4);
+        // 幾何学ライン
+        c.fillStyle='#e4b07a';
+        c.fillRect(px+10,py+dt/2-1,dt-20,2);
+        c.fillRect(px+dt/2-1,py+14,2,dt-28);
+        // フリンジ
+        c.fillStyle='#b48050';
+        for(let f=0;f<5;f++){c.fillRect(px+8+f*8,py+10,2,2);c.fillRect(px+8+f*8,py+dt-12,2,2);}
+      }
+      else if(type==='plant_big'){
+        // 影
+        c.fillStyle='rgba(0,0,0,0.12)';
+        c.beginPath();c.ellipse(px+dt/2,py+dt-2,14,3,0,0,Math.PI*2);c.fill();
+        // 大きな鉢（装飾的）
+        c.fillStyle='#7a5a3a';c.fillRect(px+dt/2-12,py+dt-18,24,16);
+        c.fillStyle='#8a6a4a';c.fillRect(px+dt/2-10,py+dt-18,20,14);
+        c.fillStyle='#9a7a5a';c.fillRect(px+dt/2-13,py+dt-18,26,4);
+        c.fillStyle='#a08a60';c.fillRect(px+dt/2-12,py+dt-18,24,2);
+        // 鉢の模様
+        c.fillStyle='#6a4a2a';c.fillRect(px+dt/2-9,py+dt-12,18,1);
+        c.fillRect(px+dt/2-8,py+dt-10,16,1);
+        // 鉢のベベル
+        c.fillStyle='#a08a60';c.fillRect(px+dt/2-10,py+dt-16,2,12);
+        c.fillStyle='#6a4a2a';c.fillRect(px+dt/2+8,py+dt-16,2,12);
+        // 土
+        c.fillStyle='#5a3a20';c.fillRect(px+dt/2-9,py+dt-18,18,3);
+        // 幹（太めの枝分かれ）
+        c.fillStyle='#5a4028';c.fillRect(px+dt/2-3,py+dt-32,6,16);
+        c.fillStyle='#6a5038';c.fillRect(px+dt/2-2,py+dt-32,4,16);
+        c.fillStyle='#7a6048';c.fillRect(px+dt/2-1,py+dt-32,2,16);
+        // 左枝
+        c.fillStyle='#5a4028';c.fillRect(px+dt/2-10,py+dt-34,10,3);
+        c.fillStyle='#6a5038';c.fillRect(px+dt/2-9,py+dt-34,8,2);
+        // 右枝
+        c.fillStyle='#5a4028';c.fillRect(px+dt/2+2,py+dt-36,10,3);
+        c.fillStyle='#6a5038';c.fillRect(px+dt/2+3,py+dt-36,8,2);
+        // 葉群（大きく豊か）
+        const plx=px+dt/2,ply=py+12;
+        c.fillStyle='#2a7a22';fillCirc(c,plx-12,ply+8,10);fillCirc(c,plx+12,ply+8,10);fillCirc(c,plx,ply+10,10);
+        c.fillStyle='#3a8a30';fillCirc(c,plx-8,ply,12);fillCirc(c,plx+8,ply,12);fillCirc(c,plx,ply+2,12);
+        c.fillStyle='#4aa840';fillCirc(c,plx-5,ply-6,9);fillCirc(c,plx+6,ply-5,8);fillCirc(c,plx,ply-4,10);
+        c.fillStyle='#5ac050';fillCirc(c,plx-3,ply-12,6);fillCirc(c,plx+4,ply-10,6);fillCirc(c,plx,ply-14,5);
+        // ハイライト
+        c.fillStyle='#6ad860';fillCirc(c,plx-5,ply-8,4);fillCirc(c,plx+3,ply-6,3);
+        // 葉脈ドット
+        c.fillStyle='#2a7a22';
+        for(let i=0;i<8;i++){const ax=plx+Math.cos(i*0.79)*13,ay=ply+Math.sin(i*0.79)*10;c.fillRect(ax,ay,2,2);}
+        // 垂れ葉
+        c.fillStyle='#3a9a30';c.fillRect(plx-16,ply+12,5,3);c.fillRect(plx+12,ply+10,5,3);
+        c.fillStyle='#4aa840';c.fillRect(plx-15,ply+12,3,2);c.fillRect(plx+13,ply+10,3,2);
+      }
+      else if(type==='vending'){
+        // 影
+        c.fillStyle='rgba(0,0,0,0.1)';c.fillRect(px+8,py+5,dt-8,dt-4);
+        // 本体
+        c.fillStyle='#a0291b';c.fillRect(px+5,py+2,dt-10,dt-4);
+        c.fillStyle='#c0392b';c.fillRect(px+6,py+3,dt-12,dt-6);
+        // ハイライト（左面）
+        c.fillStyle='#d04938';c.fillRect(px+6,py+3,2,dt-6);
+        // 影（右面）
+        c.fillStyle='#901919';c.fillRect(px+dt-8,py+3,2,dt-6);
+        // 商品ディスプレイ窓
+        c.fillStyle='#222';c.fillRect(px+9,py+6,dt-18,dt-20);
+        c.fillStyle='#333';c.fillRect(px+10,py+7,dt-20,dt-22);
+        // 商品棚ライン
+        c.fillStyle='#444';c.fillRect(px+10,py+17,dt-20,1);c.fillRect(px+10,py+27,dt-20,1);
+        // 上段ドリンク
+        c.fillStyle='#4ae';c.fillRect(px+12,py+9,7,7);c.fillStyle='#5bf';c.fillRect(px+13,py+9,5,3);
+        c.fillStyle='#5cb85c';c.fillRect(px+21,py+9,7,7);c.fillStyle='#6cc96c';c.fillRect(px+22,py+9,5,3);
+        c.fillStyle='#f0ad4e';c.fillRect(px+30,py+9,7,7);c.fillStyle='#f8bd5e';c.fillRect(px+31,py+9,5,3);
+        // 中段ドリンク
+        c.fillStyle='#e74c3c';c.fillRect(px+12,py+19,7,7);c.fillStyle='#f75c4c';c.fillRect(px+13,py+19,5,3);
+        c.fillStyle='#9b59b6';c.fillRect(px+21,py+19,7,7);c.fillStyle='#ab69c6';c.fillRect(px+22,py+19,5,3);
+        c.fillStyle='#fff';c.fillRect(px+30,py+19,7,7);c.fillStyle='#eee';c.fillRect(px+31,py+19,5,3);
+        // 取り出し口
+        c.fillStyle='#1a1a1a';c.fillRect(px+10,py+dt-16,dt-20,8);
+        c.fillStyle='#111';c.fillRect(px+12,py+dt-14,dt-24,4);
+        // コイン投入口
+        c.fillStyle='#c0c0c0';c.fillRect(px+dt-14,py+dt-14,4,6);
+        c.fillStyle='#ddd';c.fillRect(px+dt-14,py+dt-14,4,2);
+        // ボタン
+        c.fillStyle='#ddd';fillCirc(c,px+dt-12,py+dt-20,2);
+        c.fillStyle='#fff';fillCirc(c,px+dt-12,py+dt-21,1);
+      }
+      else if(type==='poster'){
+        // 影
+        c.fillStyle='rgba(0,0,0,0.08)';c.fillRect(px+12,py+5,dt-20,dt-10);
+        // フレーム
+        c.fillStyle='#444';c.fillRect(px+9,py+2,dt-18,dt-8);
+        c.fillStyle='#555';c.fillRect(px+10,py+3,dt-20,dt-10);
+        // ポスター紙
+        c.fillStyle='#fff';c.fillRect(px+11,py+4,dt-22,dt-12);
+        c.fillStyle='#ffe8a0';c.fillRect(px+12,py+5,dt-24,dt-14);
+        // ポスターデザイン
+        c.fillStyle='#e94560';c.fillRect(px+14,py+8,dt-28,10);
+        c.fillStyle='#f05570';c.fillRect(px+15,py+8,dt-30,6);
+        // テキストライン
+        c.fillStyle='#555';c.fillRect(px+16,py+20,dt-32,2);
+        c.fillRect(px+20,py+24,dt-40,2);
+        // ピン
+        c.fillStyle='#e04040';fillCirc(c,px+dt/2,py+3,2);
+        c.fillStyle='#f05050';fillCirc(c,px+dt/2,py+2.5,1);
+      }
+      else if(type==='clock'){
+        // 影
+        c.fillStyle='rgba(0,0,0,0.08)';fillCirc(c,px+dt/2+2,py+dt/2+2,dt/2-4);
+        // 木製フレーム
+        c.fillStyle='#6a4a2a';fillCirc(c,px+dt/2,py+dt/2,dt/2-4);
+        c.fillStyle='#8a6a4a';fillCirc(c,px+dt/2,py+dt/2,dt/2-6);
+        // 文字盤
+        c.fillStyle='#f5f5f0';fillCirc(c,px+dt/2,py+dt/2,dt/2-9);
+        c.fillStyle='#fafaf5';fillCirc(c,px+dt/2,py+dt/2,dt/2-11);
+        // 時間マーク（12個）
+        c.fillStyle='#333';
+        for(let h=0;h<12;h++){
+          const a=h*Math.PI/6-Math.PI/2;
+          const mx=px+dt/2+Math.cos(a)*(dt/2-13);
+          const my=py+dt/2+Math.sin(a)*(dt/2-13);
+          c.fillRect(mx-0.5,my-0.5,2,2);
+        }
+        // 時針
+        c.fillStyle='#222';c.fillRect(px+dt/2-1,py+dt/2-10,3,11);
+        // 分針
+        c.fillStyle='#333';c.fillRect(px+dt/2,py+dt/2-1,12,2);
+        // 秒針
+        c.fillStyle='#d04040';c.fillRect(px+dt/2-1,py+dt/2-1,1,10);
+        // 中心
+        c.fillStyle='#222';fillCirc(c,px+dt/2,py+dt/2,2);
+        c.fillStyle='#d04040';fillCirc(c,px+dt/2,py+dt/2,1);
+        // ガラス反射
+        c.fillStyle='rgba(255,255,255,0.15)';fillCirc(c,px+dt/2-4,py+dt/2-4,8);
+      }
+      else if(type==='trophy'){
+        // 影
+        c.fillStyle='rgba(0,0,0,0.1)';c.fillRect(px+dt/2-9,py+36,20,4);
+        // 台座（大理石風）
+        c.fillStyle='#3a3a4a';c.fillRect(px+dt/2-12,py+35,24,6);
+        c.fillStyle='#4a4a5a';c.fillRect(px+dt/2-11,py+35,22,3);
+        c.fillStyle='#5a5a6a';c.fillRect(px+dt/2-10,py+35,20,1);
+        // 柱
+        c.fillStyle='#d0a020';c.fillRect(px+dt/2-4,py+26,8,10);
+        c.fillStyle='#e0b030';c.fillRect(px+dt/2-3,py+26,6,10);
+        // カップ
+        c.fillStyle='#e8b820';c.fillRect(px+dt/2-10,py+8,20,20);
+        c.fillStyle='#f0c830';c.fillRect(px+dt/2-8,py+10,16,16);
+        c.fillStyle='#f8d840';c.fillRect(px+dt/2-6,py+12,12,12);
+        // ハンドル
+        c.fillStyle='#d0a020';c.fillRect(px+dt/2-13,py+12,4,10);
+        c.fillRect(px+dt/2+9,py+12,4,10);
+        c.fillStyle='#e0b030';c.fillRect(px+dt/2-12,py+14,2,6);
+        c.fillRect(px+dt/2+10,py+14,2,6);
+        // 光沢
+        c.fillStyle='rgba(255,255,255,0.3)';c.fillRect(px+dt/2-5,py+12,4,10);
+        c.globalAlpha=1;
+        // 星
+        c.fillStyle='#fff';fillCirc(c,px+dt/2,py+18,3);
+        c.fillStyle='#f8e860';fillCirc(c,px+dt/2,py+18,2);
+      }
+      else if(type==='tv'){
+        // 影
+        c.fillStyle='rgba(0,0,0,0.1)';c.fillRect(px+8,py+8,dt-8,dt-8);
+        // 薄型TV本体
+        c.fillStyle='#1a1a1a';c.fillRect(px+4,py+4,dt-8,dt-12);
+        c.fillStyle='#222';c.fillRect(px+5,py+5,dt-10,dt-14);
+        // ベゼルハイライト
+        c.fillStyle='#333';c.fillRect(px+5,py+5,dt-10,1);c.fillRect(px+5,py+5,1,dt-14);
+        // スクリーン
+        c.fillStyle='#2a4a6a';c.fillRect(px+7,py+7,dt-14,dt-20);
+        // TV映像（風景）
+        c.fillStyle='#5a9ae0';c.fillRect(px+7,py+7,dt-14,dt/2-10);
+        c.fillStyle='#4a8ad0';c.fillRect(px+7,py+dt/2-3,dt-14,4);
+        c.fillStyle='#3a7a5a';c.fillRect(px+7,py+dt/2+1,dt-14,dt/2-14);
+        // 雲
+        c.fillStyle='rgba(255,255,255,0.4)';fillCirc(c,px+16,py+12,4);fillCirc(c,px+22,py+11,5);fillCirc(c,px+28,py+12,3);
+        // スタンド
+        c.fillStyle='#333';c.fillRect(px+dt/2-8,py+dt-10,16,4);
+        c.fillStyle='#444';c.fillRect(px+dt/2-7,py+dt-10,14,2);
+        c.fillRect(px+dt/2-2,py+dt-14,4,6);
+        c.fillStyle='#555';c.fillRect(px+dt/2-1,py+dt-14,2,6);
+        // ブランドロゴ
+        c.fillStyle='#555';c.fillRect(px+dt/2-3,py+dt-14,6,1);
+      }
+      else if(type==='aquarium'){
+        // 影
+        c.fillStyle='rgba(0,0,0,0.1)';c.fillRect(px+5,py+10,dt-4,dt-8);
+        // スタンド/台
+        c.fillStyle='#5a5a5a';c.fillRect(px+6,py+dt-8,dt-12,8);
+        c.fillStyle='#6a6a6a';c.fillRect(px+7,py+dt-8,dt-14,4);
+        // タンクフレーム
+        c.fillStyle='#3a7a8a';c.fillRect(px+3,py+6,dt-6,dt-14);
+        // ガラス
+        c.fillStyle='#4ab0c8';c.fillRect(px+5,py+8,dt-10,dt-18);
+        c.fillStyle='#5ac0d8';c.fillRect(px+6,py+9,dt-12,dt-20);
+        // 水面
+        c.fillStyle='rgba(255,255,255,0.15)';c.fillRect(px+6,py+9,dt-12,2);
+        // 砂底
+        c.fillStyle='#c8b888';c.fillRect(px+6,py+dt-14,dt-12,4);
+        c.fillStyle='#d8c898';c.fillRect(px+8,py+dt-13,dt-16,2);
+        // 魚（赤い熱帯魚）
+        c.fillStyle='#ff5a5a';c.fillRect(px+14,py+18,8,4);
+        c.fillStyle='#ff7a7a';c.fillRect(px+15,py+19,6,2);
+        c.fillStyle='#ff4a4a';c.fillRect(px+12,py+19,3,2); // 尾
+        c.fillStyle='#111';c.fillRect(px+20,py+19,1,1); // 目
+        // 魚（オレンジの金魚）
+        c.fillStyle='#ffa040';c.fillRect(px+28,py+24,7,4);
+        c.fillStyle='#ffb060';c.fillRect(px+29,py+25,5,2);
+        c.fillStyle='#ff9030';c.fillRect(px+34,py+25,3,2); // 尾
+        c.fillStyle='#111';c.fillRect(px+29,py+25,1,1);
+        // 水草
+        c.fillStyle='#3a9a40';c.fillRect(px+10,py+dt-18,3,10);c.fillRect(px+12,py+dt-20,2,12);
+        c.fillStyle='#4aaa50';c.fillRect(px+11,py+dt-18,1,8);
+        c.fillStyle='#3a9a40';c.fillRect(px+dt-16,py+dt-20,3,12);c.fillRect(px+dt-18,py+dt-18,2,10);
+        c.fillStyle='#4aaa50';c.fillRect(px+dt-15,py+dt-20,1,10);
+        // 泡
+        c.fillStyle='rgba(255,255,255,0.4)';
+        fillCirc(c,px+20,py+14,1.5);fillCirc(c,px+24,py+12,1);fillCirc(c,px+36,py+16,1.5);
+      }
     }
 
     // ===== キャラクター描画（高品質ピクセルアート） =====
@@ -2301,7 +3133,18 @@
 
     // ===== 部屋移動 =====
     const doorPrompt = document.getElementById('door-prompt');
-    function isOnDoor() { if(!myId||!players[myId])return null; const me=players[myId],r=ROOMS[currentRoom],t=r.map[me.y]?.[me.x]; if(t===T.DOOR_WORK)return'work';if(t===T.DOOR_MEET)return'meeting';return null; }
+    function isOnDoor() {
+      if(!myId||!players[myId])return null;
+      const me=players[myId],r=ROOMS[currentRoom];
+      // 自分のタイル + 隣接4タイルをチェック
+      const checks = [[me.x,me.y],[me.x,me.y-1],[me.x,me.y+1],[me.x-1,me.y],[me.x+1,me.y]];
+      for (const [cx,cy] of checks) {
+        const t = r.map[cy]?.[cx];
+        if(t===T.DOOR_WORK)return'work';
+        if(t===T.DOOR_MEET)return'meeting';
+      }
+      return null;
+    }
     function enterRoom(rn) {
       if(rn===currentRoom)return; currentRoom=rn; const r=ROOMS[rn];
       if(players[myId]){players[myId].x=r.spawn.x;players[myId].y=r.spawn.y;players[myId].room=rn;
@@ -2739,13 +3582,15 @@
       const show = proximityActive || voiceJoined;
       camBtn.style.display = show ? '' : 'none';
       micBtn.style.display = show ? '' : 'none';
-      camBtn.textContent = cameraMuted ? '📷 カメラOFF' : '📷 カメラON';
-      camBtn.style.background = cameraMuted ? 'rgba(198,40,40,0.6)' : '';
-      micBtn.textContent = micMuted ? '🔇 ミュート' : '🎤 マイク';
-      micBtn.style.background = micMuted ? 'rgba(198,40,40,0.6)' : '';
+      camBtn.textContent = cameraMuted ? '📷' : '📷';
+      camBtn.style.background = cameraMuted ? 'rgba(198,40,40,0.5)' : 'rgba(76,175,80,0.4)';
+      camBtn.title = cameraMuted ? 'カメラOFF' : 'カメラON';
+      micBtn.textContent = micMuted ? '🔇' : '🎤';
+      micBtn.style.background = micMuted ? 'rgba(198,40,40,0.5)' : 'rgba(76,175,80,0.4)';
+      micBtn.title = micMuted ? 'ミュート中' : 'マイクON';
       const scrBtn = document.getElementById('btn-screen-share');
-      scrBtn.textContent = isScreenSharing ? '🖥️ 共有中' : '🖥️ 画面共有';
-      scrBtn.style.background = isScreenSharing ? 'rgba(33,150,243,0.6)' : '';
+      scrBtn.textContent = isScreenSharing ? '🖥️ 共有中' : '🖥️ 共有';
+      scrBtn.style.background = isScreenSharing ? 'rgba(33,150,243,0.5)' : '';
     }
 
     // 近接チェック（gameLoopから30フレームごとに呼ばれる）
@@ -3998,7 +4843,8 @@
     // カスタム部屋作成ボタンをツールバーに追加
     const createRoomBtn = document.createElement('div');
     createRoomBtn.className = 'tool-btn';
-    createRoomBtn.textContent = '🏠 部屋作成';
+    createRoomBtn.title = 'カスタム部屋を作成';
+    createRoomBtn.textContent = '🏠 部屋';
     document.getElementById('toolbar').insertBefore(createRoomBtn, document.getElementById('toolbar-hint'));
 
     createRoomBtn.addEventListener('click', () => {
@@ -4033,7 +4879,8 @@
     // ショップタブにペットボタンを追加
     const petBtn = document.createElement('div');
     petBtn.className = 'tool-btn';
-    petBtn.textContent = '🐾 ペット';
+    petBtn.title = 'ペット選択';
+    petBtn.textContent = '🐾';
     document.getElementById('toolbar').insertBefore(petBtn, document.getElementById('toolbar-hint'));
 
     petBtn.addEventListener('click', () => {
