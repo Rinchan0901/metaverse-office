@@ -374,6 +374,18 @@
     .wb-canvas-wrap { flex: 1; position: relative; overflow: hidden; background: #fff; }
     #whiteboard-canvas { width: 100%; height: 100%; cursor: crosshair; display: block; touch-action: none; }
 
+    /* === ミニマップ === */
+    #minimap {
+      position: absolute; bottom: 50px; left: 10px; z-index: 18;
+      background: rgba(10,10,26,0.85); border: 1px solid #3a3a5a;
+      border-radius: 8px; padding: 4px; cursor: pointer;
+    }
+    #minimap canvas { display: block; border-radius: 4px; }
+    #minimap-label {
+      font-size: 9px; color: #888; text-align: center; margin-top: 2px;
+      font-family: 'DotGothic16', monospace;
+    }
+
     /* === ビデオ通話 === */
     #video-container {
       position: absolute; bottom: 50px; right: 10px; z-index: 20;
@@ -841,6 +853,21 @@
     </div>
   </div>
 
+  <!-- 通知音設定モーダル -->
+  <div id="sound-settings-modal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);display:none;justify-content:center;align-items:center;z-index:90;">
+    <div style="background:#252538;border:2px solid #7c8aff;border-radius:12px;padding:24px;min-width:280px;">
+      <h3 style="font-size:16px;color:#7c8aff;margin-bottom:16px;text-align:center;">🔔 通知音設定</h3>
+      <div style="margin-bottom:12px;">
+        <label style="font-size:12px;color:#aaa;">マスター音量</label>
+        <input type="range" id="snd-master-vol" min="0" max="100" style="width:100%;accent-color:#7c8aff;">
+      </div>
+      <div id="snd-toggles" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;"></div>
+      <div style="text-align:center;">
+        <button class="auth-btn secondary" id="snd-settings-close" style="width:auto;padding:10px 24px;font-size:14px;">閉じる</button>
+      </div>
+    </div>
+  </div>
+
   <!-- プロフィールモーダル -->
   <div id="profile-modal">
     <div id="profile-box">
@@ -1023,6 +1050,7 @@
         <div id="door-prompt"></div>
         <!-- ビデオ通話コンテナ -->
         <div id="video-container"></div>
+        <div id="minimap"><canvas id="minimap-canvas" width="120" height="80"></canvas><div id="minimap-label"></div></div>
         <!-- 画面共有ビュー -->
         <div id="screen-share-view">
           <video id="screen-share-video" autoplay playsinline></video>
@@ -1095,6 +1123,7 @@
         <div class="tool-btn" id="btn-cam-toggle" style="display:none;">📷</div>
         <div class="tool-btn" id="btn-mic-toggle" style="display:none;">🎤</div>
         <div class="tool-btn" id="btn-screen-share" title="画面共有">🖥️ 共有</div>
+        <div class="tool-btn" id="btn-sound-settings" title="通知音設定">🔔</div>
         <div id="toolbar-hint">矢印/スペース/ESC</div>
       </div>
       <!-- YouTube Player (hidden) -->
@@ -4218,6 +4247,8 @@
     let ytReady = false;
     let currentBgm = {}; // room -> { videoId, title, setBy }
     let bgmVolume = 30;
+    let bgmPlaylist = []; // [{videoId, title}] - 現在のプレイリストキュー
+    let bgmPlaylistIdx = -1;
 
     // YouTube IFrame API Ready
     window.onYouTubeIframeAPIReady = function() {
@@ -4227,7 +4258,16 @@
         events: {
           onReady: () => { ytReady = true; ytPlayer.setVolume(bgmVolume); },
           onStateChange: (e) => {
-            if (e.data === YT.PlayerState.ENDED) ytPlayer.playVideo(); // ループ
+            if (e.data === YT.PlayerState.ENDED) {
+              // プレイリスト自動再生: 次の曲へ
+              if (bgmPlaylist.length > 0 && bgmPlaylistIdx >= 0) {
+                bgmPlaylistIdx = (bgmPlaylistIdx + 1) % bgmPlaylist.length;
+                const next = bgmPlaylist[bgmPlaylistIdx];
+                socket.emit('setBgm', { room: currentRoom, videoId: next.videoId, title: next.title });
+              } else {
+                ytPlayer.playVideo(); // プレイリストなしの場合はループ
+              }
+            }
           }
         }
       });
@@ -4291,6 +4331,7 @@
       const url = document.getElementById('bgm-url-input').value.trim();
       const videoId = extractVideoId(url);
       if (!videoId) { showCoinNotif('有効なYouTube URLを入力してください'); return; }
+      bgmPlaylist = []; bgmPlaylistIdx = -1;
       let title = videoId;
       try {
         const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${videoId}`);
@@ -4372,9 +4413,20 @@
           song.appendChild(info);
           song.appendChild(play);
           song.addEventListener('click', () => {
+            // プレイリスト全曲をキューに設定
+            const allSongs = songsDiv.querySelectorAll('.pl-song');
+            bgmPlaylist = [];
+            let clickedIdx = 0;
+            allSongs.forEach((s, i) => {
+              bgmPlaylist.push({ videoId: s.dataset.videoId, title: s.dataset.title });
+              if (s === song) clickedIdx = i;
+            });
+            bgmPlaylistIdx = clickedIdx;
             socket.emit('setBgm', { room: currentRoom, videoId: item.videoId, title: item.title });
             document.getElementById('bgm-set-modal').classList.remove('show');
           });
+          song.dataset.videoId = item.videoId;
+          song.dataset.title = item.title;
           songsDiv.appendChild(song);
         }
         plNextPageToken = data.nextPageToken;
@@ -4530,6 +4582,7 @@
       // 近接ビデオ通話チェック（30フレームごと）
       if (frameCount % 30 === 0) checkProximityConnections();
 
+      if (frameCount % 15 === 0) drawMinimap();
       if (frameCount % 60 === 0) updatePeople();
 
       requestAnimationFrame(gameLoop);
@@ -4538,6 +4591,94 @@
     gameLoop();
 
 
+
+    // ===== 離席自動検知 =====
+    let lastActivity = Date.now();
+    let isAutoAfk = false;
+    const AFK_TIMEOUT = 5 * 60 * 1000; // 5分
+
+    function resetActivity() {
+      lastActivity = Date.now();
+      if (isAutoAfk) {
+        isAutoAfk = false;
+        myStatus = 'online';
+        socket.emit('setStatus', 'online');
+        document.querySelectorAll('.status-btn').forEach(b => b.classList.toggle('active', b.dataset.st === 'online'));
+        showCoinNotif('ステータスを「オンライン」に戻しました');
+      }
+    }
+
+    ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'].forEach(evt => {
+      document.addEventListener(evt, resetActivity, { passive: true });
+    });
+
+    setInterval(() => {
+      if (Date.now() - lastActivity > AFK_TIMEOUT && !isAutoAfk && myStatus === 'online') {
+        isAutoAfk = true;
+        myStatus = 'away';
+        socket.emit('setStatus', 'away');
+        document.querySelectorAll('.status-btn').forEach(b => b.classList.toggle('active', b.dataset.st === 'away'));
+      }
+    }, 30000);
+
+    // ===== ミニマップ =====
+    const mmCanvas = document.getElementById('minimap-canvas');
+    const mmCtx = mmCanvas.getContext('2d');
+    const mmLabel = document.getElementById('minimap-label');
+    const ROOM_COLORS = { lobby: '#a0c4ff', work: '#c4ffa0', meeting: '#ffa0c4' };
+    const ROOM_NAMES = { lobby: 'ロビー', work: '作業部屋', meeting: '会議室' };
+
+    function drawMinimap() {
+      const room = ROOMS[currentRoom];
+      if (!room) return;
+      const tileW = Math.floor(mmCanvas.width / room.cols);
+      const tileH = Math.floor(mmCanvas.height / room.rows);
+      mmCanvas.width = tileW * room.cols;
+      mmCanvas.height = tileH * room.rows;
+
+      // タイル描画
+      for (let y = 0; y < room.rows; y++) {
+        for (let x = 0; x < room.cols; x++) {
+          const t = room.map[y][x];
+          if (BLOCKED.has(t)) {
+            mmCtx.fillStyle = '#2a2a4a';
+          } else if (t === T.DOOR_WORK || t === T.DOOR_MEET) {
+            mmCtx.fillStyle = '#ffd700';
+          } else {
+            mmCtx.fillStyle = '#1a1a30';
+          }
+          mmCtx.fillRect(x * tileW, y * tileH, tileW, tileH);
+        }
+      }
+
+      // 他プレイヤー
+      for (const p of Object.values(players)) {
+        if (p.room !== currentRoom) continue;
+        const ds = getDisplayState(p);
+        const px = ds.x * tileW / TILE;
+        const py = ds.y * tileH / TILE;
+        if (p.id === myId) {
+          mmCtx.fillStyle = '#7c8aff';
+          mmCtx.fillRect(px - 2, py - 2, 5, 5);
+        } else {
+          mmCtx.fillStyle = '#4caf50';
+          mmCtx.fillRect(px - 1, py - 1, 3, 3);
+        }
+      }
+
+      // 他の部屋にいる人数
+      const roomCounts = {};
+      for (const p of Object.values(players)) {
+        if (!roomCounts[p.room]) roomCounts[p.room] = 0;
+        roomCounts[p.room]++;
+      }
+      const others = Object.entries(roomCounts).filter(([r]) => r !== currentRoom);
+      let labelParts = [ROOM_NAMES[currentRoom] || currentRoom];
+      for (const [r, c] of others) {
+        labelParts.push(`${ROOM_NAMES[r] || r}:${c}`);
+      }
+      mmLabel.textContent = labelParts.join(' | ');
+    }
 
     // ===== モバイルタッチ操作 =====
     const isMobile = /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent) || window.innerWidth <= 768;
@@ -4796,6 +4937,15 @@
     let audioCtx = null;
     function getAudioCtx() { if (!audioCtx) audioCtx = new AudioCtx(); return audioCtx; }
 
+    // 通知設定 (localStorageに保存)
+    const defaultSndSettings = { chat: true, join: true, leave: true, dm: true, coin: true, pomo: true, volume: 80 };
+    let sndSettings = Object.assign({}, defaultSndSettings);
+    try {
+      const saved = localStorage.getItem('gohou_snd');
+      if (saved) sndSettings = Object.assign({}, defaultSndSettings, JSON.parse(saved));
+    } catch(e) {}
+    function saveSndSettings() { localStorage.setItem('gohou_snd', JSON.stringify(sndSettings)); }
+
     function playSound(freq, duration, type, vol) {
       try {
         const ctx = getAudioCtx();
@@ -4803,7 +4953,8 @@
         const gain = ctx.createGain();
         osc.type = type || 'sine';
         osc.frequency.value = freq;
-        gain.gain.value = vol || 0.15;
+        const masterVol = (sndSettings.volume / 100) * (vol || 0.15);
+        gain.gain.value = masterVol;
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + (duration || 0.2));
         osc.connect(gain);
         gain.connect(ctx.destination);
@@ -4812,12 +4963,53 @@
       } catch(e) {}
     }
 
-    function sndChat() { playSound(800, 0.1, 'sine', 0.1); }
-    function sndJoin() { playSound(600, 0.15, 'sine', 0.12); playSound(900, 0.15, 'sine', 0.12); }
-    function sndLeave() { playSound(400, 0.2, 'sine', 0.1); }
-    function sndCoin() { playSound(1200, 0.1, 'triangle', 0.15); setTimeout(() => playSound(1500, 0.15, 'triangle', 0.12), 100); }
-    function sndDm() { playSound(700, 0.1, 'sine', 0.15); setTimeout(() => playSound(1000, 0.12, 'sine', 0.15), 120); setTimeout(() => playSound(1200, 0.1, 'sine', 0.12), 240); }
-    function sndPomo() { playSound(523, 0.2, 'square', 0.1); setTimeout(() => playSound(659, 0.2, 'square', 0.1), 200); setTimeout(() => playSound(784, 0.3, 'square', 0.12), 400); }
+    function sndChat() { if (sndSettings.chat) playSound(800, 0.1, 'sine', 0.1); }
+    function sndJoin() { if (sndSettings.join) { playSound(600, 0.15, 'sine', 0.12); playSound(900, 0.15, 'sine', 0.12); } }
+    function sndLeave() { if (sndSettings.leave) playSound(400, 0.2, 'sine', 0.1); }
+    function sndCoin() { if (sndSettings.coin) { playSound(1200, 0.1, 'triangle', 0.15); setTimeout(() => playSound(1500, 0.15, 'triangle', 0.12), 100); } }
+    function sndDm() { if (sndSettings.dm) { playSound(700, 0.1, 'sine', 0.15); setTimeout(() => playSound(1000, 0.12, 'sine', 0.15), 120); setTimeout(() => playSound(1200, 0.1, 'sine', 0.12), 240); } }
+    function sndPomo() { if (sndSettings.pomo) { playSound(523, 0.2, 'square', 0.1); setTimeout(() => playSound(659, 0.2, 'square', 0.1), 200); setTimeout(() => playSound(784, 0.3, 'square', 0.12), 400); } }
+
+    // 通知音設定UI
+    const sndModal = document.getElementById('sound-settings-modal');
+    const SND_LABELS = { chat: '💬 チャット', join: '🚪 入室', leave: '👋 退出', dm: '📩 DM', coin: '🪙 コイン', pomo: '🍅 ポモドーロ' };
+    function buildSndToggles() {
+      const container = document.getElementById('snd-toggles');
+      container.innerHTML = '';
+      document.getElementById('snd-master-vol').value = sndSettings.volume;
+      for (const [key, label] of Object.entries(SND_LABELS)) {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:6px 8px;background:#1e1e2e;border-radius:6px;';
+        const lbl = document.createElement('span');
+        lbl.style.cssText = 'font-size:13px;';
+        lbl.textContent = label;
+        const toggle = document.createElement('button');
+        toggle.style.cssText = `padding:4px 14px;border-radius:12px;font-size:11px;cursor:pointer;border:1px solid #3a3a5a;font-family:'DotGothic16',monospace;transition:all 0.15s;`;
+        toggle.textContent = sndSettings[key] ? 'ON' : 'OFF';
+        toggle.style.background = sndSettings[key] ? '#4caf50' : '#3a3a5a';
+        toggle.style.color = '#fff';
+        toggle.addEventListener('click', () => {
+          sndSettings[key] = !sndSettings[key];
+          toggle.textContent = sndSettings[key] ? 'ON' : 'OFF';
+          toggle.style.background = sndSettings[key] ? '#4caf50' : '#3a3a5a';
+          saveSndSettings();
+        });
+        row.appendChild(lbl);
+        row.appendChild(toggle);
+        container.appendChild(row);
+      }
+    }
+    document.getElementById('btn-sound-settings').addEventListener('click', () => {
+      sndModal.style.display = 'flex';
+      buildSndToggles();
+    });
+    document.getElementById('snd-settings-close').addEventListener('click', () => {
+      sndModal.style.display = 'none';
+    });
+    document.getElementById('snd-master-vol').addEventListener('input', (e) => {
+      sndSettings.volume = Number(e.target.value);
+      saveSndSettings();
+    });
 
     // 既存イベントに通知サウンドをフック
     socket.on('playerJoined', (p) => { if (p.name !== myName) sndJoin(); });

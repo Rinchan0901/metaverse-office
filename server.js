@@ -414,6 +414,110 @@ const VALID_FURNITURE = [
   'vending','poster','clock','trophy','tv','aquarium',
 ];
 
+// ===== Discord Webhook連携 =====
+const DISCORD_WEBHOOK_LOG = process.env.DISCORD_WEBHOOK_LOG || '';   // 入退室ログ用
+const DISCORD_WEBHOOK_STATUS = process.env.DISCORD_WEBHOOK_STATUS || ''; // オンライン一覧用
+let discordStatusMessageId = null;
+const ROOM_NAMES_JP = { lobby: 'ロビー', work: '作業部屋', meeting: '会議室' };
+
+async function discordWebhook(webhookUrl, payload) {
+  if (!webhookUrl) return;
+  try {
+    await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  } catch (e) { console.error('Discord webhook error:', e.message); }
+}
+
+function discordLogJoin(name) {
+  discordWebhook(DISCORD_WEBHOOK_LOG, {
+    embeds: [{
+      color: 0x4caf50,
+      description: `🟢 **${name}** がオフィスに入りました`,
+      timestamp: new Date().toISOString(),
+    }]
+  });
+}
+
+function discordLogLeave(name, duration) {
+  const durStr = duration > 0 ? ` (滞在: ${Math.floor(duration / 60000)}分)` : '';
+  discordWebhook(DISCORD_WEBHOOK_LOG, {
+    embeds: [{
+      color: 0xf44336,
+      description: `🔴 **${name}** がオフィスを離れました${durStr}`,
+      timestamp: new Date().toISOString(),
+    }]
+  });
+}
+
+function discordLogMove(name, room) {
+  discordWebhook(DISCORD_WEBHOOK_LOG, {
+    embeds: [{
+      color: 0x2196f3,
+      description: `🔄 **${name}** が **${ROOM_NAMES_JP[room] || room}** に移動しました`,
+      timestamp: new Date().toISOString(),
+    }]
+  });
+}
+
+// オンライン一覧を定期更新 (30秒ごと)
+async function updateDiscordStatus() {
+  if (!DISCORD_WEBHOOK_STATUS) return;
+  const online = Object.values(players).filter(p => p.name && !p.name.startsWith('Player'));
+  const rooms = {};
+  for (const p of online) {
+    const rn = ROOM_NAMES_JP[p.room] || p.room || 'ロビー';
+    if (!rooms[rn]) rooms[rn] = [];
+    rooms[rn].push(p.name);
+  }
+
+  let desc = '';
+  if (online.length === 0) {
+    desc = '現在オフィスに誰もいません';
+  } else {
+    for (const [room, names] of Object.entries(rooms)) {
+      desc += `**${room}**\n${names.map(n => `> 🟢 ${n}`).join('\n')}\n\n`;
+    }
+  }
+
+  const embed = {
+    title: '🏢 オフィス在席状況',
+    description: desc.trim(),
+    color: 0x7c8aff,
+    footer: { text: `${online.length}人がオンライン` },
+    timestamp: new Date().toISOString(),
+  };
+
+  try {
+    if (discordStatusMessageId) {
+      // 既存メッセージを編集
+      const editUrl = `${DISCORD_WEBHOOK_STATUS}/messages/${discordStatusMessageId}`;
+      const res = await fetch(editUrl, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ embeds: [embed] }),
+      });
+      if (!res.ok) discordStatusMessageId = null; // 編集失敗なら再作成
+    }
+    if (!discordStatusMessageId) {
+      // 新規メッセージ作成
+      const res = await fetch(`${DISCORD_WEBHOOK_STATUS}?wait=true`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ embeds: [embed] }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        discordStatusMessageId = data.id;
+      }
+    }
+  } catch (e) { console.error('Discord status update error:', e.message); }
+}
+
+setInterval(updateDiscordStatus, 30000);
+
 // ===== Discord Bot連携用 REST API =====
 
 // Discord Botからコイン付与
@@ -489,8 +593,12 @@ io.on('connection', (socket) => {
   socket.on('setName', (name) => {
     if (players[socket.id]) {
       const sanitized = String(name).slice(0, 12).replace(/[<>&"']/g, '');
+      const isNewJoin = players[socket.id].name.startsWith('Player');
       players[socket.id].name = sanitized;
+      players[socket.id].joinedAt = Date.now();
       io.emit('playerMoved', players[socket.id]);
+      if (isNewJoin && !sanitized.startsWith('Guest')) discordLogJoin(sanitized);
+      updateDiscordStatus();
       // コインデータ送信
       const data = getPlayerCoins(sanitized);
       socket.emit('coinInit', { coins: data.coins, totalEarned: data.totalEarned, purchasedItems: data.purchasedItems, workMinutes: data.workMinutes, achievements: data.achievements || [] });
@@ -522,6 +630,10 @@ io.on('connection', (socket) => {
       const prevRoom = players[socket.id].room;
       players[socket.id].room = room;
       io.emit('playerRoomChanged', { id: socket.id, room });
+      if (players[socket.id].name && !players[socket.id].name.startsWith('Player')) {
+        discordLogMove(players[socket.id].name, room);
+        updateDiscordStatus();
+      }
 
       // 作業部屋のコイン計測
       if (prevRoom === 'work' && room !== 'work') {
@@ -1064,6 +1176,12 @@ io.on('connection', (socket) => {
   // 切断
   socket.on('disconnect', () => {
     console.log(`切断: ${socket.id}`);
+    const p = players[socket.id];
+    if (p && p.name && !p.name.startsWith('Player') && !p.name.startsWith('Guest')) {
+      const duration = p.joinedAt ? Date.now() - p.joinedAt : 0;
+      discordLogLeave(p.name, duration);
+      setTimeout(updateDiscordStatus, 1000);
+    }
     stopWorkTimer(socket.id);
     // 会議の挙手から削除
     meeting.hands = meeting.hands.filter(id => id !== socket.id);
