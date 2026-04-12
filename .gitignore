@@ -2,3 +2,4 @@ node_modules/
 coins.json
 furniture.json
 .env
+accounts.json

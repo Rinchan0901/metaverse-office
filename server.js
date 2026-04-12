@@ -4,11 +4,66 @@ const { Server } = require('socket.io');
 const path = require('path');
 const fs = require('fs');
 
+const crypto = require('crypto');
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json());
+
+// ===== アカウントシステム =====
+const ACCOUNTS_FILE = path.join(__dirname, 'accounts.json');
+// { "username": { password (hashed), avatar, createdAt } }
+let accounts = {};
+try {
+  if (fs.existsSync(ACCOUNTS_FILE)) {
+    accounts = JSON.parse(fs.readFileSync(ACCOUNTS_FILE, 'utf8'));
+  }
+} catch (e) { /* ignore */ }
+
+function saveAccounts() {
+  fs.writeFileSync(ACCOUNTS_FILE, JSON.stringify(accounts, null, 2));
+}
+
+function hashPass(password) {
+  return crypto.createHash('sha256').update(password + 'metaverse-salt').digest('hex');
+}
+
+// アカウント登録
+app.post('/api/register', (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: 'ユーザー名とパスワードが必要です' });
+  const name = String(username).slice(0, 12).replace(/[<>&"']/g, '');
+  if (name.length < 2) return res.status(400).json({ error: '名前は2文字以上' });
+  if (String(password).length < 4) return res.status(400).json({ error: 'パスワードは4文字以上' });
+  if (accounts[name]) return res.status(400).json({ error: 'この名前は既に使われています' });
+  accounts[name] = {
+    password: hashPass(String(password)),
+    avatar: { hair: 0, body: 0, pants: 0, acc: -1 },
+    createdAt: Date.now(),
+  };
+  saveAccounts();
+  // コインデータも初期化
+  getPlayerCoins(name);
+  res.json({ ok: true, username: name });
+});
+
+// ログイン
+app.post('/api/login', (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: 'ユーザー名とパスワードが必要です' });
+  const name = String(username).slice(0, 12).replace(/[<>&"']/g, '');
+  const acc = accounts[name];
+  if (!acc) return res.status(401).json({ error: 'アカウントが見つかりません' });
+  if (acc.password !== hashPass(String(password))) return res.status(401).json({ error: 'パスワードが違います' });
+  res.json({ ok: true, username: name, avatar: acc.avatar });
+});
+
+// ===== 部屋BGMシステム =====
+const roomBgm = { lobby: null, work: null, meeting: null };
+// { videoId, title, setBy }
 
 // プレイヤー管理
 const players = {};
@@ -149,7 +204,6 @@ const VALID_FURNITURE = [
 ];
 
 // ===== Discord Bot連携用 REST API =====
-app.use(express.json());
 
 // Discord Botからコイン付与
 app.post('/api/coins/add', (req, res) => {
@@ -475,6 +529,34 @@ io.on('connection', (socket) => {
     }, mins * 60000);
     broadcastMeeting();
     io.emit('chatMessage', { id: 'system', name: 'システム', message: `⏱️ タイマー: ${mins}分 設定` });
+  });
+
+  // ===== 部屋BGM =====
+  socket.on('getBgm', (room) => {
+    if (roomBgm[room]) {
+      socket.emit('bgmUpdate', { room, bgm: roomBgm[room] });
+    }
+  });
+
+  socket.on('setBgm', ({ room, videoId, title }) => {
+    if (!players[socket.id] || players[socket.id].room !== room) return;
+    if (!videoId) {
+      roomBgm[room] = null;
+      io.emit('bgmUpdate', { room, bgm: null });
+      io.emit('chatMessage', { id: 'system', name: 'システム', message: `🎵 ${players[socket.id].name} がBGMを停止しました` });
+      return;
+    }
+    roomBgm[room] = { videoId: String(videoId).slice(0, 20), title: String(title || '').slice(0, 80), setBy: players[socket.id].name };
+    io.emit('bgmUpdate', { room, bgm: roomBgm[room] });
+    io.emit('chatMessage', { id: 'system', name: 'システム', message: `🎵 ${players[socket.id].name} がBGMを設定: ${roomBgm[room].title || videoId}` });
+  });
+
+  // アバター保存（アカウント連携）
+  socket.on('saveAvatar', () => {
+    const p = players[socket.id];
+    if (!p || !accounts[p.name]) return;
+    accounts[p.name].avatar = { ...p.avatar };
+    saveAccounts();
   });
 
   // 切断

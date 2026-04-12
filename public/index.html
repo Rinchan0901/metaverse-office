@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Metaverse Office</title>
   <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+  <script src="https://www.youtube.com/iframe_api"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=DotGothic16&display=swap');
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -338,30 +339,100 @@
       background: #252538; border: 2px solid #7c8aff; border-radius: 16px;
       padding: 40px; text-align: center;
       box-shadow: 0 0 60px rgba(124,138,255,0.25);
+      min-width: 320px;
     }
     #name-form h2 { margin-bottom: 8px; font-size: 24px; color: #7c8aff; letter-spacing: 2px; }
     #name-form p { margin-bottom: 20px; font-size: 15px; color: #888; }
-    #name-input {
-      padding: 12px 16px; background: #1e1e2e; border: 2px solid #3a3a5a;
+    .auth-input {
+      display: block; margin: 0 auto 10px; padding: 12px 16px; background: #1e1e2e; border: 2px solid #3a3a5a;
       border-radius: 8px; color: #e0e0e0; font-family: 'DotGothic16', monospace;
       font-size: 17px; width: 260px; text-align: center; outline: none;
     }
-    #name-input:focus { border-color: #7c8aff; }
-    #name-submit {
-      display: block; margin: 18px auto 0; padding: 12px 36px;
+    .auth-input:focus { border-color: #7c8aff; }
+    .auth-btn {
+      display: block; margin: 12px auto 0; padding: 12px 36px;
       background: #7c8aff; border: none; border-radius: 10px; color: #fff;
       font-family: 'DotGothic16', monospace; font-weight: bold; font-size: 17px; cursor: pointer;
+      width: 260px;
     }
+    .auth-btn:hover { background: #6a78ee; }
+    .auth-btn.secondary { background: #3a3a5a; margin-top: 8px; }
+    .auth-btn.secondary:hover { background: #4a4a6a; }
+    .auth-btn.guest { background: #4caf50; margin-top: 16px; font-size: 14px; }
+    .auth-btn.guest:hover { background: #388e3c; }
+    .auth-error { color: #f44336; font-size: 13px; margin-top: 8px; min-height: 18px; }
+    .auth-switch { font-size: 13px; color: #888; margin-top: 14px; cursor: pointer; }
+    .auth-switch span { color: #7c8aff; text-decoration: underline; }
+
+    /* === BGMバー === */
+    #bgm-bar {
+      display: flex; align-items: center; gap: 8px; padding: 0 12px;
+      height: 36px; background: #1a1a2e; border-top: 1px solid #3a3a5a;
+      font-size: 12px; color: #888;
+    }
+    #bgm-bar.hidden { display: none; }
+    #bgm-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #bgm-label .title { color: #e0e0e0; }
+    .bgm-btn {
+      padding: 3px 10px; border-radius: 10px; font-size: 11px; cursor: pointer;
+      border: 1px solid #3a3a5a; background: #2e2e42; color: #aaa;
+      font-family: 'DotGothic16', monospace; transition: all 0.15s;
+    }
+    .bgm-btn:hover { background: #3a3a5a; color: #fff; }
+    #bgm-set-modal {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 90;
+    }
+    #bgm-set-modal.show { display: flex; }
+    #bgm-set-box {
+      background: #252538; border: 2px solid #7c8aff; border-radius: 12px;
+      padding: 24px; text-align: center; min-width: 340px;
+    }
+    #bgm-set-box h3 { font-size: 16px; color: #7c8aff; margin-bottom: 12px; }
+    #bgm-url-input {
+      width: 300px; padding: 10px; background: #1e1e2e; border: 2px solid #3a3a5a;
+      border-radius: 8px; color: #e0e0e0; font-family: 'DotGothic16', monospace;
+      font-size: 13px; outline: none;
+    }
+    #bgm-url-input:focus { border-color: #7c8aff; }
+    #bgm-volume-slider { width: 100px; accent-color: #7c8aff; }
   </style>
 </head>
 <body>
-  <!-- モーダル -->
+  <!-- ログイン/登録モーダル -->
   <div id="name-modal">
     <div id="name-form">
       <h2>METAVERSE OFFICE</h2>
-      <p>なまえを いれてください</p>
-      <input type="text" id="name-input" maxlength="12" placeholder="なまえ" autofocus>
-      <button id="name-submit">はいる</button>
+      <div id="auth-login">
+        <p>ログイン</p>
+        <input type="text" class="auth-input" id="login-name" maxlength="12" placeholder="ユーザー名" autofocus>
+        <input type="password" class="auth-input" id="login-pass" maxlength="32" placeholder="パスワード">
+        <div class="auth-error" id="login-error"></div>
+        <button class="auth-btn" id="login-submit">ログイン</button>
+        <div class="auth-switch" id="show-register">アカウントがない？ <span>新規登録</span></div>
+        <button class="auth-btn guest" id="guest-submit">👤 ゲストで入る</button>
+      </div>
+      <div id="auth-register" style="display:none;">
+        <p>新規登録</p>
+        <input type="text" class="auth-input" id="reg-name" maxlength="12" placeholder="ユーザー名 (2文字以上)">
+        <input type="password" class="auth-input" id="reg-pass" maxlength="32" placeholder="パスワード (4文字以上)">
+        <div class="auth-error" id="reg-error"></div>
+        <button class="auth-btn" id="reg-submit">登録して入る</button>
+        <div class="auth-switch" id="show-login">アカウントがある？ <span>ログイン</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BGM設定モーダル -->
+  <div id="bgm-set-modal">
+    <div id="bgm-set-box">
+      <h3>🎵 BGMを設定</h3>
+      <p style="font-size:12px;color:#888;margin-bottom:12px;">YouTubeのURLを貼り付けてください</p>
+      <input type="text" id="bgm-url-input" placeholder="https://www.youtube.com/watch?v=...">
+      <div style="display:flex;gap:8px;justify-content:center;margin-top:12px;">
+        <button class="auth-btn" id="bgm-set-ok" style="width:auto;padding:10px 24px;font-size:14px;">設定</button>
+        <button class="auth-btn secondary" id="bgm-set-cancel" style="width:auto;padding:10px 24px;font-size:14px;">キャンセル</button>
+      </div>
     </div>
   </div>
 
@@ -411,10 +482,22 @@
           <div class="mt-footer" id="mt-footer"></div>
         </div>
       </div>
+      <div id="bgm-bar" class="hidden">
+        <span>🎵</span>
+        <span id="bgm-label">BGMなし</span>
+        <input type="range" id="bgm-volume-slider" min="0" max="100" value="30" title="音量">
+        <button class="bgm-btn" id="bgm-set-btn">設定</button>
+        <button class="bgm-btn" id="bgm-stop-btn">停止</button>
+      </div>
       <div id="toolbar">
         <div class="tool-btn" id="btn-furniture">もようがえ (F)</div>
         <div class="tool-btn" id="btn-meeting" style="display:none;">会議 (M)</div>
+        <div class="tool-btn" id="btn-bgm">🎵 BGM</div>
         <div id="toolbar-hint">矢印キー: 移動 / スペース: 入室 / ESC: ロビー</div>
+      </div>
+      <!-- YouTube Player (hidden) -->
+      <div id="yt-player-wrap" style="position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;">
+        <div id="yt-player"></div>
       </div>
     </div>
     <div id="right-panel">
@@ -1282,11 +1365,73 @@
     socket.on('furniturePlaced', (d) => { if(placedFurniture[d.room])placedFurniture[d.room].push(d.item); });
     socket.on('furnitureRemoved', (d) => { if(placedFurniture[d.room])placedFurniture[d.room]=placedFurniture[d.room].filter(f=>f.id!==d.id); });
 
-    // ===== 名前 =====
-    const nameModal = document.getElementById('name-modal'), nameInput = document.getElementById('name-input');
-    function submitName() { const n=nameInput.value.trim(); if(n){myName=n;socket.emit('setName',n);nameModal.classList.add('hidden');} }
-    document.getElementById('name-submit').addEventListener('click', submitName);
-    nameInput.addEventListener('keydown', (e) => { if(e.key==='Enter')submitName(); });
+    // ===== ログイン/登録 =====
+    const nameModal = document.getElementById('name-modal');
+    const loginNameEl = document.getElementById('login-name');
+    const loginPassEl = document.getElementById('login-pass');
+    const loginError = document.getElementById('login-error');
+    const regNameEl = document.getElementById('reg-name');
+    const regPassEl = document.getElementById('reg-pass');
+    const regError = document.getElementById('reg-error');
+
+    document.getElementById('show-register').addEventListener('click', () => {
+      document.getElementById('auth-login').style.display = 'none';
+      document.getElementById('auth-register').style.display = '';
+      regNameEl.focus();
+    });
+    document.getElementById('show-login').addEventListener('click', () => {
+      document.getElementById('auth-register').style.display = 'none';
+      document.getElementById('auth-login').style.display = '';
+      loginNameEl.focus();
+    });
+
+    async function doLogin() {
+      loginError.textContent = '';
+      const username = loginNameEl.value.trim();
+      const password = loginPassEl.value;
+      if (!username || !password) { loginError.textContent = 'ユーザー名とパスワードを入力'; return; }
+      try {
+        const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
+        const data = await res.json();
+        if (!res.ok) { loginError.textContent = data.error; return; }
+        myName = data.username;
+        socket.emit('setName', myName);
+        if (data.avatar) { myAvatar = data.avatar; socket.emit('updateAvatar', myAvatar); }
+        nameModal.classList.add('hidden');
+      } catch (e) { loginError.textContent = '接続エラー'; }
+    }
+
+    async function doRegister() {
+      regError.textContent = '';
+      const username = regNameEl.value.trim();
+      const password = regPassEl.value;
+      if (!username || !password) { regError.textContent = 'ユーザー名とパスワードを入力'; return; }
+      try {
+        const res = await fetch('/api/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
+        const data = await res.json();
+        if (!res.ok) { regError.textContent = data.error; return; }
+        myName = data.username;
+        socket.emit('setName', myName);
+        nameModal.classList.add('hidden');
+      } catch (e) { regError.textContent = '接続エラー'; }
+    }
+
+    function guestLogin() {
+      const n = 'Guest' + Math.floor(Math.random() * 9999);
+      myName = n;
+      socket.emit('setName', n);
+      nameModal.classList.add('hidden');
+    }
+
+    document.getElementById('login-submit').addEventListener('click', doLogin);
+    document.getElementById('reg-submit').addEventListener('click', doRegister);
+    document.getElementById('guest-submit').addEventListener('click', guestLogin);
+    loginPassEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
+    regPassEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') doRegister(); });
+    loginNameEl.addEventListener('keydown', (e) => { e.stopPropagation(); });
+    loginPassEl.addEventListener('keydown', (e) => { e.stopPropagation(); });
+    regNameEl.addEventListener('keydown', (e) => { e.stopPropagation(); });
+    regPassEl.addEventListener('keydown', (e) => { e.stopPropagation(); });
 
     // ===== チャット =====
     const chatMessages = document.getElementById('chat-messages'), chatInput = document.getElementById('chat-input');
@@ -1374,6 +1519,7 @@
       document.querySelectorAll('#pants-options .c-opt').forEach((e,i)=>e.classList.toggle('selected',i===myAvatar.pants));
       document.querySelectorAll('#acc-options .c-opt').forEach((e,i)=>e.classList.toggle('selected',ACC_TYPES[i].id===myAvatar.acc));
       drawPrev();
+      socket.emit('saveAvatar');
     }
     function drawPrev() {
       const pc=document.getElementById('preview-canvas'),p=pc.getContext('2d');
@@ -1923,7 +2069,101 @@
       document.getElementById('screen-share-view').classList.remove('show');
     });
 
-    // enterRoom をフックして会議ボタン更新
+    // ===== YouTube BGM システム =====
+    let ytPlayer = null;
+    let ytReady = false;
+    let currentBgm = {}; // room -> { videoId, title, setBy }
+    let bgmVolume = 30;
+
+    // YouTube IFrame API Ready
+    window.onYouTubeIframeAPIReady = function() {
+      ytPlayer = new YT.Player('yt-player', {
+        height: '1', width: '1',
+        playerVars: { autoplay: 0, controls: 0 },
+        events: {
+          onReady: () => { ytReady = true; ytPlayer.setVolume(bgmVolume); },
+          onStateChange: (e) => {
+            if (e.data === YT.PlayerState.ENDED) ytPlayer.playVideo(); // ループ
+          }
+        }
+      });
+    };
+
+    function extractVideoId(url) {
+      if (!url) return null;
+      // youtu.be/ID or youtube.com/watch?v=ID or just ID
+      let m = url.match(/(?:youtu\.be\/|[?&]v=)([a-zA-Z0-9_-]{11})/);
+      if (m) return m[1];
+      if (/^[a-zA-Z0-9_-]{11}$/.test(url.trim())) return url.trim();
+      return null;
+    }
+
+    function playBgm(videoId) {
+      if (!ytReady || !ytPlayer) return;
+      ytPlayer.loadVideoById(videoId);
+      ytPlayer.setVolume(bgmVolume);
+    }
+
+    function stopBgm() {
+      if (ytReady && ytPlayer) { try { ytPlayer.stopVideo(); } catch(e){} }
+    }
+
+    function updateBgmBar() {
+      const bar = document.getElementById('bgm-bar');
+      const bgm = currentBgm[currentRoom];
+      if (bgm) {
+        bar.classList.remove('hidden');
+        document.getElementById('bgm-label').innerHTML = `<span class="title">${bgm.title || bgm.videoId}</span> <span style="color:#666;">by ${bgm.setBy}</span>`;
+      } else {
+        bar.classList.remove('hidden');
+        document.getElementById('bgm-label').textContent = 'BGMなし';
+      }
+    }
+
+    socket.on('bgmUpdate', ({ room, bgm }) => {
+      currentBgm[room] = bgm;
+      if (room === currentRoom) {
+        updateBgmBar();
+        if (bgm) { playBgm(bgm.videoId); } else { stopBgm(); }
+      }
+    });
+
+    // BGMボタン
+    document.getElementById('btn-bgm').addEventListener('click', () => {
+      const bar = document.getElementById('bgm-bar');
+      bar.classList.toggle('hidden');
+    });
+
+    // BGM設定モーダル
+    document.getElementById('bgm-set-btn').addEventListener('click', () => {
+      document.getElementById('bgm-set-modal').classList.add('show');
+      document.getElementById('bgm-url-input').value = '';
+      document.getElementById('bgm-url-input').focus();
+    });
+    document.getElementById('bgm-set-cancel').addEventListener('click', () => {
+      document.getElementById('bgm-set-modal').classList.remove('show');
+    });
+    document.getElementById('bgm-set-ok').addEventListener('click', () => {
+      const url = document.getElementById('bgm-url-input').value.trim();
+      const videoId = extractVideoId(url);
+      if (!videoId) { showCoinNotif('有効なYouTube URLを入力してください'); return; }
+      socket.emit('setBgm', { room: currentRoom, videoId, title: url.slice(0, 60) });
+      document.getElementById('bgm-set-modal').classList.remove('show');
+    });
+    document.getElementById('bgm-url-input').addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') document.getElementById('bgm-set-ok').click();
+      if (e.key === 'Escape') document.getElementById('bgm-set-cancel').click();
+    });
+    document.getElementById('bgm-stop-btn').addEventListener('click', () => {
+      socket.emit('setBgm', { room: currentRoom, videoId: null });
+    });
+    document.getElementById('bgm-volume-slider').addEventListener('input', (e) => {
+      bgmVolume = Number(e.target.value);
+      if (ytReady && ytPlayer) ytPlayer.setVolume(bgmVolume);
+    });
+
+    // enterRoom をフックして会議ボタン更新 + BGM
     const _origEnterRoom = enterRoom;
     enterRoom = function(rn) {
       // 会議室を離れるとき音声も切断
@@ -1931,9 +2171,16 @@
       _origEnterRoom(rn);
       myHandRaised = false;
       updateMeetingBtn();
+      // BGM: 部屋移動時に切り替え
+      socket.emit('getBgm', rn);
+      updateBgmBar();
+      const bgm = currentBgm[rn];
+      if (bgm) { playBgm(bgm.videoId); } else { stopBgm(); }
     };
     // 初回
     updateMeetingBtn();
+    updateBgmBar();
+    socket.emit('getBgm', currentRoom);
 
     // ===== ゲームループ =====
     let frameCount = 0;
