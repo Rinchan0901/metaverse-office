@@ -1,0 +1,16 @@
+{
+  "name": "metaverse-office",
+  "version": "0.1.0",
+  "description": "8bit Pokemon-style metaverse office",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "bot": "node discord-bot.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "express": "^4.18.2",
+    "socket.io": "^4.7.4"
+  }
+}

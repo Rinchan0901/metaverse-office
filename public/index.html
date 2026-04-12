@@ -1,0 +1,1422 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Metaverse Office</title>
+  <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DotGothic16&display=swap');
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #1e1e2e; font-family: 'DotGothic16', monospace; color: #e0e0e0; overflow: hidden; height: 100vh; }
+
+    /* === トップバー === */
+    #topbar {
+      height: 44px; background: #2a2a3e; border-bottom: 2px solid #3a3a5a;
+      display: flex; align-items: center; padding: 0 16px; gap: 12px; z-index: 10;
+    }
+    #topbar-logo { font-size: 15px; font-weight: bold; color: #7c8aff; }
+    .topbar-sep { width: 1px; height: 24px; background: #3a3a5a; }
+    #room-name { font-size: 13px; color: #aaa; }
+    #status-selector { margin-left: auto; display: flex; gap: 4px; align-items: center; }
+    .status-btn {
+      padding: 4px 10px; border-radius: 12px; font-size: 11px; cursor: pointer;
+      border: 2px solid transparent; transition: all 0.15s;
+      font-family: 'DotGothic16', monospace; color: #fff;
+    }
+    .status-btn:hover { opacity: 0.8; }
+    .status-btn.active { border-color: #fff; }
+    .st-online { background: #4caf50; } .st-working { background: #ff9800; }
+    .st-meeting { background: #2196f3; } .st-break { background: #9c27b0; }
+    .st-away { background: #757575; }
+    #online-count { font-size: 12px; color: #888; margin-left: 8px; }
+    #coin-display {
+      display: flex; align-items: center; gap: 4px; margin-left: 12px;
+      background: #3a3a5a; padding: 3px 10px; border-radius: 12px; font-size: 12px;
+    }
+    #coin-icon { color: #ffd700; font-size: 14px; }
+    #coin-count { color: #ffd700; font-weight: bold; }
+    #coin-notif {
+      position: fixed; top: 56px; right: 20px; z-index: 50;
+      background: rgba(255,215,0,0.95); color: #1a1020; padding: 8px 16px;
+      border-radius: 8px; font-size: 12px; font-weight: bold;
+      box-shadow: 0 2px 12px rgba(255,215,0,0.3);
+      display: none; animation: coinIn 0.3s ease;
+    }
+    @keyframes coinIn { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+    /* === メインレイアウト === */
+    #main { display: flex; height: calc(100vh - 44px); }
+
+    /* === 左サイドバー === */
+    #sidebar {
+      width: 220px; background: #252538; border-right: 2px solid #3a3a5a;
+      display: flex; flex-direction: column; flex-shrink: 0;
+    }
+    #sidebar-header { padding: 10px 12px; font-size: 12px; color: #7c8aff; font-weight: bold; border-bottom: 1px solid #3a3a5a; }
+    #people-list { flex: 1; overflow-y: auto; padding: 6px; }
+    #people-list::-webkit-scrollbar { width: 4px; }
+    #people-list::-webkit-scrollbar-thumb { background: #3a3a5a; border-radius: 2px; }
+    .person {
+      display: flex; align-items: center; gap: 8px; padding: 6px 8px;
+      border-radius: 6px; cursor: default; transition: background 0.15s; font-size: 12px;
+    }
+    .person:hover { background: #2e2e42; }
+    .person-avatar {
+      width: 28px; height: 28px; border-radius: 6px; image-rendering: pixelated;
+      border: 2px solid #3a3a5a; flex-shrink: 0;
+    }
+    .person-info { flex: 1; min-width: 0; }
+    .person-name { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .person-status { font-size: 10px; display: flex; align-items: center; gap: 4px; }
+    .person-status-dot { width: 6px; height: 6px; border-radius: 50%; }
+    .person-room { font-size: 9px; color: #666; }
+    .person.nearby { background: #2a3a2a; border: 1px solid #4caf5050; }
+
+    /* === ゲームエリア === */
+    #game-area { flex: 1; display: flex; flex-direction: column; position: relative; }
+    #canvas-wrapper {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      overflow: hidden; position: relative;
+    }
+    #game {
+      image-rendering: pixelated; border-radius: 4px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.3);
+      max-width: 100%; max-height: 100%; object-fit: contain;
+    }
+    #game.edit-mode { box-shadow: 0 0 20px rgba(255,215,0,0.3); }
+    #proximity-popup {
+      position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+      background: rgba(76,175,80,0.9); padding: 8px 20px; border-radius: 20px;
+      font-size: 13px; display: none; color: #fff;
+      box-shadow: 0 2px 12px rgba(76,175,80,0.4);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.7; } }
+    #door-prompt {
+      position: absolute; bottom: 56px; left: 50%; transform: translateX(-50%);
+      background: rgba(42,42,62,0.95); border: 2px solid #7c8aff;
+      padding: 6px 18px; border-radius: 16px; font-size: 12px;
+      display: none; color: #7c8aff;
+    }
+    #toolbar {
+      height: 40px; background: #252538; border-top: 2px solid #3a3a5a;
+      display: flex; align-items: center; padding: 0 12px; gap: 8px;
+    }
+    .tool-btn {
+      padding: 5px 12px; border-radius: 6px; font-size: 11px; cursor: pointer;
+      background: #2e2e42; border: 1px solid #3a3a5a; color: #aaa;
+      font-family: 'DotGothic16', monospace; transition: all 0.15s;
+    }
+    .tool-btn:hover { background: #3a3a5a; color: #fff; }
+    .tool-btn.active { background: #7c8aff30; border-color: #7c8aff; color: #7c8aff; }
+    #toolbar-hint { font-size: 10px; color: #555; margin-left: auto; }
+
+    /* === 右パネル === */
+    #right-panel {
+      width: 300px; background: #252538; border-left: 2px solid #3a3a5a;
+      display: flex; flex-direction: column; flex-shrink: 0;
+    }
+    .rp-tabs { display: flex; border-bottom: 2px solid #3a3a5a; }
+    .rp-tab {
+      flex: 1; padding: 8px; text-align: center; font-size: 12px; cursor: pointer;
+      color: #666; border-bottom: 2px solid transparent; transition: all 0.15s;
+    }
+    .rp-tab:hover { color: #aaa; }
+    .rp-tab.active { color: #7c8aff; border-bottom-color: #7c8aff; }
+    .rp-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .rp-content.hidden { display: none; }
+    #chat-messages { flex: 1; padding: 8px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+    #chat-messages::-webkit-scrollbar { width: 4px; }
+    #chat-messages::-webkit-scrollbar-thumb { background: #3a3a5a; border-radius: 2px; }
+    .msg { line-height: 1.5; } .msg-name { color: #7c8aff; font-weight: bold; }
+    .msg-system { color: #4caf50; font-style: italic; font-size: 11px; }
+    #chat-input-area { display: flex; border-top: 1px solid #3a3a5a; }
+    #chat-input { flex: 1; padding: 10px; background: #1e1e2e; border: none; color: #e0e0e0; font-family: 'DotGothic16', monospace; font-size: 13px; outline: none; }
+    #chat-send { padding: 10px 16px; background: #7c8aff; border: none; color: #fff; font-family: 'DotGothic16', monospace; font-weight: bold; cursor: pointer; }
+    #chat-send:hover { background: #6a78ee; }
+    #customize-content { padding: 12px; overflow-y: auto; }
+    #customize-content h4 { font-size: 12px; color: #7c8aff; margin: 8px 0 6px; }
+    #customize-content h4:first-child { margin-top: 0; }
+    .c-preview { text-align: center; margin-bottom: 8px; }
+    .c-preview canvas { border: 2px solid #3a3a5a; border-radius: 6px; image-rendering: pixelated; }
+    .c-options { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 4px; }
+    .c-opt {
+      width: 28px; height: 28px; border: 2px solid #3a3a5a; border-radius: 4px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      font-size: 9px; color: #fff; transition: border-color 0.15s;
+    }
+    .c-opt:hover { border-color: #888; }
+    .c-opt.selected { border-color: #7c8aff; box-shadow: 0 0 6px rgba(124,138,255,0.4); }
+    #furniture-content { padding: 12px; overflow-y: auto; }
+    #furniture-content h4 { font-size: 12px; color: #7c8aff; margin-bottom: 8px; }
+    .f-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .f-item {
+      aspect-ratio: 1; border: 2px solid #3a3a5a; border-radius: 6px;
+      cursor: pointer; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; font-size: 9px;
+      color: #aaa; background: #1e1e2e; padding: 2px; transition: all 0.15s;
+    }
+    .f-item:hover { border-color: #666; }
+    .f-item.selected { border-color: #7c8aff; background: #2a2a3e; }
+    .f-item canvas { image-rendering: pixelated; }
+    .f-btns { display: flex; gap: 6px; margin-top: 10px; }
+    .f-btn {
+      flex: 1; padding: 6px; text-align: center; font-size: 11px; font-weight: bold;
+      border: 1px solid #3a3a5a; border-radius: 6px; cursor: pointer;
+      font-family: 'DotGothic16', monospace; color: #e0e0e0; background: #2e2e42;
+    }
+    .f-btn.active { border-color: #7c8aff; color: #7c8aff; }
+    /* ショップ */
+    #shop-content { padding: 12px; overflow-y: auto; }
+    #shop-content h4 { font-size: 12px; color: #ffd700; margin-bottom: 8px; }
+    .shop-balance { text-align: center; padding: 8px; background: #1e1e2e; border-radius: 8px; margin-bottom: 10px; }
+    .shop-balance .amount { font-size: 18px; color: #ffd700; font-weight: bold; }
+    .shop-balance .label { font-size: 10px; color: #888; }
+    .shop-item {
+      display: flex; align-items: center; gap: 8px; padding: 8px;
+      border: 2px solid #3a3a5a; border-radius: 8px; margin-bottom: 6px;
+      transition: all 0.15s; cursor: pointer; background: #1e1e2e;
+    }
+    .shop-item:hover { border-color: #555; background: #252538; }
+    .shop-item.owned { border-color: #4caf5060; background: #1a2e1a; }
+    .shop-item-icon { font-size: 20px; width: 32px; text-align: center; flex-shrink: 0; }
+    .shop-item-info { flex: 1; min-width: 0; }
+    .shop-item-name { font-size: 12px; font-weight: bold; }
+    .shop-item-type { font-size: 10px; color: #888; }
+    .shop-item-price {
+      font-size: 11px; font-weight: bold; color: #ffd700;
+      padding: 2px 8px; border-radius: 10px; background: #3a3a2a;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .shop-item.owned .shop-item-price { color: #4caf50; background: #1a2e1a; }
+    .shop-stats { margin-top: 12px; padding: 8px; background: #1e1e2e; border-radius: 8px; font-size: 10px; color: #888; }
+    .shop-stats div { margin-bottom: 4px; }
+    .shop-stats span { color: #aaa; }
+
+    /* === モーダル === */
+    #name-modal {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.85); display: flex; justify-content: center;
+      align-items: center; z-index: 100;
+    }
+    #name-modal.hidden { display: none; }
+    #name-form {
+      background: #252538; border: 2px solid #7c8aff; border-radius: 12px;
+      padding: 32px; text-align: center;
+      box-shadow: 0 0 40px rgba(124,138,255,0.2);
+    }
+    #name-form h2 { margin-bottom: 4px; font-size: 20px; color: #7c8aff; }
+    #name-form p { margin-bottom: 18px; font-size: 13px; color: #888; }
+    #name-input {
+      padding: 10px 14px; background: #1e1e2e; border: 2px solid #3a3a5a;
+      border-radius: 6px; color: #e0e0e0; font-family: 'DotGothic16', monospace;
+      font-size: 15px; width: 220px; text-align: center; outline: none;
+    }
+    #name-input:focus { border-color: #7c8aff; }
+    #name-submit {
+      display: block; margin: 14px auto 0; padding: 10px 28px;
+      background: #7c8aff; border: none; border-radius: 8px; color: #fff;
+      font-family: 'DotGothic16', monospace; font-weight: bold; font-size: 15px; cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <!-- モーダル -->
+  <div id="name-modal">
+    <div id="name-form">
+      <h2>METAVERSE OFFICE</h2>
+      <p>なまえを いれてください</p>
+      <input type="text" id="name-input" maxlength="12" placeholder="なまえ" autofocus>
+      <button id="name-submit">はいる</button>
+    </div>
+  </div>
+
+  <!-- トップバー -->
+  <div id="topbar">
+    <div id="topbar-logo">METAVERSE OFFICE</div>
+    <div class="topbar-sep"></div>
+    <div id="room-name">LOBBY</div>
+    <div id="status-selector">
+      <div class="status-btn st-online active" data-st="online">オンライン</div>
+      <div class="status-btn st-working" data-st="working">作業中</div>
+      <div class="status-btn st-meeting" data-st="meeting">会議中</div>
+      <div class="status-btn st-break" data-st="break">休憩</div>
+      <div class="status-btn st-away" data-st="away">離席</div>
+    </div>
+    <div id="online-count"></div>
+    <div id="coin-display"><span id="coin-icon">&#x1FA99;</span> <span id="coin-count">0</span></div>
+  </div>
+  <div id="coin-notif"></div>
+
+  <!-- メイン -->
+  <div id="main">
+    <div id="sidebar">
+      <div id="sidebar-header">MEMBERS</div>
+      <div id="people-list"></div>
+    </div>
+    <div id="game-area">
+      <div id="canvas-wrapper">
+        <canvas id="game"></canvas>
+        <div id="proximity-popup"></div>
+        <div id="door-prompt"></div>
+      </div>
+      <div id="toolbar">
+        <div class="tool-btn" id="btn-furniture">もようがえ (F)</div>
+        <div id="toolbar-hint">矢印キー: 移動 / スペース: 入室 / ESC: ロビー</div>
+      </div>
+    </div>
+    <div id="right-panel">
+      <div class="rp-tabs">
+        <div class="rp-tab active" data-rp="chat">チャット</div>
+        <div class="rp-tab" data-rp="customize">きせかえ</div>
+        <div class="rp-tab" data-rp="furniture">もようがえ</div>
+        <div class="rp-tab" data-rp="shop">ショップ</div>
+      </div>
+      <div class="rp-content" id="rp-chat">
+        <div id="chat-messages"></div>
+        <div id="chat-input-area">
+          <input type="text" id="chat-input" placeholder="メッセージを入力..." maxlength="200">
+          <button id="chat-send">送信</button>
+        </div>
+      </div>
+      <div class="rp-content hidden" id="rp-customize">
+        <div id="customize-content">
+          <div class="c-preview"><canvas id="preview-canvas" width="96" height="112"></canvas></div>
+          <h4>かみがた</h4><div class="c-options" id="hair-options"></div>
+          <h4>ふく（うえ）</h4><div class="c-options" id="body-options"></div>
+          <h4>ふく（した）</h4><div class="c-options" id="pants-options"></div>
+          <h4>アクセサリー</h4><div class="c-options" id="acc-options"></div>
+        </div>
+      </div>
+      <div class="rp-content hidden" id="rp-shop">
+        <div id="shop-content">
+          <div class="shop-balance">
+            <div class="label">コイン残高</div>
+            <div class="amount" id="shop-coins">0</div>
+          </div>
+          <h4>プレミアムアイテム</h4>
+          <div id="shop-list"></div>
+          <div class="shop-stats" id="shop-stats"></div>
+        </div>
+      </div>
+      <div class="rp-content hidden" id="rp-furniture">
+        <div id="furniture-content">
+          <h4>家具をえらぶ</h4>
+          <div class="f-grid" id="furniture-palette"></div>
+          <div class="f-btns">
+            <div class="f-btn active" id="btn-place">おく</div>
+            <div class="f-btn" id="btn-remove">けす</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== 定数 =====
+    const TILE = 32; // 論理タイルサイズ
+    const SCALE = 2;
+    const DRAW_TILE = TILE * SCALE; // 64px描画タイル
+    const CHAR_W = 16, CHAR_H = 24; // キャラの論理サイズ
+    const CHAR_DW = CHAR_W * SCALE, CHAR_DH = CHAR_H * SCALE; // 描画サイズ 32x48
+    const MOVE_SPEED = 2.5; // ピクセル/フレーム（論理座標）
+    const PROXIMITY_RANGE = 3;
+    const ANIM_SPEED = 8; // フレームごとのアニメ切り替え
+
+    // タイルタイプ
+    // 0:CARPET, 1:WALL, 2:DESK, 3:PLANT, 4:DOOR_WORK, 5:DOOR_MEET, 6:MONITOR, 7:CHAIR,
+    // 8:BOARD, 9:RUG, 10:CARPET2, 11:WOOD, 12:WALL2, 13:WINDOW, 14:COUNTER, 15:SOFA_T, 16:SHELF
+    const T = { CARPET:0, WALL:1, DESK:2, PLANT:3, DOOR_WORK:4, DOOR_MEET:5, MONITOR:6, CHAIR:7, BOARD:8, RUG:9, CARPET2:10, WOOD:11, WALL2:12, WINDOW:13, COUNTER:14, SOFA_T:15, SHELF:16 };
+    const BLOCKED = new Set([T.WALL, T.DESK, T.PLANT, T.MONITOR, T.BOARD, T.WALL2, T.WINDOW, T.COUNTER, T.SOFA_T, T.SHELF]);
+
+    const W = T.WALL2; // オフィス壁（短縮）
+    const ROOMS = {
+      lobby: { cols:16, rows:12, spawn:{x:8,y:7}, floorType:'carpet', map:
+        // オフィスロビー: 受付カウンター、ソファ待合、観葉植物、窓
+        [[W, W, W,13, W,13, W, W, W, W,13, W,13, W, W, W],
+         [W, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, W],
+         [W, 0, 3, 0,14,14,14, 0, 0, 0, 0, 0, 0, 3, 0,13],
+         [W, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, W],
+         [13,0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, W],
+         [W, 0,15, 0, 0, 0, 0, 9, 9, 0, 0, 0, 0,15, 0, W],
+         [W, 0, 0, 0, 0, 0, 0, 9, 9, 0, 0, 0, 0, 0, 0,13],
+         [W, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, W],
+         [13,0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, W],
+         [W, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, W],
+         [W, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, W],
+         [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W]],
+        label:'LOBBY', labelColor:'#a0c4ff' },
+      work: { cols:14, rows:10, spawn:{x:7,y:8}, floorType:'carpet', map:
+        // ワークルーム: デスク島、モニター、チェア
+        [[W, W,13, W, W,13, W, W,13, W, W,13, W, W],
+         [W,10,10,10,10,10,10,10,10,10,10,10,10, W],
+         [W,10, 2, 6,10,10, 2, 6,10,10, 2, 6,10,13],
+         [W,10, 7,10,10,10, 7,10,10,10, 7,10,10, W],
+         [W,10,10,10,10,10,10,10,10,10,10,10,10, W],
+         [13,10, 2, 6,10,10, 2, 6,10,10, 2, 6,10, W],
+         [W,10, 7,10,10,10, 7,10,10,10, 7,10,10, W],
+         [W,10,10,10,10,10,10,10,10,10,10,10,10,13],
+         [W,10, 3,10,10,10,10, 4,10,10,10, 3,10, W],
+         [W, W, W, W, W, W, W, W, W, W, W, W, W, W]],
+        label:'WORK ROOM', labelColor:'#ff8a80' },
+      meeting: { cols:12, rows:10, spawn:{x:6,y:8}, floorType:'carpet', map:
+        // ミーティングルーム: 大テーブル、ホワイトボード、プロジェクター
+        [[W, W,13, W, W, W, W, W,13, W, W, W],
+         [W,10,10,10, 8, 8, 8, 8,10,10,10, W],
+         [W,10,10,10,10,10,10,10,10,10,10,13],
+         [W,10, 7, 9, 9, 9, 9, 9, 9, 7,10, W],
+         [W,10,10, 9, 9, 9, 9, 9, 9,10,10, W],
+         [W,10, 7, 9, 9, 9, 9, 9, 9, 7,10,13],
+         [W,10,10,10,10,10,10,10,10,10,10, W],
+         [W,10,10,10,10,10,10,10,10,10,10, W],
+         [W,10, 3,10,10,10, 5,10,10, 3,10, W],
+         [W, W, W, W, W, W, W, W, W, W, W, W]],
+        label:'MEETING ROOM', labelColor:'#87cefa' },
+    };
+
+    const HAIR_COLORS = ['#5a3825','#1a1a2e','#e8c170','#c73650','#f0f0f0','#ff8c42','#e85d9a','#6ec6ff'];
+    const BODY_COLORS = ['#e94560','#4a90d9','#5cb85c','#f0ad4e','#9b59b6','#1abc9c','#ff6b6b','#f5f5f5'];
+    const PANTS_COLORS = ['#2c3e6b','#4a4a5a','#8b6b4a','#3a6b4a','#5a3a6a','#6b4a3a','#2a4a6a','#4a4a4a'];
+    const SKIN = '#fce4c8';
+    const ACC_TYPES = [
+      {label:'なし',id:-1}, {label:'帽子',id:0,color:'#e94560'},
+      {label:'メガネ',id:1,color:'#e0e0e0'}, {label:'リボン',id:2,color:'#ff69b4'},
+      {label:'ヘッドホン',id:3,color:'#555'}, {label:'王冠',id:4,color:'#ffd700'}
+    ];
+    const FURNITURE_DEFS = {
+      sofa:{name:'ソファ',blocked:true}, table:{name:'テーブル',blocked:true},
+      lamp:{name:'ランプ',blocked:true}, bookshelf:{name:'本棚',blocked:true},
+      rug_small:{name:'ラグ',blocked:false}, plant_big:{name:'大きな木',blocked:true},
+      vending:{name:'自販機',blocked:true}, poster:{name:'ポスター',blocked:true},
+      clock:{name:'時計',blocked:true}, trophy:{name:'トロフィー',blocked:true},
+      tv:{name:'テレビ',blocked:true}, aquarium:{name:'水槽',blocked:true}
+    };
+    const STATUS_LABELS = {online:'オンライン',working:'作業中',meeting:'会議中',break:'休憩',away:'離席'};
+    const STATUS_COLORS = {online:'#4caf50',working:'#ff9800',meeting:'#2196f3',break:'#9c27b0',away:'#757575'};
+
+    const canvas = document.getElementById('game'), ctx = canvas.getContext('2d');
+    let myId = null, myName = '', currentRoom = 'lobby', myStatus = 'online';
+    const players = {};
+    let chatFocused = false, myAvatar = { hair:0, body:0, pants:0, acc:-1 };
+    let editMode = false, editAction = 'place', selectedFurniture = 'sofa';
+    const placedFurniture = { lobby:[], work:[], meeting:[] };
+
+    // ===== スムーズ移動用のプレイヤー状態 =====
+    // displayState: { x, y (ピクセル座標 - 論理), targetX, targetY, moving, direction, walkFrame, walkTimer, idleTimer }
+    const displayState = {};
+
+    function resizeCanvas() {
+      const r = ROOMS[currentRoom];
+      canvas.width = r.cols * DRAW_TILE;
+      canvas.height = r.rows * DRAW_TILE;
+    }
+    resizeCanvas();
+
+    // ===== ユーティリティ =====
+    function darken(h, a) {
+      const r = Math.max(0, parseInt(h.slice(1,3),16) - a);
+      const g = Math.max(0, parseInt(h.slice(3,5),16) - a);
+      const b = Math.max(0, parseInt(h.slice(5,7),16) - a);
+      return `rgb(${r},${g},${b})`;
+    }
+    function lighten(h, a) {
+      const r = Math.min(255, parseInt(h.slice(1,3),16) + a);
+      const g = Math.min(255, parseInt(h.slice(3,5),16) + a);
+      const b = Math.min(255, parseInt(h.slice(5,7),16) + a);
+      return `rgb(${r},${g},${b})`;
+    }
+
+    // ===== タイル描画 =====
+    function drawTile(x, y, type) {
+      const px = x * DRAW_TILE, py = y * DRAW_TILE, dt = DRAW_TILE;
+
+      // カーペット（メイン床）
+      if (type === T.CARPET || type === T.CARPET2) {
+        const isAlt = type === T.CARPET2;
+        const base = isAlt ? '#8a9ab0' : '#9aa8b8';
+        const dark = isAlt ? '#7e8ea4' : '#8e9cac';
+        ctx.fillStyle = base; ctx.fillRect(px, py, dt, dt);
+        // カーペットの微妙なテクスチャ
+        ctx.fillStyle = dark;
+        const s = (x*7 + y*13) % 4;
+        if (s===0) { ctx.fillRect(px+8,py+8,2,2); ctx.fillRect(px+40,py+36,2,2); }
+        if (s===1) { ctx.fillRect(px+24,py+12,2,2); ctx.fillRect(px+12,py+44,2,2); }
+        if (s===2) { ctx.fillRect(px+36,py+20,2,2); ctx.fillRect(px+20,py+48,2,2); }
+        ctx.strokeStyle = isAlt ? '#748498' : '#8494a4'; ctx.lineWidth = 0.5;
+        ctx.strokeRect(px, py, dt, dt);
+        return;
+      }
+      // ウッドフロア
+      if (type === T.WOOD) { drawWood(px, py, dt, x, y); return; }
+
+      // オフィス壁（モダン）
+      if (type === T.WALL2) {
+        // 下半分: パネル
+        ctx.fillStyle = '#4a5568'; ctx.fillRect(px, py, dt, dt);
+        ctx.fillStyle = '#556578'; ctx.fillRect(px+2, py+2, dt-4, dt-4);
+        // 上半分: やや明るめ
+        ctx.fillStyle = '#5a6a7e'; ctx.fillRect(px+2, py+2, dt-4, dt/2-2);
+        // 巾木ライン
+        ctx.fillStyle = '#3a4558'; ctx.fillRect(px, py+dt-4, dt, 4);
+        // ハイライト
+        ctx.fillStyle = '#6a7a8e'; ctx.fillRect(px+3, py+3, dt-6, 2);
+        ctx.strokeStyle = '#3a4558'; ctx.lineWidth = 1; ctx.strokeRect(px, py, dt, dt);
+        return;
+      }
+      // 旧壁（互換性）
+      if (type === T.WALL) {
+        ctx.fillStyle = '#4a5568'; ctx.fillRect(px, py, dt, dt);
+        ctx.fillStyle = '#556578'; ctx.fillRect(px+2, py+2, dt-4, dt-4);
+        ctx.fillStyle = '#3a4558'; ctx.fillRect(px, py+dt-4, dt, 4);
+        ctx.strokeStyle = '#3a4558'; ctx.lineWidth = 1; ctx.strokeRect(px, py, dt, dt);
+        return;
+      }
+      // 窓
+      if (type === T.WINDOW) {
+        // 壁ベース
+        ctx.fillStyle = '#4a5568'; ctx.fillRect(px, py, dt, dt);
+        // 窓枠
+        ctx.fillStyle = '#6a7a8e'; ctx.fillRect(px+6, py+4, dt-12, dt-12);
+        // ガラス（空色グラデーション）
+        ctx.fillStyle = '#a8d8ea'; ctx.fillRect(px+8, py+6, dt-16, dt-16);
+        ctx.fillStyle = '#c8e8f8'; ctx.fillRect(px+8, py+6, dt-16, (dt-16)/2);
+        // 窓の十字フレーム
+        ctx.fillStyle = '#6a7a8e';
+        ctx.fillRect(px+dt/2-1, py+6, 3, dt-16);
+        ctx.fillRect(px+8, py+dt/2-3, dt-16, 3);
+        // 光の反射
+        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        ctx.fillRect(px+10, py+8, 8, 6);
+        // 巾木
+        ctx.fillStyle = '#3a4558'; ctx.fillRect(px, py+dt-4, dt, 4);
+        ctx.strokeStyle = '#3a4558'; ctx.lineWidth = 1; ctx.strokeRect(px, py, dt, dt);
+        return;
+      }
+
+      // ここから先は床を先に描く
+      drawFloor(x, y);
+
+      // デスク（モダンオフィス）
+      if (type === T.DESK) {
+        // 脚
+        ctx.fillStyle = '#6a6a7a'; ctx.fillRect(px+10,py+dt-10,4,10); ctx.fillRect(px+dt-14,py+dt-10,4,10);
+        // 天板
+        ctx.fillStyle = '#e8e0d0'; ctx.fillRect(px+4, py+12, dt-8, dt-18);
+        ctx.fillStyle = '#f0e8d8'; ctx.fillRect(px+6, py+14, dt-12, dt-24);
+        // 天板エッジ
+        ctx.fillStyle = '#d8d0c0'; ctx.fillRect(px+4, py+12, dt-8, 3);
+        return;
+      }
+      // モニター
+      if (type === T.MONITOR) {
+        // デスク部分
+        ctx.fillStyle = '#6a6a7a'; ctx.fillRect(px+10,py+dt-10,4,10); ctx.fillRect(px+dt-14,py+dt-10,4,10);
+        ctx.fillStyle = '#e8e0d0'; ctx.fillRect(px+4, py+18, dt-8, dt-24);
+        // モニター
+        ctx.fillStyle = '#2a2a3a'; ctx.fillRect(px+10, py+2, dt-20, dt-24);
+        ctx.fillStyle = '#3a4a6a'; ctx.fillRect(px+12, py+4, dt-24, dt-30);
+        // 画面内容
+        ctx.fillStyle = '#4a6a9a'; ctx.fillRect(px+14, py+6, 10, 4);
+        ctx.fillStyle = '#5a8aba'; ctx.fillRect(px+14, py+12, 16, 3);
+        ctx.fillStyle = '#4a7aaa'; ctx.fillRect(px+14, py+17, 12, 3);
+        // スタンド
+        ctx.fillStyle = '#3a3a4a'; ctx.fillRect(px+dt/2-3, py+dt-26, 6, 8);
+        ctx.fillRect(px+dt/2-8, py+dt-20, 16, 3);
+        return;
+      }
+      // チェア（オフィスチェア）
+      if (type === T.CHAIR) {
+        // ベース（車輪）
+        ctx.fillStyle = '#4a4a5a'; ctx.fillRect(px+dt/2-10, py+dt-6, 20, 4);
+        // 支柱
+        ctx.fillStyle = '#5a5a6a'; ctx.fillRect(px+dt/2-2, py+dt-14, 4, 10);
+        // 座面
+        ctx.fillStyle = '#3a5a8a'; ctx.fillRect(px+14, py+dt-20, dt-28, 8);
+        // 背もたれ
+        ctx.fillStyle = '#3a5a8a'; ctx.fillRect(px+16, py+8, dt-32, dt-24);
+        ctx.fillStyle = '#4a6a9a'; ctx.fillRect(px+18, py+10, dt-36, dt-30);
+        return;
+      }
+      // 観葉植物（オフィス用）
+      if (type === T.PLANT) {
+        // 鉢
+        ctx.fillStyle = '#f0f0e8'; ctx.fillRect(px+dt/2-10, py+dt-18, 20, 16);
+        ctx.fillStyle = '#e0e0d8'; ctx.fillRect(px+dt/2-12, py+dt-18, 24, 4);
+        ctx.fillStyle = '#d0d0c8'; ctx.fillRect(px+dt/2-8, py+dt-6, 16, 4);
+        // 幹
+        ctx.fillStyle = '#6a8a4a'; ctx.fillRect(px+dt/2-2, py+dt-28, 4, 12);
+        // 葉
+        ctx.fillStyle = '#5aaa50'; fillCirc(ctx, px+dt/2, py+dt/2-10, 16);
+        ctx.fillStyle = '#6abb60'; fillCirc(ctx, px+dt/2-8, py+dt/2-16, 10);
+        fillCirc(ctx, px+dt/2+8, py+dt/2-16, 10);
+        ctx.fillStyle = '#7acc70'; fillCirc(ctx, px+dt/2, py+dt/2-22, 8);
+        return;
+      }
+      // ドア
+      if (type === T.DOOR_WORK || type === T.DOOR_MEET) {
+        const isW = type === T.DOOR_WORK;
+        // ドアフレーム
+        ctx.fillStyle = '#5a6a7e'; ctx.fillRect(px+8, py+2, dt-16, dt-4);
+        // ドア本体
+        ctx.fillStyle = isW ? '#7a9ab8' : '#7ab8c8';
+        ctx.fillRect(px+10, py+4, dt-20, dt-8);
+        // ドアのパネル
+        ctx.fillStyle = isW ? '#8aaac8' : '#8ac8d8';
+        ctx.fillRect(px+12, py+6, dt-24, (dt-16)/2);
+        ctx.fillRect(px+12, py+dt/2+2, dt-24, (dt-16)/2-4);
+        // ドアノブ
+        ctx.fillStyle = '#c0c8d0'; fillCirc(ctx, px+dt-18, py+dt/2, 4);
+        // ラベル
+        ctx.fillStyle = '#fff'; ctx.font = `bold ${Math.round(SCALE*5)}px 'DotGothic16',monospace`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(isW ? 'WORK' : 'MEET', px+dt/2, py+dt/2);
+        return;
+      }
+      // ホワイトボード
+      if (type === T.BOARD) {
+        // フレーム
+        ctx.fillStyle = '#c0c8d0'; ctx.fillRect(px+4, py+2, dt-8, dt-8);
+        // ボード面
+        ctx.fillStyle = '#f8f8f6'; ctx.fillRect(px+6, py+4, dt-12, dt-14);
+        // 書き込み
+        ctx.fillStyle = '#4a6a9a'; ctx.fillRect(px+10, py+10, dt-24, 2);
+        ctx.fillStyle = '#e06050'; ctx.fillRect(px+10, py+18, dt-30, 2);
+        ctx.fillStyle = '#4a9a6a'; ctx.fillRect(px+10, py+26, dt-26, 2);
+        // マーカートレイ
+        ctx.fillStyle = '#c0c0c0'; ctx.fillRect(px+8, py+dt-10, dt-16, 4);
+        ctx.fillStyle = '#e06050'; ctx.fillRect(px+12, py+dt-12, 6, 3);
+        ctx.fillStyle = '#4a6a9a'; ctx.fillRect(px+20, py+dt-12, 6, 3);
+        return;
+      }
+      // ラグ（オフィスラグ）
+      if (type === T.RUG) {
+        ctx.fillStyle = '#6a7a9a'; ctx.fillRect(px+2, py+2, dt-4, dt-4);
+        ctx.fillStyle = '#7a8aaa'; ctx.fillRect(px+4, py+4, dt-8, dt-8);
+        ctx.fillStyle = '#8a9aba'; ctx.fillRect(px+dt/2-10, py+dt/2-10, 20, 20);
+        ctx.fillStyle = '#6a7a9a'; ctx.fillRect(px+dt/2-4, py+dt/2-4, 8, 8);
+        return;
+      }
+      // 受付カウンター
+      if (type === T.COUNTER) {
+        ctx.fillStyle = '#5a4a3a'; ctx.fillRect(px+2, py+6, dt-4, dt-8);
+        ctx.fillStyle = '#7a6a5a'; ctx.fillRect(px+4, py+8, dt-8, dt-14);
+        // カウンタートップ
+        ctx.fillStyle = '#e8e0d0'; ctx.fillRect(px, py+4, dt, 6);
+        ctx.fillStyle = '#f0e8d8'; ctx.fillRect(px+2, py+4, dt-4, 4);
+        return;
+      }
+      // ソファ（待合用）
+      if (type === T.SOFA_T) {
+        // ベース
+        ctx.fillStyle = '#3a5a7a'; ctx.fillRect(px+4, py+10, dt-8, dt-14);
+        // クッション
+        ctx.fillStyle = '#4a7aaa'; ctx.fillRect(px+6, py+14, dt-12, dt-22);
+        // 背もたれ
+        ctx.fillStyle = '#3a6a8a'; ctx.fillRect(px+4, py+8, dt-8, 10);
+        // アームレスト
+        ctx.fillStyle = '#3a5a7a';
+        ctx.fillRect(px+2, py+10, 6, dt-16);
+        ctx.fillRect(px+dt-8, py+10, 6, dt-16);
+        // ハイライト
+        ctx.fillStyle = '#5a8aba'; ctx.fillRect(px+8, py+16, 10, 8);
+        ctx.fillRect(px+dt-20, py+16, 10, 8);
+        return;
+      }
+      // 棚
+      if (type === T.SHELF) {
+        ctx.fillStyle = '#5a4a3a'; ctx.fillRect(px+4, py+2, dt-8, dt-4);
+        ctx.fillStyle = '#7a6a5a'; ctx.fillRect(px+6, py+4, dt-12, dt-8);
+        // 棚板
+        ctx.fillStyle = '#4a3a2a'; ctx.fillRect(px+6, py+dt/3+2, dt-12, 2);
+        ctx.fillRect(px+6, py+dt*2/3, dt-12, 2);
+        // 本
+        ctx.fillStyle = '#4a6a9a'; ctx.fillRect(px+8, py+6, 6, dt/3-4);
+        ctx.fillStyle = '#9a5a5a'; ctx.fillRect(px+16, py+6, 6, dt/3-4);
+        ctx.fillStyle = '#5a9a5a'; ctx.fillRect(px+24, py+6, 8, dt/3-4);
+        // ファイル
+        ctx.fillStyle = '#e8e0d0'; ctx.fillRect(px+8, py+dt/3+6, 10, dt/3-6);
+        ctx.fillStyle = '#d0c8b8'; ctx.fillRect(px+20, py+dt/3+6, 10, dt/3-6);
+        return;
+      }
+    }
+    function drawFloor(x,y) {
+      const px=x*DRAW_TILE, py=y*DRAW_TILE, dt=DRAW_TILE;
+      // オフィスカーペット
+      ctx.fillStyle = '#9aa8b8'; ctx.fillRect(px, py, dt, dt);
+      ctx.fillStyle = '#8e9cac';
+      const s = (x*7 + y*13) % 4;
+      if (s===0) { ctx.fillRect(px+8,py+8,2,2); ctx.fillRect(px+40,py+36,2,2); }
+      if (s===1) { ctx.fillRect(px+24,py+12,2,2); ctx.fillRect(px+12,py+44,2,2); }
+      ctx.strokeStyle = '#8494a4'; ctx.lineWidth = 0.5; ctx.strokeRect(px, py, dt, dt);
+    }
+    function drawWood(px,py,dt,x,y){
+      ctx.fillStyle='#c8a06a'; ctx.fillRect(px,py,dt,dt);
+      ctx.fillStyle='#b8905a'; ctx.fillRect(px,py+dt/3-1,dt,3); ctx.fillRect(px,py+dt*2/3-1,dt,3);
+      ctx.fillStyle='#d8b07a'; ctx.fillRect(px+((x+y)%3)*22,py+3,14,dt/3-5);
+      ctx.strokeStyle='#a8804a'; ctx.lineWidth=1; ctx.strokeRect(px,py,dt,dt);
+    }
+    function fillCirc(c,cx,cy,r) {
+      c.beginPath(); c.arc(cx,cy,r,0,Math.PI*2); c.fill();
+    }
+
+    // ===== 家具描画 =====
+    function drawFurniture(c,type,px,py,dt) {
+      const o=2;
+      if(type==='sofa'){c.fillStyle='#a03030';c.fillRect(px+3,py+8,dt-6,dt-12);c.fillStyle='#e06050';c.fillRect(px+4,py+12,dt-8,dt-18);c.fillStyle='#c84040';c.fillRect(px+4,py+8,dt-8,8);c.fillStyle='#f08070';c.fillRect(px+8,py+16,10,10);c.fillRect(px+dt-18,py+16,10,10);}
+      else if(type==='table'){c.fillStyle='#8a6a4a';c.fillRect(px+10,py+dt-10,6,10);c.fillRect(px+dt-16,py+dt-10,6,10);c.fillStyle='#b8905a';c.fillRect(px+6,py+8,dt-12,dt-14);c.fillStyle='#d4a86a';c.fillRect(px+8,py+10,dt-16,dt-20);c.fillStyle='#c09850';c.fillRect(px+8,py+8,dt-16,4);}
+      else if(type==='lamp'){c.fillStyle='#8a8a8a';c.fillRect(px+dt/2-3,py+18,6,dt-24);c.fillRect(px+dt/2-8,py+dt-8,16,6);c.fillStyle='#ffe066';c.fillRect(px+dt/2-12,py+4,24,18);c.fillStyle='#fff8c0';c.fillRect(px+dt/2-8,py+8,16,10);c.fillStyle='#fff';c.globalAlpha=0.3;fillCirc(c,px+dt/2,py+14,14);c.globalAlpha=1;}
+      else if(type==='bookshelf'){c.fillStyle='#6a4a2a';c.fillRect(px+3,py+3,dt-6,dt-6);c.fillStyle='#8a6a4a';c.fillRect(px+5,py+5,dt-10,dt-10);c.fillStyle='#5a3a1a';c.fillRect(px+5,py+dt/3+2,dt-10,3);c.fillRect(px+5,py+dt*2/3+2,dt-10,3);c.fillStyle='#e06050';c.fillRect(px+8,py+6,8,dt/3-4);c.fillStyle='#4a90d9';c.fillRect(px+18,py+6,8,dt/3-4);c.fillStyle='#5cb85c';c.fillRect(px+28,py+6,10,dt/3-4);c.fillStyle='#f0ad4e';c.fillRect(px+8,py+dt/3+6,10,dt/3-6);c.fillStyle='#9b59b6';c.fillRect(px+20,py+dt/3+6,8,dt/3-6);}
+      else if(type==='rug_small'){c.fillStyle='#d4a06a';c.fillRect(px+6,py+10,dt-12,dt-20);c.fillStyle='#c49060';c.fillRect(px+10,py+14,dt-20,dt-28);c.fillStyle='#e4b07a';c.fillRect(px+dt/2-5,py+dt/2-5,10,10);}
+      else if(type==='plant_big'){c.fillStyle='#8a6a4a';c.fillRect(px+dt/2-10,py+dt-16,20,14);c.fillStyle='#4caf50';fillCirc(c,px+dt/2,py+dt/2-6,18);c.fillStyle='#66bb6a';fillCirc(c,px+dt/2-6,py+dt/2-14,11);fillCirc(c,px+dt/2+6,py+dt/2-14,11);}
+      else if(type==='vending'){c.fillStyle='#c0392b';c.fillRect(px+6,py+3,dt-12,dt-6);c.fillStyle='#333';c.fillRect(px+10,py+7,dt-20,dt-20);c.fillStyle='#4ae';c.fillRect(px+12,py+10,8,8);c.fillStyle='#5cb85c';c.fillRect(px+22,py+10,8,8);c.fillStyle='#f0ad4e';c.fillRect(px+12,py+22,8,8);c.fillStyle='#ddd';c.fillRect(px+dt-16,py+dt-14,6,6);}
+      else if(type==='poster'){c.fillStyle='#fff';c.fillRect(px+10,py+3,dt-20,dt-10);c.fillStyle='#ffa';c.fillRect(px+12,py+5,dt-24,dt-16);c.fillStyle='#e94560';c.fillRect(px+14,py+8,dt-28,10);}
+      else if(type==='clock'){c.fillStyle='#8a6a4a';fillCirc(c,px+dt/2,py+dt/2,dt/2-5);c.fillStyle='#f5f5f0';fillCirc(c,px+dt/2,py+dt/2,dt/2-9);c.fillStyle='#333';c.fillRect(px+dt/2-1,py+dt/2-12,3,12);c.fillRect(px+dt/2,py+dt/2-1,10,3);}
+      else if(type==='trophy'){c.fillStyle='#ffd700';c.fillRect(px+dt/2-10,py+8,20,18);c.fillStyle='#daa520';c.fillRect(px+dt/2-5,py+26,10,8);c.fillRect(px+dt/2-10,py+34,20,5);c.fillStyle='#fff';c.globalAlpha=0.3;c.fillRect(px+dt/2-6,py+12,4,8);c.globalAlpha=1;}
+      else if(type==='tv'){c.fillStyle='#222';c.fillRect(px+6,py+6,dt-12,dt-14);c.fillStyle='#3af';c.fillRect(px+9,py+9,dt-18,dt-22);c.fillStyle='#444';c.fillRect(px+dt/2-8,py+dt-10,16,5);c.fillRect(px+dt/2-3,py+dt-14,6,6);}
+      else if(type==='aquarium'){c.fillStyle='#4a8a9a';c.fillRect(px+3,py+8,dt-6,dt-12);c.fillStyle='#5bc0de';c.fillRect(px+5,py+10,dt-10,dt-18);c.fillStyle='#87ceeb';c.fillRect(px+6,py+12,dt-12,dt-22);c.fillStyle='#ff6b6b';c.fillRect(px+14,py+20,8,5);c.fillStyle='#ffa500';c.fillRect(px+28,py+26,6,4);c.fillStyle='#4caf50';c.fillRect(px+10,py+dt-16,4,10);c.fillRect(px+dt-18,py+dt-18,4,12);}
+    }
+
+    // ===== キャラクター描画（高品質ピクセルアート） =====
+    // direction: 'down','up','left','right'  walkFrame: 0,1,2 (0=stand, 1=step-left, 2=step-right)
+    function drawCharacter(c, px, py, dir, avatar, walkFrame, scale) {
+      const S = scale; // 倍率
+      const hair = HAIR_COLORS[avatar.hair] || HAIR_COLORS[0];
+      const body = BODY_COLORS[avatar.body] || BODY_COLORS[0];
+      const pants = PANTS_COLORS[avatar.pants] || PANTS_COLORS[0];
+      const dBody = darken(body, 25);
+      const dHair = darken(hair, 20);
+      const lHair = lighten(hair, 25);
+      const dPants = darken(pants, 20);
+      const OL = '#181020';
+      const dSkin = darken(SKIN.replace('#','#'), 20);
+      const frame = walkFrame; // 0=center, 1=left, 2=right
+
+      // キャラサイズ: 16x24 論理ピクセル * scale
+      const w = 16 * S, h = 24 * S;
+      const p = S; // 1論理ピクセル
+
+      // 影
+      c.fillStyle = 'rgba(0,0,0,0.18)';
+      c.beginPath(); c.ellipse(px + w/2, py + h - p, w*0.38, p*2.5, 0, 0, Math.PI*2); c.fill();
+
+      if (dir === 'down' || dir === 'up') {
+        // === 正面/背面 ===
+        const isFront = dir === 'down';
+
+        // 足 (歩行アニメーション)
+        c.fillStyle = OL;
+        if (frame === 0) {
+          // 両足揃え
+          c.fillRect(px+4*p, py+21*p, 3*p, 3*p); // 左足
+          c.fillRect(px+9*p, py+21*p, 3*p, 3*p); // 右足
+          c.fillStyle = '#7a5a3a'; // 靴
+          c.fillRect(px+4*p, py+21*p, 3*p, 2*p);
+          c.fillRect(px+9*p, py+21*p, 3*p, 2*p);
+          c.fillStyle = '#9a7a5a';
+          c.fillRect(px+4*p, py+21*p, 3*p, p);
+          c.fillRect(px+9*p, py+21*p, 3*p, p);
+        } else if (frame === 1) {
+          // 左足前
+          c.fillRect(px+3*p, py+20*p, 3*p, 4*p);
+          c.fillRect(px+10*p, py+21*p, 3*p, 3*p);
+          c.fillStyle = '#7a5a3a';
+          c.fillRect(px+3*p, py+21*p, 3*p, 2*p);
+          c.fillRect(px+10*p, py+21*p, 3*p, 2*p);
+          c.fillStyle = '#9a7a5a';
+          c.fillRect(px+3*p, py+21*p, 3*p, p);
+          c.fillRect(px+10*p, py+22*p, 3*p, p);
+        } else {
+          // 右足前
+          c.fillRect(px+4*p, py+21*p, 3*p, 3*p);
+          c.fillRect(px+9*p, py+20*p, 3*p, 4*p);
+          c.fillStyle = '#7a5a3a';
+          c.fillRect(px+4*p, py+21*p, 3*p, 2*p);
+          c.fillRect(px+9*p, py+21*p, 3*p, 2*p);
+          c.fillStyle = '#9a7a5a';
+          c.fillRect(px+4*p, py+22*p, 3*p, p);
+          c.fillRect(px+9*p, py+21*p, 3*p, p);
+        }
+
+        // ズボン
+        c.fillStyle = OL;
+        c.fillRect(px+3*p, py+17*p, 10*p, 5*p);
+        c.fillStyle = pants;
+        c.fillRect(px+3*p, py+17*p, 10*p, 4*p);
+        c.fillStyle = dPants;
+        c.fillRect(px+3*p, py+20*p, 10*p, p);
+        // ズボンの中心線
+        c.fillStyle = darken(pants, 10);
+        c.fillRect(px+8*p-Math.floor(p/2), py+17*p, p, 4*p);
+
+        // 体（上半身）
+        c.fillStyle = OL;
+        c.fillRect(px+2*p, py+10*p, 12*p, 8*p);
+        c.fillStyle = body;
+        c.fillRect(px+3*p, py+10*p, 10*p, 7*p);
+        // 襟・ディテール
+        c.fillStyle = dBody;
+        c.fillRect(px+3*p, py+16*p, 10*p, p);
+        if (isFront) {
+          c.fillStyle = lighten(body, 20);
+          c.fillRect(px+7*p, py+10*p, 2*p, 3*p); // 襟の開き
+        }
+        // ベルト
+        c.fillStyle = '#4a3a2a';
+        c.fillRect(px+3*p, py+17*p, 10*p, p);
+        c.fillStyle = '#ffd700';
+        c.fillRect(px+7*p, py+17*p, 2*p, p);
+
+        // 腕
+        const armSwing = frame === 1 ? -p : frame === 2 ? p : 0;
+        c.fillStyle = OL;
+        c.fillRect(px+p, py+11*p+armSwing, 2*p, 7*p);
+        c.fillRect(px+13*p, py+11*p-armSwing, 2*p, 7*p);
+        c.fillStyle = body;
+        c.fillRect(px+p, py+11*p+armSwing, 2*p, 5*p);
+        c.fillRect(px+13*p, py+11*p-armSwing, 2*p, 5*p);
+        // 手
+        c.fillStyle = SKIN;
+        c.fillRect(px+p, py+16*p+armSwing, 2*p, 2*p);
+        c.fillRect(px+13*p, py+16*p-armSwing, 2*p, 2*p);
+
+        // 頭
+        c.fillStyle = OL;
+        c.fillRect(px+2*p, py+2*p, 12*p, 9*p);
+        c.fillStyle = SKIN;
+        c.fillRect(px+3*p, py+3*p, 10*p, 7*p);
+        // 耳
+        c.fillStyle = OL;
+        c.fillRect(px+p, py+5*p, 2*p, 3*p);
+        c.fillRect(px+13*p, py+5*p, 2*p, 3*p);
+        c.fillStyle = SKIN;
+        c.fillRect(px+p+Math.ceil(p/2), py+5*p+Math.ceil(p/2), p, 2*p);
+        c.fillRect(px+13*p, py+5*p+Math.ceil(p/2), p, 2*p);
+        // 頬
+        if (isFront) {
+          c.fillStyle = '#ffa8a0';
+          c.fillRect(px+3*p, py+8*p, 2*p, p);
+          c.fillRect(px+11*p, py+8*p, 2*p, p);
+        }
+
+        // 髪
+        c.fillStyle = OL;
+        c.fillRect(px+p, py, 14*p, 4*p);
+        c.fillStyle = hair;
+        c.fillRect(px+2*p, py+Math.ceil(p/2), 12*p, 3*p);
+        // 横髪
+        c.fillStyle = OL;
+        c.fillRect(px+p, py+2*p, 2*p, 6*p);
+        c.fillRect(px+13*p, py+2*p, 2*p, 6*p);
+        c.fillStyle = hair;
+        c.fillRect(px+2*p, py+2*p, p, 5*p);
+        c.fillRect(px+13*p, py+2*p, p, 5*p);
+        // とんがり髪
+        c.fillStyle = OL;
+        c.fillRect(px+4*p, py-2*p, 3*p, 3*p);
+        c.fillRect(px+7*p, py-3*p, 3*p, 4*p);
+        c.fillRect(px+10*p, py-p, 3*p, 2*p);
+        c.fillStyle = hair;
+        c.fillRect(px+5*p, py-p, 2*p, 2*p);
+        c.fillRect(px+7*p, py-2*p, 2*p, 3*p);
+        c.fillRect(px+10*p, py, 2*p, p);
+        // 前髪
+        c.fillStyle = hair;
+        c.fillRect(px+3*p, py+3*p, 10*p, 2*p);
+        c.fillStyle = dHair;
+        c.fillRect(px+3*p, py+4*p, 10*p, p);
+
+        // 目
+        if (isFront) {
+          // 白目
+          c.fillStyle = '#fff';
+          c.fillRect(px+4*p, py+5*p, 3*p, 3*p);
+          c.fillRect(px+9*p, py+5*p, 3*p, 3*p);
+          // 瞳
+          c.fillStyle = '#1a1040';
+          c.fillRect(px+5*p, py+6*p, 2*p, 2*p);
+          c.fillRect(px+10*p, py+6*p, 2*p, 2*p);
+          // ハイライト
+          c.fillStyle = '#fff';
+          c.fillRect(px+5*p, py+6*p, p, p);
+          c.fillRect(px+10*p, py+6*p, p, p);
+          // 口
+          c.fillStyle = '#d08070';
+          c.fillRect(px+7*p, py+9*p, 2*p, p);
+        } else {
+          // 背面: 髪で目を隠す
+          c.fillStyle = hair;
+          c.fillRect(px+3*p, py+4*p, 10*p, 5*p);
+          c.fillStyle = dHair;
+          c.fillRect(px+5*p, py+7*p, 6*p, p);
+        }
+
+      } else {
+        // === 横向き ===
+        const isLeft = dir === 'left';
+        const flip = isLeft ? -1 : 1;
+        const ox = isLeft ? px + w : px;
+
+        // 足
+        c.save();
+        c.translate(ox, 0);
+        c.scale(flip, 1);
+
+        c.fillStyle = OL;
+        if (frame === 0) {
+          c.fillRect(5*p, py+21*p, 3*p, 3*p);
+          c.fillRect(8*p, py+21*p, 3*p, 3*p);
+          c.fillStyle = '#7a5a3a';
+          c.fillRect(5*p, py+21*p, 3*p, 2*p);
+          c.fillRect(8*p, py+21*p, 3*p, 2*p);
+        } else if (frame === 1) {
+          c.fillRect(3*p, py+20*p, 3*p, 4*p);
+          c.fillRect(9*p, py+21*p, 3*p, 3*p);
+          c.fillStyle = '#7a5a3a';
+          c.fillRect(3*p, py+21*p, 3*p, 2*p);
+          c.fillRect(9*p, py+21*p, 3*p, 2*p);
+        } else {
+          c.fillRect(5*p, py+21*p, 3*p, 3*p);
+          c.fillRect(10*p, py+20*p, 3*p, 4*p);
+          c.fillStyle = '#7a5a3a';
+          c.fillRect(5*p, py+21*p, 3*p, 2*p);
+          c.fillRect(10*p, py+21*p, 3*p, 2*p);
+        }
+
+        // ズボン
+        c.fillStyle = OL; c.fillRect(4*p, py+17*p, 9*p, 5*p);
+        c.fillStyle = pants; c.fillRect(4*p, py+17*p, 9*p, 4*p);
+        c.fillStyle = dPants; c.fillRect(4*p, py+20*p, 9*p, p);
+
+        // 体
+        c.fillStyle = OL; c.fillRect(3*p, py+10*p, 11*p, 8*p);
+        c.fillStyle = body; c.fillRect(4*p, py+10*p, 9*p, 7*p);
+        c.fillStyle = dBody; c.fillRect(4*p, py+16*p, 9*p, p);
+        c.fillStyle = '#4a3a2a'; c.fillRect(4*p, py+17*p, 9*p, p);
+        c.fillStyle = '#ffd700'; c.fillRect(8*p, py+17*p, 2*p, p);
+
+        // 腕(前)
+        const armY = frame === 1 ? -p : frame === 2 ? p : 0;
+        c.fillStyle = OL; c.fillRect(2*p, py+11*p+armY, 3*p, 7*p);
+        c.fillStyle = body; c.fillRect(2*p, py+11*p+armY, 2*p, 5*p);
+        c.fillStyle = SKIN; c.fillRect(2*p, py+16*p+armY, 2*p, 2*p);
+
+        // 頭
+        c.fillStyle = OL; c.fillRect(3*p, py+2*p, 11*p, 9*p);
+        c.fillStyle = SKIN; c.fillRect(4*p, py+3*p, 9*p, 7*p);
+        // 耳
+        c.fillStyle = OL; c.fillRect(13*p, py+5*p, 2*p, 3*p);
+        c.fillStyle = SKIN; c.fillRect(13*p, py+5*p+Math.ceil(p/2), p, 2*p);
+        // 頬
+        c.fillStyle = '#ffa8a0'; c.fillRect(11*p, py+8*p, 2*p, p);
+
+        // 髪
+        c.fillStyle = OL; c.fillRect(2*p, py, 12*p, 4*p);
+        c.fillStyle = hair; c.fillRect(3*p, py+Math.ceil(p/2), 10*p, 3*p);
+        c.fillStyle = OL; c.fillRect(2*p, py+2*p, 2*p, 6*p);
+        c.fillStyle = hair; c.fillRect(3*p, py+2*p, p, 5*p);
+        // とんがり
+        c.fillStyle = OL; c.fillRect(5*p, py-2*p, 3*p, 3*p); c.fillRect(8*p, py-3*p, 3*p, 4*p);
+        c.fillStyle = hair; c.fillRect(5*p, py-p, 2*p, 2*p); c.fillRect(8*p, py-2*p, 2*p, 3*p);
+        // 前髪
+        c.fillStyle = hair; c.fillRect(4*p, py+3*p, 9*p, 2*p);
+        c.fillStyle = dHair; c.fillRect(4*p, py+4*p, 9*p, p);
+
+        // 目（横向き - 片目）
+        c.fillStyle = '#fff'; c.fillRect(10*p, py+5*p, 3*p, 3*p);
+        c.fillStyle = '#1a1040'; c.fillRect(11*p, py+6*p, 2*p, 2*p);
+        c.fillStyle = '#fff'; c.fillRect(11*p, py+6*p, p, p);
+
+        c.restore();
+      }
+
+      // アクセサリー描画
+      drawAccessory(c, px, py, dir, avatar.acc, p, w);
+    }
+
+    function drawAccessory(c, px, py, dir, accId, p, w) {
+      if (accId === 0) { // 帽子
+        c.fillStyle = '#181020';
+        c.fillRect(px+p, py-p, w-2*p, 3*p);
+        c.fillStyle = '#e94560';
+        c.fillRect(px+2*p, py-3*p, w-4*p, 4*p);
+        c.fillRect(px+3*p, py-5*p, w-6*p, 3*p);
+        c.fillStyle = '#fff';
+        fillCirc(c, px+w/2, py-p, p*1.5);
+      } else if (accId === 1) { // メガネ
+        if (dir === 'down') {
+          c.fillStyle = '#c0c0c0';
+          c.fillRect(px+3*p, py+5*p, 4*p, 3*p);
+          c.fillRect(px+9*p, py+5*p, 4*p, 3*p);
+          c.fillRect(px+7*p, py+6*p, 2*p, p);
+          c.fillStyle = '#aaddff';
+          c.fillRect(px+4*p, py+6*p, 2*p, p);
+          c.fillRect(px+10*p, py+6*p, 2*p, p);
+        }
+      } else if (accId === 2) { // リボン
+        c.fillStyle = '#ff69b4';
+        c.fillRect(px+10*p, py-2*p, 3*p, 3*p);
+        c.fillRect(px+8*p, py-p, 2*p, 2*p);
+        c.fillRect(px+13*p, py-p, 2*p, 2*p);
+        c.fillStyle = '#ff1493';
+        c.fillRect(px+11*p, py, p, p);
+      } else if (accId === 3) { // ヘッドホン
+        c.fillStyle = '#181020';
+        c.fillRect(px+2*p, py, w-4*p, 2*p);
+        c.fillStyle = '#555';
+        c.fillRect(px, py+2*p, 3*p, 4*p);
+        c.fillRect(px+w-3*p, py+2*p, 3*p, 4*p);
+        c.fillStyle = '#888';
+        c.fillRect(px+p, py+3*p, 2*p, 2*p);
+        c.fillRect(px+w-3*p, py+3*p, 2*p, 2*p);
+      } else if (accId === 4) { // 王冠
+        c.fillStyle = '#181020';
+        c.fillRect(px+3*p, py-2*p, w-6*p, 3*p);
+        c.fillStyle = '#ffd700';
+        c.fillRect(px+3*p, py-p, w-6*p, 2*p);
+        c.fillRect(px+4*p, py-4*p, 2*p, 3*p);
+        c.fillRect(px+7*p, py-5*p, 2*p, 4*p);
+        c.fillRect(px+10*p, py-4*p, 2*p, 3*p);
+        c.fillStyle = '#e94560';
+        c.fillRect(px+7*p, py-p, p, p);
+      }
+    }
+
+    // ===== プレイヤー描画 =====
+    function drawPlayer(player) {
+      const ds = getDisplayState(player);
+
+      // ピクセル座標 → 描画座標
+      const dpx = ds.x * SCALE;
+      const dpy = ds.y * SCALE;
+
+      // キャラクター中心をタイル中心に合わせる
+      const charPx = dpx + (DRAW_TILE - CHAR_DW) / 2;
+      const charPy = dpy + (DRAW_TILE - CHAR_DH) + 4 * SCALE; // 足元を少し上に
+
+      // アイドルアニメーション（微妙な上下）
+      let idleBob = 0;
+      if (!ds.moving) {
+        idleBob = Math.sin(ds.idleTimer * 0.06) * SCALE * 0.8;
+      }
+
+      const avatar = player.avatar || { hair:0, body:0, pants:0, acc:-1 };
+      drawCharacter(ctx, charPx, charPy + idleBob, ds.direction, avatar, ds.walkFrame, SCALE);
+
+      // ステータスドット
+      const stColor = STATUS_COLORS[player.status] || '#4caf50';
+      ctx.fillStyle = '#181020';
+      fillCirc(ctx, charPx + CHAR_DW - 2*SCALE, charPy + 4*SCALE + idleBob, 5*SCALE);
+      ctx.fillStyle = stColor;
+      fillCirc(ctx, charPx + CHAR_DW - 2*SCALE, charPy + 4*SCALE + idleBob, 3.5*SCALE);
+
+      // 名前
+      ctx.font = `bold ${Math.round(SCALE*6)}px 'DotGothic16',monospace`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      ctx.strokeStyle = '#181020'; ctx.lineWidth = 3;
+      ctx.strokeText(player.name, dpx + DRAW_TILE/2, charPy - 6 + idleBob);
+      ctx.fillStyle = '#fff';
+      ctx.fillText(player.name, dpx + DRAW_TILE/2, charPy - 6 + idleBob);
+    }
+
+    // ===== 表示状態管理 =====
+    function getDisplayState(player) {
+      if (!displayState[player.id]) {
+        displayState[player.id] = {
+          x: player.x * TILE, y: player.y * TILE,
+          targetX: player.x * TILE, targetY: player.y * TILE,
+          moving: false, direction: player.direction || 'down',
+          walkFrame: 0, walkTimer: 0, idleTimer: 0
+        };
+      }
+      return displayState[player.id];
+    }
+
+    function updateDisplayStates() {
+      for (const player of Object.values(players)) {
+        if (player.room !== currentRoom) continue;
+        const ds = getDisplayState(player);
+
+        // ターゲット更新
+        ds.targetX = player.x * TILE;
+        ds.targetY = player.y * TILE;
+        ds.direction = player.direction || 'down';
+
+        const dx = ds.targetX - ds.x;
+        const dy = ds.targetY - ds.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist > TILE * 3) {
+          // テレポート（部屋移動等）
+          ds.x = ds.targetX;
+          ds.y = ds.targetY;
+          ds.moving = false;
+          ds.walkFrame = 0;
+        } else if (dist > 0.5) {
+          // スムーズ移動
+          ds.moving = true;
+          const speed = Math.min(MOVE_SPEED, dist);
+          ds.x += (dx / dist) * speed;
+          ds.y += (dy / dist) * speed;
+
+          // 歩行アニメーション更新
+          ds.walkTimer++;
+          if (ds.walkTimer >= ANIM_SPEED) {
+            ds.walkTimer = 0;
+            ds.walkFrame = ds.walkFrame === 1 ? 2 : 1;
+          }
+        } else {
+          ds.x = ds.targetX;
+          ds.y = ds.targetY;
+          ds.moving = false;
+          ds.walkFrame = 0;
+        }
+
+        // アイドルタイマー
+        if (!ds.moving) {
+          ds.idleTimer++;
+        } else {
+          ds.idleTimer = 0;
+        }
+      }
+    }
+
+    // ===== 近接線 =====
+    function drawProximityLines() {
+      if (!myId || !players[myId]) return;
+      const me = players[myId];
+      const nearby = [];
+      for (const p of Object.values(players)) {
+        if (p.id === myId || p.room !== currentRoom) continue;
+        const dx = p.x - me.x, dy = p.y - me.y;
+        if (Math.sqrt(dx*dx + dy*dy) <= PROXIMITY_RANGE) nearby.push(p);
+      }
+      for (const p of nearby) {
+        const myDs = getDisplayState(me), pDs = getDisplayState(p);
+        ctx.strokeStyle = 'rgba(124,138,255,0.25)'; ctx.lineWidth = 2; ctx.setLineDash([8,5]);
+        ctx.beginPath();
+        ctx.moveTo(myDs.x*SCALE + DRAW_TILE/2, myDs.y*SCALE + DRAW_TILE/2);
+        ctx.lineTo(pDs.x*SCALE + DRAW_TILE/2, pDs.y*SCALE + DRAW_TILE/2);
+        ctx.stroke(); ctx.setLineDash([]);
+      }
+      const popup = document.getElementById('proximity-popup');
+      if (nearby.length > 0) {
+        popup.textContent = `${nearby.map(p=>p.name).join(', ')} と話せます`;
+        popup.style.display = 'block';
+      } else popup.style.display = 'none';
+    }
+
+    function drawRoomLabel() {
+      const r = ROOMS[currentRoom];
+      ctx.font = `bold ${Math.round(SCALE*7)}px 'DotGothic16',monospace`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      ctx.strokeStyle = '#181020'; ctx.lineWidth = 3;
+      ctx.strokeText(r.label, canvas.width/2, 10);
+      ctx.fillStyle = r.labelColor;
+      ctx.fillText(r.label, canvas.width/2, 10);
+    }
+
+    // ===== Socket.io =====
+    const socket = io();
+    socket.on('connect', () => { myId = socket.id; });
+    socket.on('currentPlayers', (sp) => { Object.assign(players, sp); updatePeople(); updateOnlineCount(); });
+    socket.on('currentFurniture', (f) => { Object.assign(placedFurniture, f); });
+    socket.on('playerJoined', (p) => { players[p.id] = p; addSys(`${p.name} がログイン`); updatePeople(); updateOnlineCount(); });
+    socket.on('playerMoved', (p) => { players[p.id] = p; });
+    socket.on('playerLeft', (id) => { if(players[id]){addSys(`${players[id].name} がログアウト`);delete players[id];delete displayState[id];updatePeople();updateOnlineCount();} });
+    socket.on('playerRoomChanged', (d) => { if(players[d.id]){players[d.id].room=d.room;if(d.id!==myId){const rn={lobby:'ロビー',work:'作業部屋',meeting:'会議室'};addSys(`${players[d.id].name} → ${rn[d.room]}`);}updatePeople();} });
+    socket.on('playerAvatarChanged', (d) => { if(players[d.id]){players[d.id].avatar=d.avatar;updatePeople();} });
+    socket.on('playerStatusChanged', (d) => { if(players[d.id]){players[d.id].status=d.status;updatePeople();} });
+    socket.on('chatMessage', (d) => { addMsg(d.name, d.message); });
+    socket.on('furniturePlaced', (d) => { if(placedFurniture[d.room])placedFurniture[d.room].push(d.item); });
+    socket.on('furnitureRemoved', (d) => { if(placedFurniture[d.room])placedFurniture[d.room]=placedFurniture[d.room].filter(f=>f.id!==d.id); });
+
+    // ===== 名前 =====
+    const nameModal = document.getElementById('name-modal'), nameInput = document.getElementById('name-input');
+    function submitName() { const n=nameInput.value.trim(); if(n){myName=n;socket.emit('setName',n);nameModal.classList.add('hidden');} }
+    document.getElementById('name-submit').addEventListener('click', submitName);
+    nameInput.addEventListener('keydown', (e) => { if(e.key==='Enter')submitName(); });
+
+    // ===== チャット =====
+    const chatMessages = document.getElementById('chat-messages'), chatInput = document.getElementById('chat-input');
+    function addMsg(n,m) { const d=document.createElement('div');d.className='msg';d.innerHTML=`<span class="msg-name">${n}:</span> ${m}`;chatMessages.appendChild(d);chatMessages.scrollTop=chatMessages.scrollHeight; }
+    function addSys(t) { const d=document.createElement('div');d.className='msg msg-system';d.textContent=t;chatMessages.appendChild(d);chatMessages.scrollTop=chatMessages.scrollHeight; }
+    function sendChat() { const m=chatInput.value.trim();if(m){socket.emit('chat',m);chatInput.value='';} }
+    document.getElementById('chat-send').addEventListener('click', sendChat);
+    chatInput.addEventListener('keydown', (e) => { if(e.key==='Enter')sendChat(); });
+    chatInput.addEventListener('focus', () => { chatFocused=true; });
+    chatInput.addEventListener('blur', () => { chatFocused=false; });
+    document.addEventListener('keydown', (e) => { if(e.key==='Enter'&&!chatFocused&&nameModal.classList.contains('hidden')){e.preventDefault();chatInput.focus();} });
+
+    // ===== ステータス =====
+    document.querySelectorAll('.status-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        myStatus = btn.dataset.st; socket.emit('setStatus', myStatus);
+        document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+
+    // ===== メンバー一覧 =====
+    function updatePeople() {
+      const list = document.getElementById('people-list'); list.innerHTML = '';
+      const me = players[myId];
+      const sorted = Object.values(players).sort((a,b) => { if(a.id===myId)return-1;if(b.id===myId)return 1;return(a.name||'').localeCompare(b.name||''); });
+      for (const p of sorted) {
+        const isNearby = me && p.room===currentRoom && p.id!==myId && Math.sqrt((p.x-me.x)**2+(p.y-me.y)**2) <= PROXIMITY_RANGE;
+        const div = document.createElement('div');
+        div.className = 'person' + (isNearby?' nearby':'');
+        const cvs = document.createElement('canvas'); cvs.width=24; cvs.height=28; cvs.className='person-avatar';
+        const ac = cvs.getContext('2d');
+        const av = p.avatar||{hair:0,body:0,pants:0,acc:-1};
+        drawCharacter(ac, 2, 2, 'down', av, 0, 1.2);
+        const rn = {lobby:'ロビー',work:'作業部屋',meeting:'会議室'};
+        const stDot = STATUS_COLORS[p.status]||'#4caf50';
+        div.innerHTML = `<span class="person-info"><span class="person-name">${p.name}${p.id===myId?' (YOU)':''}</span><span class="person-status"><span class="person-status-dot" style="background:${stDot}"></span>${STATUS_LABELS[p.status]||'オンライン'}</span><span class="person-room">${rn[p.room]||'ロビー'}</span></span>`;
+        div.prepend(cvs);
+        list.appendChild(div);
+      }
+    }
+    function updateOnlineCount() { document.getElementById('online-count').textContent=`${Object.keys(players).length}人 オンライン`; }
+
+    // ===== 部屋移動 =====
+    const doorPrompt = document.getElementById('door-prompt');
+    function isOnDoor() { if(!myId||!players[myId])return null; const me=players[myId],r=ROOMS[currentRoom],t=r.map[me.y]?.[me.x]; if(t===T.DOOR_WORK)return'work';if(t===T.DOOR_MEET)return'meeting';return null; }
+    function enterRoom(rn) {
+      if(rn===currentRoom)return; currentRoom=rn; const r=ROOMS[rn];
+      if(players[myId]){players[myId].x=r.spawn.x;players[myId].y=r.spawn.y;players[myId].room=rn;
+        const ds=getDisplayState(players[myId]);ds.x=r.spawn.x*TILE;ds.y=r.spawn.y*TILE;ds.targetX=ds.x;ds.targetY=ds.y;}
+      resizeCanvas(); socket.emit('enterRoom',rn); socket.emit('move',{x:r.spawn.x,y:r.spawn.y,direction:'down'});
+      document.getElementById('room-name').textContent=r.label;
+      addSys(`${({lobby:'ロビー',work:'作業部屋',meeting:'会議室'})[rn]} に入室`);
+    }
+
+    // ===== 右パネルタブ =====
+    document.querySelectorAll('.rp-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.rp-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        ['chat','customize','furniture','shop'].forEach(id => {
+          document.getElementById('rp-'+id).classList.toggle('hidden', id !== tab.dataset.rp);
+        });
+        if (tab.dataset.rp === 'shop') updateShopUI();
+        editMode = tab.dataset.rp === 'furniture';
+        canvas.classList.toggle('edit-mode', editMode);
+        document.getElementById('btn-furniture').classList.toggle('active', editMode);
+      });
+    });
+
+    // ===== 着せ替え =====
+    function buildAvatarOpts() {
+      const hc = document.getElementById('hair-options');
+      HAIR_COLORS.forEach((c,i) => { const o=document.createElement('div');o.className=`c-opt${i===myAvatar.hair?' selected':''}`;o.style.background=c;o.addEventListener('click',()=>{myAvatar.hair=i;updAvSel();socket.emit('updateAvatar',myAvatar);});hc.appendChild(o); });
+      const bc = document.getElementById('body-options');
+      BODY_COLORS.forEach((c,i) => { const o=document.createElement('div');o.className=`c-opt${i===myAvatar.body?' selected':''}`;o.style.background=c;o.addEventListener('click',()=>{myAvatar.body=i;updAvSel();socket.emit('updateAvatar',myAvatar);});bc.appendChild(o); });
+      const pc = document.getElementById('pants-options');
+      PANTS_COLORS.forEach((c,i) => { const o=document.createElement('div');o.className=`c-opt${i===myAvatar.pants?' selected':''}`;o.style.background=c;o.addEventListener('click',()=>{myAvatar.pants=i;updAvSel();socket.emit('updateAvatar',myAvatar);});pc.appendChild(o); });
+      const ac = document.getElementById('acc-options');
+      ACC_TYPES.forEach(a => { const o=document.createElement('div');o.className=`c-opt${a.id===myAvatar.acc?' selected':''}`;o.style.background=a.color||'#2e2e42';o.style.color='#fff';o.style.fontSize='9px';o.textContent=a.label;o.addEventListener('click',()=>{myAvatar.acc=a.id;updAvSel();socket.emit('updateAvatar',myAvatar);});ac.appendChild(o); });
+    }
+    function updAvSel() {
+      document.querySelectorAll('#hair-options .c-opt').forEach((e,i)=>e.classList.toggle('selected',i===myAvatar.hair));
+      document.querySelectorAll('#body-options .c-opt').forEach((e,i)=>e.classList.toggle('selected',i===myAvatar.body));
+      document.querySelectorAll('#pants-options .c-opt').forEach((e,i)=>e.classList.toggle('selected',i===myAvatar.pants));
+      document.querySelectorAll('#acc-options .c-opt').forEach((e,i)=>e.classList.toggle('selected',ACC_TYPES[i].id===myAvatar.acc));
+      drawPrev();
+    }
+    function drawPrev() {
+      const pc=document.getElementById('preview-canvas'),p=pc.getContext('2d');
+      p.clearRect(0,0,96,112); p.fillStyle='#1e1e2e'; p.fillRect(0,0,96,112);
+      drawCharacter(p, 16, 20, 'down', myAvatar, 0, 3.5);
+    }
+    buildAvatarOpts(); drawPrev();
+
+    // ===== 家具パレット =====
+    function buildFurnPalette() {
+      const grid = document.getElementById('furniture-palette');
+      for (const [type,def] of Object.entries(FURNITURE_DEFS)) {
+        const item = document.createElement('div'); item.className = `f-item${type===selectedFurniture?' selected':''}`;
+        const cvs = document.createElement('canvas'); cvs.width=40; cvs.height=40;
+        const fc = cvs.getContext('2d'); fc.fillStyle='#1e1e2e'; fc.fillRect(0,0,40,40);
+        drawFurniture(fc, type, 4, 4, 32);
+        item.appendChild(cvs);
+        const lbl = document.createElement('span'); lbl.textContent = def.name; item.appendChild(lbl);
+        item.addEventListener('click', () => { selectedFurniture=type; document.querySelectorAll('.f-item').forEach(i=>i.classList.remove('selected'));item.classList.add('selected');editAction='place';updFBtns(); });
+        grid.appendChild(item);
+      }
+    }
+    buildFurnPalette();
+    function updFBtns() { document.getElementById('btn-place').classList.toggle('active',editAction==='place');document.getElementById('btn-remove').classList.toggle('active',editAction==='remove'); }
+    document.getElementById('btn-place').addEventListener('click', () => { editAction='place'; updFBtns(); });
+    document.getElementById('btn-remove').addEventListener('click', () => { editAction='remove'; updFBtns(); });
+    document.getElementById('btn-furniture').addEventListener('click', () => {
+      editMode=!editMode; canvas.classList.toggle('edit-mode',editMode);
+      document.getElementById('btn-furniture').classList.toggle('active',editMode);
+      if(editMode){document.querySelectorAll('.rp-tab').forEach(t=>t.classList.toggle('active',t.dataset.rp==='furniture'));['chat','customize','furniture','shop'].forEach(id=>{document.getElementById('rp-'+id).classList.toggle('hidden',id!=='furniture');});}
+    });
+    canvas.addEventListener('click', (e) => {
+      if(!editMode)return; const rect=canvas.getBoundingClientRect();
+      const mx=Math.floor((e.clientX-rect.left)/(rect.width/canvas.width)/DRAW_TILE);
+      const my=Math.floor((e.clientY-rect.top)/(rect.height/canvas.height)/DRAW_TILE);
+      const room=ROOMS[currentRoom]; if(mx<0||mx>=room.cols||my<0||my>=room.rows)return;
+      if(BLOCKED.has(room.map[my][mx]))return;
+      if(editAction==='place'){if(placedFurniture[currentRoom]?.find(f=>f.x===mx&&f.y===my))return;socket.emit('placeFurniture',{room:currentRoom,type:selectedFurniture,x:mx,y:my});}
+      else{const t=placedFurniture[currentRoom]?.find(f=>f.x===mx&&f.y===my);if(t)socket.emit('removeFurniture',{room:currentRoom,id:t.id});}
+    });
+
+    // ===== 移動（ピクセル単位スムーズ移動） =====
+    const keysDown = {};
+    let moveAccum = 0;
+    const MOVE_INTERVAL = 180; // ms between tile moves
+
+    document.addEventListener('keydown', (e) => {
+      keysDown[e.key] = true;
+      if(e.key===' '&&!chatFocused&&nameModal.classList.contains('hidden')){e.preventDefault();const d=isOnDoor();if(d)enterRoom(d);}
+      if(e.key==='Escape'&&!chatFocused){if(editMode){editMode=false;canvas.classList.remove('edit-mode');document.getElementById('btn-furniture').classList.remove('active');}else if(currentRoom!=='lobby')enterRoom('lobby');}
+      if((e.key==='f'||e.key==='F')&&!chatFocused&&nameModal.classList.contains('hidden')){document.getElementById('btn-furniture').click();}
+    });
+    document.addEventListener('keyup', (e) => { keysDown[e.key]=false; });
+
+    let lastMoveTime = 0;
+    function tryMove() {
+      if (chatFocused || !myId || !players[myId] || editMode || !nameModal.classList.contains('hidden')) return;
+      const now = performance.now();
+      if (now - lastMoveTime < MOVE_INTERVAL) return;
+
+      // 到着待ち: 現在移動中なら新しい移動を受付けない
+      const ds = getDisplayState(players[myId]);
+      const dist = Math.sqrt((ds.targetX - ds.x)**2 + (ds.targetY - ds.y)**2);
+      if (dist > TILE * 0.3) return;
+
+      const me = players[myId], room = ROOMS[currentRoom];
+      let dx=0, dy=0, dir=me.direction;
+      if (keysDown['ArrowUp']||keysDown['w']||keysDown['W']) { dy=-1; dir='up'; }
+      else if (keysDown['ArrowDown']||keysDown['s']||keysDown['S']) { dy=1; dir='down'; }
+      else if (keysDown['ArrowLeft']||keysDown['a']||keysDown['A']) { dx=-1; dir='left'; }
+      else if (keysDown['ArrowRight']||keysDown['d']||keysDown['D']) { dx=1; dir='right'; }
+      else return;
+
+      const nx=me.x+dx, ny=me.y+dy;
+      if (nx<0||nx>=room.cols||ny<0||ny>=room.rows) return;
+      if (BLOCKED.has(room.map[ny][nx])) return;
+      const furn = placedFurniture[currentRoom]||[];
+      for (const f of furn) { if(f.x===nx&&f.y===ny&&FURNITURE_DEFS[f.type]?.blocked) return; }
+      for (const p of Object.values(players)) { if(p.id!==myId&&p.room===currentRoom&&p.x===nx&&p.y===ny) return; }
+
+      me.x = nx; me.y = ny; me.direction = dir;
+      lastMoveTime = now;
+      socket.emit('move', { x:nx, y:ny, direction:dir });
+    }
+
+    // ===== コインシステム =====
+    let myCoins = 0, myTotalEarned = 0, myPurchasedItems = [], myWorkMinutes = 0;
+    let shopItems = [];
+
+    socket.on('coinInit', (data) => {
+      myCoins = data.coins; myTotalEarned = data.totalEarned;
+      myPurchasedItems = data.purchasedItems || []; myWorkMinutes = data.workMinutes || 0;
+      updateCoinDisplay();
+    });
+    socket.on('coinUpdate', (data) => {
+      myCoins = data.coins; updateCoinDisplay();
+      if (data.earned > 0) showCoinNotif(`+${data.earned} コイン (${data.reason})`);
+    });
+    socket.on('coinNotify', (data) => { showCoinNotif(data.message); });
+    socket.on('shopItems', (items) => { shopItems = items; });
+    socket.on('shopBought', (data) => {
+      myCoins = data.coins; myPurchasedItems.push(data.itemId);
+      updateCoinDisplay(); updateShopUI();
+      showCoinNotif(`${data.item.name} を購入しました！`);
+    });
+    socket.on('shopError', (msg) => { showCoinNotif(msg); });
+
+    function updateCoinDisplay() {
+      document.getElementById('coin-count').textContent = myCoins;
+      document.getElementById('shop-coins').textContent = myCoins;
+    }
+
+    let coinNotifTimer = null;
+    function showCoinNotif(msg) {
+      const el = document.getElementById('coin-notif');
+      el.textContent = msg; el.style.display = 'block';
+      if (coinNotifTimer) clearTimeout(coinNotifTimer);
+      coinNotifTimer = setTimeout(() => { el.style.display = 'none'; }, 3000);
+    }
+
+    function updateShopUI() {
+      const list = document.getElementById('shop-list');
+      list.innerHTML = '';
+      document.getElementById('shop-coins').textContent = myCoins;
+      for (const item of shopItems) {
+        const owned = myPurchasedItems.includes(item.id);
+        const div = document.createElement('div');
+        div.className = 'shop-item' + (owned ? ' owned' : '');
+        div.innerHTML = `
+          <span class="shop-item-icon">${item.icon}</span>
+          <span class="shop-item-info">
+            <span class="shop-item-name">${item.name}</span>
+            <span class="shop-item-type">${item.type === 'hair' ? 'かみがた' : item.type === 'body' ? 'ふく（うえ）' : item.type === 'pants' ? 'ふく（した）' : item.type === 'acc' ? 'アクセサリー' : 'エモート'}</span>
+          </span>
+          <span class="shop-item-price">${owned ? '購入済' : item.price + ' コイン'}</span>
+        `;
+        if (!owned) {
+          div.addEventListener('click', () => { socket.emit('buyItem', item.id); });
+        }
+        list.appendChild(div);
+      }
+      // 統計
+      const stats = document.getElementById('shop-stats');
+      stats.innerHTML = `
+        <div>累計獲得: <span>${myTotalEarned} コイン</span></div>
+        <div>作業時間: <span>${myWorkMinutes} 分</span></div>
+        <div>獲得方法: <span>作業部屋(2コイン/分) / チャット(10発言で1コイン) / Discord(1発言1コイン)</span></div>
+      `;
+    }
+
+    // ===== ゲームループ =====
+    let frameCount = 0;
+    function gameLoop() {
+      tryMove();
+      updateDisplayStates();
+
+      const room = ROOMS[currentRoom];
+      // タイル描画
+      for (let y=0; y<room.rows; y++) for (let x=0; x<room.cols; x++) drawTile(x, y, room.map[y][x]);
+      drawRoomLabel();
+
+      // 家具
+      const furn = placedFurniture[currentRoom]||[];
+      for (const f of furn) { drawFloor(f.x, f.y); drawFurniture(ctx, f.type, f.x*DRAW_TILE, f.y*DRAW_TILE, DRAW_TILE); }
+
+      // ドアプロンプト
+      const doorTarget = isOnDoor();
+      doorPrompt.style.display = doorTarget ? 'block' : 'none';
+      if (doorTarget) { doorPrompt.textContent = `スペース → ${({work:'作業部屋',meeting:'会議室'})[doorTarget]}`; }
+
+      // 編集モード グリッド
+      if (editMode) {
+        ctx.strokeStyle='rgba(124,138,255,0.15)'; ctx.lineWidth=1;
+        for(let y=0;y<room.rows;y++) for(let x=0;x<room.cols;x++) { if(!BLOCKED.has(room.map[y][x])) ctx.strokeRect(x*DRAW_TILE,y*DRAW_TILE,DRAW_TILE,DRAW_TILE); }
+      }
+
+      // 近接線
+      drawProximityLines();
+
+      // プレイヤー（Y座標でソート）
+      const rp = Object.values(players).filter(p => p.room===currentRoom)
+        .sort((a,b) => {
+          const aDs = getDisplayState(a), bDs = getDisplayState(b);
+          return aDs.y - bDs.y;
+        });
+      for (const player of rp) drawPlayer(player);
+
+      // 定期的にメンバー更新
+      frameCount++;
+      if (frameCount % 60 === 0) updatePeople();
+
+      requestAnimationFrame(gameLoop);
+    }
+    gameLoop();
+  </script>
+</body>
+</html>
