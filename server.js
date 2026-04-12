@@ -116,6 +116,32 @@ const SHOP_ITEMS = [
   { id: 'emote_sparkle', name: 'キラキラ', price: 30, type: 'emote', value: 'sparkle', icon: '✨' },
 ];
 
+// ===== 会議システム =====
+let meeting = {
+  active: false,
+  topic: '',
+  topics: [],       // { id, text, author, votes: { yes:[], no:[] }, status:'pending'|'voting'|'done' }
+  hands: [],         // socketId[]
+  timer: null,
+  timerEnd: 0,
+  startedBy: '',
+};
+
+function getMeetingState() {
+  return {
+    active: meeting.active,
+    topic: meeting.topic,
+    topics: meeting.topics,
+    hands: meeting.hands.map(sid => players[sid]?.name || '???'),
+    timerEnd: meeting.timerEnd,
+    startedBy: meeting.startedBy,
+  };
+}
+
+function broadcastMeeting() {
+  io.emit('meetingUpdate', getMeetingState());
+}
+
 // 家具の種類定義
 const VALID_FURNITURE = [
   'sofa','table','lamp','bookshelf','rug_small','plant_big',
@@ -307,10 +333,159 @@ io.on('connection', (socket) => {
     }
   });
 
+  // ===== WebRTC シグナリング（音声通話・画面共有） =====
+  socket.on('rtcJoin', (room) => {
+    // 会議室にいるプレイヤーに参加を通知
+    socket.join('rtc-' + room);
+    const clients = Array.from(io.sockets.adapter.rooms.get('rtc-' + room) || []);
+    // 既存メンバーに新規参加を通知
+    socket.to('rtc-' + room).emit('rtcPeerJoined', { peerId: socket.id, name: players[socket.id]?.name || '???' });
+    // 新規参加者に既存メンバーを通知
+    const existing = clients.filter(id => id !== socket.id).map(id => ({ peerId: id, name: players[id]?.name || '???' }));
+    socket.emit('rtcExistingPeers', existing);
+  });
+
+  socket.on('rtcLeave', (room) => {
+    socket.leave('rtc-' + room);
+    socket.to('rtc-' + room).emit('rtcPeerLeft', { peerId: socket.id });
+  });
+
+  socket.on('rtcOffer', ({ to, offer, type }) => {
+    io.to(to).emit('rtcOffer', { from: socket.id, offer, type, name: players[socket.id]?.name || '???' });
+  });
+
+  socket.on('rtcAnswer', ({ to, answer }) => {
+    io.to(to).emit('rtcAnswer', { from: socket.id, answer });
+  });
+
+  socket.on('rtcIceCandidate', ({ to, candidate }) => {
+    io.to(to).emit('rtcIceCandidate', { from: socket.id, candidate });
+  });
+
+  // ===== 会議システム =====
+  // 会議室入室時に会議状態を送信
+  socket.on('getMeeting', () => {
+    socket.emit('meetingUpdate', getMeetingState());
+  });
+
+  // 会議開始
+  socket.on('meetingStart', (topic) => {
+    if (!players[socket.id] || players[socket.id].room !== 'meeting') return;
+    meeting.active = true;
+    meeting.topic = String(topic || '').slice(0, 50) || '会議';
+    meeting.topics = [];
+    meeting.hands = [];
+    meeting.startedBy = players[socket.id].name;
+    meeting.timerEnd = 0;
+    broadcastMeeting();
+    io.emit('chatMessage', { id: 'system', name: 'システム', message: `📋 会議「${meeting.topic}」が開始されました (by ${meeting.startedBy})` });
+  });
+
+  // 会議終了
+  socket.on('meetingEnd', () => {
+    if (!players[socket.id] || !meeting.active) return;
+    if (meeting.timer) { clearTimeout(meeting.timer); meeting.timer = null; }
+    const summary = meeting.topics.map(t => {
+      const yes = t.votes.yes.length, no = t.votes.no.length;
+      return `${t.text}: 賛成${yes} 反対${no}`;
+    }).join(' / ');
+    meeting.active = false;
+    meeting.topics = [];
+    meeting.hands = [];
+    meeting.timerEnd = 0;
+    broadcastMeeting();
+    io.emit('chatMessage', { id: 'system', name: 'システム', message: `📋 会議終了${summary ? ' - ' + summary : ''}` });
+  });
+
+  // 議題追加
+  socket.on('meetingAddTopic', (text) => {
+    if (!players[socket.id] || !meeting.active) return;
+    const sanitized = String(text).slice(0, 80).replace(/[<>&"']/g, '');
+    if (!sanitized) return;
+    meeting.topics.push({
+      id: Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+      text: sanitized,
+      author: players[socket.id].name,
+      votes: { yes: [], no: [] },
+      status: 'pending',
+    });
+    broadcastMeeting();
+  });
+
+  // 投票開始（議題をvoting状態に）
+  socket.on('meetingStartVote', (topicId) => {
+    if (!players[socket.id] || !meeting.active) return;
+    const topic = meeting.topics.find(t => t.id === topicId);
+    if (!topic || topic.status !== 'pending') return;
+    // 他の投票中を終了
+    meeting.topics.forEach(t => { if (t.status === 'voting') t.status = 'done'; });
+    topic.status = 'voting';
+    topic.votes = { yes: [], no: [] };
+    broadcastMeeting();
+    io.emit('chatMessage', { id: 'system', name: 'システム', message: `🗳️ 投票開始:「${topic.text}」` });
+  });
+
+  // 投票
+  socket.on('meetingVote', ({ topicId, vote }) => {
+    if (!players[socket.id] || !meeting.active) return;
+    const topic = meeting.topics.find(t => t.id === topicId);
+    if (!topic || topic.status !== 'voting') return;
+    const name = players[socket.id].name;
+    // 既存投票を削除
+    topic.votes.yes = topic.votes.yes.filter(n => n !== name);
+    topic.votes.no = topic.votes.no.filter(n => n !== name);
+    if (vote === 'yes') topic.votes.yes.push(name);
+    else if (vote === 'no') topic.votes.no.push(name);
+    broadcastMeeting();
+  });
+
+  // 投票締め切り
+  socket.on('meetingEndVote', (topicId) => {
+    if (!players[socket.id] || !meeting.active) return;
+    const topic = meeting.topics.find(t => t.id === topicId);
+    if (!topic || topic.status !== 'voting') return;
+    topic.status = 'done';
+    const yes = topic.votes.yes.length, no = topic.votes.no.length;
+    broadcastMeeting();
+    io.emit('chatMessage', { id: 'system', name: 'システム', message: `🗳️ 投票結果:「${topic.text}」→ 賛成${yes} / 反対${no} ${yes > no ? '✅可決' : yes < no ? '❌否決' : '➖同数'}` });
+  });
+
+  // 挙手
+  socket.on('meetingHand', (raised) => {
+    if (!players[socket.id] || !meeting.active) return;
+    if (raised && !meeting.hands.includes(socket.id)) {
+      meeting.hands.push(socket.id);
+    } else if (!raised) {
+      meeting.hands = meeting.hands.filter(id => id !== socket.id);
+    }
+    broadcastMeeting();
+  });
+
+  // タイマー設定（分）
+  socket.on('meetingTimer', (minutes) => {
+    if (!players[socket.id] || !meeting.active) return;
+    const mins = Math.min(Math.max(1, Number(minutes) || 5), 60);
+    if (meeting.timer) clearTimeout(meeting.timer);
+    meeting.timerEnd = Date.now() + mins * 60000;
+    meeting.timer = setTimeout(() => {
+      meeting.timerEnd = 0;
+      meeting.timer = null;
+      broadcastMeeting();
+      io.emit('chatMessage', { id: 'system', name: 'システム', message: '⏰ 会議タイマー終了！' });
+    }, mins * 60000);
+    broadcastMeeting();
+    io.emit('chatMessage', { id: 'system', name: 'システム', message: `⏱️ タイマー: ${mins}分 設定` });
+  });
+
   // 切断
   socket.on('disconnect', () => {
     console.log(`切断: ${socket.id}`);
     stopWorkTimer(socket.id);
+    // 会議の挙手から削除
+    meeting.hands = meeting.hands.filter(id => id !== socket.id);
+    if (meeting.active) broadcastMeeting();
+    // WebRTC通知
+    io.emit('rtcPeerLeft', { peerId: socket.id });
     delete players[socket.id];
     io.emit('playerLeft', socket.id);
   });
