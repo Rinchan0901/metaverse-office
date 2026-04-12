@@ -13,9 +13,23 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 // ===== バージョン管理 =====
-const LOCAL_VERSION = '1.1.0';
-const VERSION_CHECK_URL = 'https://raw.githubusercontent.com/Rinchan0901/metaverse-office/main/version.json';
+let LOCAL_VERSION = '1.2.0';
+const REPO_RAW_BASE = 'https://raw.githubusercontent.com/Rinchan0901/metaverse-office/main';
+const VERSION_CHECK_URL = `${REPO_RAW_BASE}/version.json`;
 let latestVersionInfo = null;
+let updateInProgress = false;
+
+// アップデート対象ファイル
+const UPDATE_FILES = [
+  { remote: 'public/index.html',           local: 'public/index.html' },
+  { remote: 'public/avatar-data.js',       local: 'public/avatar-data.js' },
+  { remote: 'public/furniture-sprites.js',  local: 'public/furniture-sprites.js' },
+  { remote: 'public/manual.html',          local: 'public/manual.html' },
+  { remote: 'public/demo.html',            local: 'public/demo.html' },
+  { remote: 'public/sw.js',                local: 'public/sw.js' },
+  { remote: 'server.js',                   local: 'server.js' },
+  { remote: 'version.json',                local: 'version.json' },
+];
 
 async function checkForUpdates() {
   try {
@@ -265,6 +279,71 @@ app.get('/api/version', (req, res) => {
     updateAvailable: !!latestVersionInfo,
     changelog: latestVersionInfo ? latestVersionInfo.changelog : [],
     date: latestVersionInfo ? latestVersionInfo.date : null
+  });
+});
+
+// ワンクリック自動アップデート
+app.post('/api/admin/update', async (req, res) => {
+  const { token } = req.body;
+  if (!token || !sessions[token]) return res.status(401).json({ error: '認証が必要です' });
+  const username = sessions[token].username;
+  const adminNames = (process.env.ADMIN_USERS || '').split(',').filter(Boolean);
+  const acc = accounts[username];
+  if (!adminNames.includes(username) && (!acc || acc.role !== 'admin')) {
+    return res.status(403).json({ error: '管理者権限が必要です' });
+  }
+  if (!latestVersionInfo) return res.json({ error: 'アップデートはありません', ok: false });
+  if (updateInProgress) return res.json({ error: 'アップデート中です。しばらくお待ちください。', ok: false });
+
+  updateInProgress = true;
+  const targetVersion = latestVersionInfo.version;
+  console.log(`[UPDATE] v${targetVersion} へのアップデートを開始 (by ${username})`);
+
+  const results = [];
+  let success = true;
+
+  for (const file of UPDATE_FILES) {
+    try {
+      const url = `${REPO_RAW_BASE}/${file.remote}`;
+      const resp = await fetch(url);
+      if (!resp.ok) {
+        results.push({ file: file.local, status: 'skip', reason: `HTTP ${resp.status}` });
+        continue;
+      }
+      const content = await resp.text();
+      const localPath = path.join(__dirname, file.local);
+      // バックアップ
+      if (fs.existsSync(localPath)) {
+        fs.copyFileSync(localPath, localPath + '.bak');
+      }
+      // ディレクトリが存在しない場合は作成
+      const dir = path.dirname(localPath);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(localPath, content, 'utf8');
+      results.push({ file: file.local, status: 'ok' });
+    } catch (e) {
+      results.push({ file: file.local, status: 'error', reason: e.message });
+      success = false;
+    }
+  }
+
+  if (success) {
+    LOCAL_VERSION = targetVersion;
+    latestVersionInfo = null;
+    console.log(`[UPDATE] v${targetVersion} へのアップデート完了`);
+    // 全クライアントに通知
+    io.emit('systemMessage', `🔄 サーバーが v${targetVersion} にアップデートされました。ページを再読み込みしてください。`);
+  }
+
+  updateInProgress = false;
+  res.json({
+    ok: success,
+    version: targetVersion,
+    results,
+    needRestart: success,
+    message: success
+      ? `v${targetVersion} にアップデート完了。サーバーを再起動してください。`
+      : 'アップデート中にエラーが発生しました。'
   });
 });
 
