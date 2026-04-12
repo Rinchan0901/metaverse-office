@@ -58,7 +58,51 @@ app.post('/api/login', (req, res) => {
   const acc = accounts[name];
   if (!acc) return res.status(401).json({ error: 'アカウントが見つかりません' });
   if (acc.password !== hashPass(String(password))) return res.status(401).json({ error: 'パスワードが違います' });
-  res.json({ ok: true, username: name, avatar: acc.avatar });
+  res.json({ ok: true, username: name, avatar: acc.avatar, role: acc.role || 'user' });
+});
+
+// 管理者設定（最初に登録されたアカウントを管理者にする、または環境変数で指定）
+const ADMIN_NAMES = (process.env.ADMIN_USERS || '').split(',').filter(Boolean);
+
+function isAdmin(name) {
+  if (ADMIN_NAMES.includes(name)) return true;
+  const acc = accounts[name];
+  return acc && acc.role === 'admin';
+}
+
+// プロフィール取得
+app.get('/api/profile/:name', (req, res) => {
+  const name = req.params.name;
+  const acc = accounts[name];
+  const coins = coinData[name];
+  const isOnline = Object.values(players).some(p => p.name === name);
+  res.json({
+    name,
+    hasAccount: !!acc,
+    role: acc?.role || 'user',
+    createdAt: acc?.createdAt || null,
+    coins: coins?.coins || 0,
+    totalEarned: coins?.totalEarned || 0,
+    workMinutes: coins?.workMinutes || 0,
+    purchasedItems: coins?.purchasedItems?.length || 0,
+    isOnline,
+    isAdmin: isAdmin(name),
+  });
+});
+
+// 管理者: ユーザーにコイン付与
+app.post('/api/admin/give-coins', (req, res) => {
+  const { adminName, targetName, amount } = req.body;
+  if (!isAdmin(adminName)) return res.status(403).json({ error: '権限がありません' });
+  const newBal = addCoins(targetName, Number(amount) || 0, '管理者付与');
+  // オンラインなら通知
+  for (const [sid, p] of Object.entries(players)) {
+    if (p.name === targetName) {
+      const s = io.sockets.sockets.get(sid);
+      if (s) s.emit('coinUpdate', { coins: newBal, earned: Number(amount), reason: '管理者からのギフト' });
+    }
+  }
+  res.json({ ok: true, coins: newBal });
 });
 
 // ===== 部屋BGMシステム =====
@@ -557,6 +601,55 @@ io.on('connection', (socket) => {
     if (!p || !accounts[p.name]) return;
     accounts[p.name].avatar = { ...p.avatar };
     saveAccounts();
+  });
+
+  // ===== 管理者機能 =====
+  // アナウンス
+  socket.on('adminAnnounce', (message) => {
+    const p = players[socket.id];
+    if (!p || !isAdmin(p.name)) return;
+    const msg = String(message).slice(0, 200).replace(/[<>&"']/g, '');
+    io.emit('chatMessage', { id: 'system', name: '📢 アナウンス', message: msg });
+  });
+
+  // キック
+  socket.on('adminKick', (targetId) => {
+    const p = players[socket.id];
+    if (!p || !isAdmin(p.name)) return;
+    const target = players[targetId];
+    if (!target) return;
+    const targetSocket = io.sockets.sockets.get(targetId);
+    if (targetSocket) {
+      targetSocket.emit('kicked', '管理者によりキックされました');
+      targetSocket.disconnect(true);
+    }
+    io.emit('chatMessage', { id: 'system', name: 'システム', message: `${target.name} がキックされました` });
+  });
+
+  // 管理者権限付与
+  socket.on('adminSetRole', ({ targetName, role }) => {
+    const p = players[socket.id];
+    if (!p || !isAdmin(p.name)) return;
+    if (accounts[targetName]) {
+      accounts[targetName].role = role;
+      saveAccounts();
+    }
+  });
+
+  // 管理者: オンラインユーザーリスト取得
+  socket.on('adminGetUsers', () => {
+    const p = players[socket.id];
+    if (!p || !isAdmin(p.name)) return;
+    const list = Object.entries(players).map(([sid, pl]) => ({
+      id: sid, name: pl.name, room: pl.room, status: pl.status,
+      isAdmin: isAdmin(pl.name),
+    }));
+    const stats = {
+      totalAccounts: Object.keys(accounts).length,
+      onlineUsers: Object.keys(players).length,
+      totalCoins: Object.values(coinData).reduce((s, d) => s + (d.coins || 0), 0),
+    };
+    socket.emit('adminUserList', { users: list, stats });
   });
 
   // 切断
