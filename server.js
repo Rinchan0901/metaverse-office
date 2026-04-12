@@ -228,7 +228,7 @@ app.post('/api/admin/give-coins', (req, res) => {
 });
 
 // ===== 部屋BGMシステム =====
-const roomBgm = { lobby: null, work: null, meeting: null };
+const roomBgm = { lobby: null, work: null, meeting: null, japanese: null };
 // { videoId, title, setBy }
 
 // ===== 天気システム =====
@@ -243,7 +243,7 @@ setInterval(() => {
 const players = {};
 
 // 家具管理（部屋ごと）
-let furniture = { lobby: [], work: [], meeting: [] };
+let furniture = { lobby: [], work: [], meeting: [], japanese: [] };
 
 function saveFurniture() {
   dataSet('furniture', furniture);
@@ -371,7 +371,7 @@ function checkAchievements(name, socket) {
 }
 
 // ===== 部屋テーマ =====
-let roomThemes = { lobby: { floor: 0, wall: 0 }, work: { floor: 0, wall: 0 }, meeting: { floor: 0, wall: 0 } };
+let roomThemes = { lobby: { floor: 0, wall: 0 }, work: { floor: 0, wall: 0 }, meeting: { floor: 0, wall: 0 }, japanese: { floor: 0, wall: 0 } };
 function saveRoomThemes() { dataSet('roomThemes', roomThemes); }
 
 // ===== カスタム部屋 =====
@@ -418,7 +418,7 @@ const VALID_FURNITURE = [
 const DISCORD_WEBHOOK_LOG = process.env.DISCORD_WEBHOOK_LOG || '';   // 入退室ログ用
 const DISCORD_WEBHOOK_STATUS = process.env.DISCORD_WEBHOOK_STATUS || ''; // オンライン一覧用
 let discordStatusMessageId = null;
-const ROOM_NAMES_JP = { lobby: 'ロビー', work: '作業部屋', meeting: '会議室' };
+const ROOM_NAMES_JP = { lobby: 'ロビー', work: '作業部屋', meeting: '会議室', japanese: '和室' };
 
 async function discordWebhook(webhookUrl, payload) {
   if (!webhookUrl) return;
@@ -625,7 +625,7 @@ io.on('connection', (socket) => {
 
   // 部屋移動
   socket.on('enterRoom', (room) => {
-    const valid = ['lobby', 'work', 'meeting', ...Object.keys(customRooms)];
+    const valid = ['lobby', 'work', 'meeting', 'japanese', ...Object.keys(customRooms)];
     if (players[socket.id] && valid.includes(room)) {
       const prevRoom = players[socket.id].room;
       players[socket.id].room = room;
@@ -1221,9 +1221,9 @@ const PORT = process.env.PORT || 3000;
 
   // データ読み込み
   accounts = await dataGet('accounts', {});
-  furniture = await dataGet('furniture', { lobby: [], work: [], meeting: [] });
+  furniture = await dataGet('furniture', { lobby: [], work: [], meeting: [], japanese: [] });
   coinData = await dataGet('coins', {});
-  roomThemes = await dataGet('roomThemes', { lobby: { floor: 0, wall: 0 }, work: { floor: 0, wall: 0 }, meeting: { floor: 0, wall: 0 } });
+  roomThemes = await dataGet('roomThemes', { lobby: { floor: 0, wall: 0 }, work: { floor: 0, wall: 0 }, meeting: { floor: 0, wall: 0 }, japanese: { floor: 0, wall: 0 } });
   customRooms = await dataGet('customRooms', {});
 
   // カスタム部屋用家具初期化

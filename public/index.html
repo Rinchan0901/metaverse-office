@@ -340,6 +340,56 @@
       cursor: pointer;
     }
 
+    /* 画面共有セルフプレビュー */
+    #screen-share-self {
+      display: none; position: absolute; bottom: 50px; right: 8px;
+      width: 200px; background: #000; border: 2px solid #2196f3;
+      border-radius: 8px; overflow: hidden; z-index: 16;
+    }
+    #screen-share-self.show { display: block; }
+    #screen-share-self-video { width: 100%; display: block; }
+    #screen-share-self-label {
+      position: absolute; top: 4px; left: 4px; background: rgba(33,150,243,0.9);
+      color: #fff; padding: 2px 8px; border-radius: 8px; font-size: 10px;
+    }
+
+    /* フロアマップオーバーレイ */
+    #floor-map-overlay {
+      display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 40px;
+      background: rgba(10,10,26,0.95); z-index: 18;
+      flex-direction: column; padding: 12px;
+    }
+    #floor-map-overlay.show { display: flex; }
+    #floor-map-header {
+      display: flex; justify-content: space-between; align-items: center;
+      color: #c8d0ff; font-size: 16px; font-weight: bold; margin-bottom: 12px;
+      font-family: 'DotGothic16', monospace;
+    }
+    #floor-map-close {
+      background: rgba(198,40,40,0.9); color: #fff; padding: 4px 12px;
+      border-radius: 12px; font-size: 12px; cursor: pointer;
+    }
+    #floor-map-grid {
+      flex: 1; display: grid; grid-template-columns: 1fr 1fr;
+      gap: 12px; overflow: auto;
+    }
+    .floor-map-room {
+      background: #1a1a30; border: 2px solid #3a3a5a; border-radius: 8px;
+      padding: 8px; cursor: pointer; transition: border-color 0.2s;
+    }
+    .floor-map-room:hover { border-color: #7c8aff; }
+    .floor-map-room.current { border-color: #4caf50; }
+    .floor-map-room-title {
+      font-size: 13px; color: #c8d0ff; margin-bottom: 6px; text-align: center;
+      font-family: 'DotGothic16', monospace;
+    }
+    .floor-map-room-title .room-count {
+      color: #888; font-size: 11px; margin-left: 6px;
+    }
+    .floor-map-room canvas {
+      width: 100%; display: block; border-radius: 4px; image-rendering: pixelated;
+    }
+
     /* === ホワイトボード === */
     #whiteboard-panel {
       display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 40px;
@@ -1057,6 +1107,19 @@
           <div id="screen-share-label">画面共有中</div>
           <div id="screen-share-close">✕ 閉じる</div>
         </div>
+        <!-- 画面共有セルフプレビュー -->
+        <div id="screen-share-self">
+          <video id="screen-share-self-video" autoplay playsinline muted></video>
+          <div id="screen-share-self-label">共有中</div>
+        </div>
+        <!-- フロアマップ -->
+        <div id="floor-map-overlay">
+          <div id="floor-map-header">
+            <span>🗺️ フロアマップ</span>
+            <div id="floor-map-close">✕</div>
+          </div>
+          <div id="floor-map-grid"></div>
+        </div>
         <!-- 会議パネル -->
         <div id="meeting-panel">
           <div class="mt-header">
@@ -1124,6 +1187,7 @@
         <div class="tool-btn" id="btn-mic-toggle" style="display:none;">🎤</div>
         <div class="tool-btn" id="btn-screen-share" title="画面共有">🖥️ 共有</div>
         <div class="tool-btn" id="btn-sound-settings" title="通知音設定">🔔</div>
+        <div class="tool-btn" id="btn-floor-map" title="フロアマップ">🗺️ 全室</div>
         <div id="toolbar-hint">矢印/スペース/ESC</div>
       </div>
       <!-- YouTube Player (hidden) -->
@@ -1189,12 +1253,15 @@
     const MOVE_SPEED = 2.5; // ピクセル/フレーム（論理座標）
     const PROXIMITY_RANGE = 3;
     const ANIM_SPEED = 8; // フレームごとのアニメ切り替え
+    const RENDER_DPR = window.devicePixelRatio || 1; // HiDPI対応
+    let canvasLogicalW = 0, canvasLogicalH = 0;
 
     // タイルタイプ
     // 0:CARPET, 1:WALL, 2:DESK, 3:PLANT, 4:DOOR_WORK, 5:DOOR_MEET, 6:MONITOR, 7:CHAIR,
     // 8:BOARD, 9:RUG, 10:CARPET2, 11:WOOD, 12:WALL2, 13:WINDOW, 14:COUNTER, 15:SOFA_T, 16:SHELF
-    const T = { CARPET:0, WALL:1, DESK:2, PLANT:3, DOOR_WORK:4, DOOR_MEET:5, MONITOR:6, CHAIR:7, BOARD:8, RUG:9, CARPET2:10, WOOD:11, WALL2:12, WINDOW:13, COUNTER:14, SOFA_T:15, SHELF:16 };
-    const BLOCKED = new Set([T.WALL, T.DESK, T.PLANT, T.MONITOR, T.BOARD, T.WALL2, T.WINDOW, T.COUNTER, T.SOFA_T, T.SHELF]);
+    // 17:DOOR_LOBBY, 18:DOOR_JAPANESE, 19:TATAMI, 20:SHOJI, 21:TOKONOMA, 22:ZABUTON
+    const T = { CARPET:0, WALL:1, DESK:2, PLANT:3, DOOR_WORK:4, DOOR_MEET:5, MONITOR:6, CHAIR:7, BOARD:8, RUG:9, CARPET2:10, WOOD:11, WALL2:12, WINDOW:13, COUNTER:14, SOFA_T:15, SHELF:16, DOOR_LOBBY:17, DOOR_JAPANESE:18, TATAMI:19, SHOJI:20, TOKONOMA:21, ZABUTON:22 };
+    const BLOCKED = new Set([T.WALL, T.DESK, T.PLANT, T.MONITOR, T.BOARD, T.WALL2, T.WINDOW, T.COUNTER, T.SOFA_T, T.SHELF, T.SHOJI, T.TOKONOMA]);
 
     const W = T.WALL2; // オフィス壁（短縮）
     const ROOMS = {
@@ -1210,7 +1277,7 @@
          [W, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, W],
          [13,0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, W],
          [W, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, W],
-         [W, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, W],
+         [W, 0, 0, 0, 4, 0, 0,18, 0, 0, 0, 5, 0, 0, 0, W],
          [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W]],
         label:'LOBBY', labelColor:'#a0c4ff' },
       work: { cols:14, rows:10, spawn:{x:7,y:8}, floorType:'carpet', map:
@@ -1223,7 +1290,7 @@
          [13,10, 2, 6,10,10, 2, 6,10,10, 2, 6,10, W],
          [W,10, 7,10,10,10, 7,10,10,10, 7,10,10, W],
          [W,10,10,10,10,10,10,10,10,10,10,10,10,13],
-         [W,10, 3,10,10,10,10, 4,10,10,10, 3,10, W],
+         [W,10, 3,10,10,10,10,17,10,10,10, 3,10, W],
          [W, W, W, W, W, W, W, W, W, W, W, W, W, W]],
         label:'WORK ROOM', labelColor:'#ff8a80' },
       meeting: { cols:12, rows:10, spawn:{x:6,y:8}, floorType:'carpet', map:
@@ -1236,9 +1303,22 @@
          [W,10, 7, 9, 9, 9, 9, 9, 9, 7,10,13],
          [W,10,10,10,10,10,10,10,10,10,10, W],
          [W,10,10,10,10,10,10,10,10,10,10, W],
-         [W,10, 3,10,10,10, 5,10,10, 3,10, W],
+         [W,10, 3,10,10,10,17,10,10, 3,10, W],
          [W, W, W, W, W, W, W, W, W, W, W, W]],
         label:'MEETING ROOM', labelColor:'#87cefa' },
+      japanese: { cols:12, rows:10, spawn:{x:6,y:8}, floorType:'tatami', map:
+        // 和室: 畳、障子、床の間、座布団、ちゃぶ台
+        [[W, W,20, W, W,20, W, W,20, W, W, W],
+         [W,19,19,19,21,21,21,19,19,19,19, W],
+         [20,19,19,19,19,19,19,19,19,19,19,20],
+         [W,19,22,19,19,19,19,19,19,22,19, W],
+         [W,19,19,19, 9, 9, 9, 9,19,19,19, W],
+         [20,19,22,19, 9, 9, 9, 9,19,22,19,20],
+         [W,19,19,19,19,19,19,19,19,19,19, W],
+         [W,19,19,19,19,19,19,19,19,19,19, W],
+         [W,19, 3,19,19,19,17,19,19, 3,19, W],
+         [W, W, W, W, W, W, W, W, W, W, W, W]],
+        label:'和室', labelColor:'#c8b898' },
     };
 
     const HAIR_COLORS = ['#5a3825','#1a1a2e','#e8c170','#c73650','#f0f0f0','#ff8c42','#e85d9a','#6ec6ff'];
@@ -1266,7 +1346,7 @@
     const players = {};
     let chatFocused = false, myAvatar = { hair:0, body:0, pants:0, acc:-1 };
     let editMode = false, editAction = 'place', selectedFurniture = 'sofa';
-    const placedFurniture = { lobby:[], work:[], meeting:[] };
+    const placedFurniture = { lobby:[], work:[], meeting:[], japanese:[] };
 
     // ===== スムーズ移動用のプレイヤー状態 =====
     // displayState: { x, y (ピクセル座標 - 論理), targetX, targetY, moving, direction, walkFrame, walkTimer, idleTimer }
@@ -1274,8 +1354,11 @@
 
     function resizeCanvas() {
       const r = ROOMS[currentRoom];
-      canvas.width = r.cols * DRAW_TILE;
-      canvas.height = r.rows * DRAW_TILE;
+      canvasLogicalW = r.cols * DRAW_TILE;
+      canvasLogicalH = r.rows * DRAW_TILE;
+      canvas.width = canvasLogicalW * RENDER_DPR;
+      canvas.height = canvasLogicalH * RENDER_DPR;
+      ctx.setTransform(RENDER_DPR, 0, 0, RENDER_DPR, 0, 0);
     }
     resizeCanvas();
 
@@ -2246,6 +2329,127 @@
         ctx.fillStyle = '#e8e0d0'; ctx.fillRect(px+47, shelfY[2]-5, 4, 4);
         return;
       }
+      // 畳 - い草テクスチャ
+      if (type === T.TATAMI) {
+        const vert = (x+y) % 2 === 0; // 交互に向きを変える
+        ctx.fillStyle = '#b8a878'; ctx.fillRect(px, py, dt, dt);
+        ctx.fillStyle = '#c8b888'; ctx.fillRect(px+1, py+1, dt-2, dt-2);
+        // い草の筋
+        ctx.fillStyle = '#baa870';
+        if (vert) {
+          for (let i = 0; i < dt; i += 4) ctx.fillRect(px+2, py+i, dt-4, 1);
+        } else {
+          for (let i = 0; i < dt; i += 4) ctx.fillRect(px+i, py+2, 1, dt-4);
+        }
+        // 微妙な色ムラ
+        ctx.fillStyle = vert ? '#c4b480' : '#b4a070';
+        ctx.fillRect(px+4, py+4, dt-8, dt-8);
+        if (vert) {
+          for (let i = 0; i < dt-8; i += 4) ctx.fillRect(px+4, py+4+i, dt-8, 1);
+        } else {
+          for (let i = 0; i < dt-8; i += 4) ctx.fillRect(px+4+i, py+4, 1, dt-8);
+        }
+        // 畳縁（へり）
+        ctx.fillStyle = '#2a4a2a';
+        if (vert) {
+          ctx.fillRect(px, py, 2, dt); ctx.fillRect(px+dt-2, py, 2, dt);
+        } else {
+          ctx.fillRect(px, py, dt, 2); ctx.fillRect(px, py+dt-2, dt, 2);
+        }
+        ctx.fillStyle = '#3a5a3a';
+        if (vert) {
+          ctx.fillRect(px+1, py, 1, dt); ctx.fillRect(px+dt-2, py, 1, dt);
+        } else {
+          ctx.fillRect(px, py+1, dt, 1); ctx.fillRect(px, py+dt-2, dt, 1);
+        }
+        return;
+      }
+      // 障子（和風壁）
+      if (type === T.SHOJI) {
+        ctx.fillStyle = '#8a7a5a'; ctx.fillRect(px, py, dt, dt);
+        // 木枠
+        ctx.fillStyle = '#a08860'; ctx.fillRect(px+2, py+2, dt-4, dt-4);
+        // 障子紙（白）
+        ctx.fillStyle = '#f0ece0'; ctx.fillRect(px+4, py+4, dt-8, dt-8);
+        // 格子
+        ctx.fillStyle = '#a08860';
+        ctx.fillRect(px+dt/2-1, py+4, 2, dt-8); // 縦中央
+        ctx.fillRect(px+4, py+dt/3, dt-8, 2); // 横上
+        ctx.fillRect(px+4, py+dt*2/3, dt-8, 2); // 横下
+        // 紙の光透過
+        ctx.fillStyle = 'rgba(255,250,230,0.3)';
+        ctx.fillRect(px+5, py+5, dt/2-6, dt/3-3);
+        ctx.fillRect(px+dt/2+1, py+5, dt/2-6, dt/3-3);
+        return;
+      }
+      // 床の間
+      if (type === T.TOKONOMA) {
+        // 一段高い床
+        ctx.fillStyle = '#6a5030'; ctx.fillRect(px, py, dt, dt);
+        ctx.fillStyle = '#8a7050'; ctx.fillRect(px+2, py+2, dt-4, dt-4);
+        ctx.fillStyle = '#9a8060'; ctx.fillRect(px+3, py+3, dt-6, dt-6);
+        // 掛け軸
+        ctx.fillStyle = '#3a2a1a'; ctx.fillRect(px+dt/2-8, py+6, 16, 36);
+        ctx.fillStyle = '#f0e8d0'; ctx.fillRect(px+dt/2-6, py+8, 12, 30);
+        // 掛け軸の墨絵（山水画風）
+        ctx.fillStyle = '#4a6a5a'; // 山
+        ctx.fillRect(px+dt/2-4, py+20, 8, 8);
+        ctx.fillRect(px+dt/2-2, py+16, 4, 4);
+        ctx.fillStyle = '#6a8a7a';
+        ctx.fillRect(px+dt/2-3, py+22, 6, 4);
+        // 軸端
+        ctx.fillStyle = '#2a1a0a';
+        ctx.fillRect(px+dt/2-9, py+6, 18, 2);
+        ctx.fillRect(px+dt/2-9, py+38, 18, 2);
+        // 花瓶
+        ctx.fillStyle = '#4a6a8a'; ctx.fillRect(px+dt/2-5, py+44, 10, 14);
+        ctx.fillStyle = '#5a7a9a'; ctx.fillRect(px+dt/2-4, py+45, 8, 12);
+        ctx.fillStyle = '#6a8aaa'; ctx.fillRect(px+dt/2-3, py+46, 6, 4);
+        // 花
+        ctx.fillStyle = '#e06080'; fillCirc(ctx, px+dt/2-2, py+42, 3);
+        ctx.fillStyle = '#f080a0'; fillCirc(ctx, px+dt/2+2, py+41, 3);
+        ctx.fillStyle = '#3a8a3a'; ctx.fillRect(px+dt/2-1, py+42, 1, 4);
+        return;
+      }
+      // 座布団
+      if (type === T.ZABUTON) {
+        drawFloor(x, y); // まず畳を描く（drawFloorは通常のカーペットを描くのでTATAMI描画を手動で）
+        // 畳の上に座布団を描く
+        const vert = (x+y) % 2 === 0;
+        ctx.fillStyle = '#b8a878'; ctx.fillRect(px, py, dt, dt);
+        ctx.fillStyle = '#c8b888'; ctx.fillRect(px+1, py+1, dt-2, dt-2);
+        ctx.fillStyle = '#baa870';
+        if (vert) { for (let i = 0; i < dt; i += 4) ctx.fillRect(px+2, py+i, dt-4, 1); }
+        else { for (let i = 0; i < dt; i += 4) ctx.fillRect(px+i, py+2, 1, dt-4); }
+        ctx.fillStyle = '#2a4a2a';
+        if (vert) { ctx.fillRect(px, py, 2, dt); ctx.fillRect(px+dt-2, py, 2, dt); }
+        else { ctx.fillRect(px, py, dt, 2); ctx.fillRect(px, py+dt-2, dt, 2); }
+        // 座布団本体
+        ctx.fillStyle = '#8a2040'; ctx.fillRect(px+10, py+12, dt-20, dt-24);
+        ctx.fillStyle = '#a03050'; ctx.fillRect(px+12, py+14, dt-24, dt-28);
+        ctx.fillStyle = '#b04060'; ctx.fillRect(px+14, py+16, dt-28, dt-32);
+        // 房（四隅のタッセル）
+        ctx.fillStyle = '#d0a030';
+        ctx.fillRect(px+11, py+13, 3, 3); ctx.fillRect(px+dt-14, py+13, 3, 3);
+        ctx.fillRect(px+11, py+dt-16, 3, 3); ctx.fillRect(px+dt-14, py+dt-16, 3, 3);
+        return;
+      }
+      // ドアタイル（ロビーへ / 和室へ）
+      if (type === T.DOOR_LOBBY || type === T.DOOR_JAPANESE) {
+        drawFloor(x, y);
+        const label = type === T.DOOR_LOBBY ? '🚪' : '🏯';
+        // ドアフレーム
+        ctx.fillStyle = '#8a7a5a'; ctx.fillRect(px+16, py+4, dt-32, dt-8);
+        ctx.fillStyle = '#a09068'; ctx.fillRect(px+18, py+6, dt-36, dt-12);
+        ctx.fillStyle = '#c0b088'; ctx.fillRect(px+20, py+8, dt-40, dt-16);
+        // ドアノブ
+        ctx.fillStyle = '#d0a040'; fillCirc(ctx, px+dt-24, py+dt/2, 3);
+        // ラベル
+        ctx.font = `${Math.round(SCALE*8)}px sans-serif`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(label, px+dt/2, py+dt/2);
+        return;
+      }
     }
     const FLOOR_COLORS = ['#a8a8b8', '#c8b898', '#98b8c8', '#b898c8', '#98c898', '#c89898'];
     const WALL_COLORS = ['#5a5a72', '#72685a', '#5a6872', '#685a72', '#5a7258', '#725a5a'];
@@ -3137,9 +3341,9 @@
       ctx.font = `bold ${Math.round(SCALE*7)}px 'DotGothic16',monospace`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'top';
       ctx.strokeStyle = '#181020'; ctx.lineWidth = 3;
-      ctx.strokeText(r.label, canvas.width/2, 10);
+      ctx.strokeText(r.label, canvasLogicalW/2, 10);
       ctx.fillStyle = r.labelColor;
-      ctx.fillText(r.label, canvas.width/2, 10);
+      ctx.fillText(r.label, canvasLogicalW/2, 10);
     }
 
     // ===== Socket.io =====
@@ -3151,7 +3355,7 @@
     socket.on('playerJoined', (p) => { players[p.id] = p; addSys(`${p.name} がログイン`); updatePeople(); updateOnlineCount(); });
     socket.on('playerMoved', (p) => { players[p.id] = p; });
     socket.on('playerLeft', (id) => { if(players[id]){addSys(`${players[id].name} がログアウト`);delete players[id];delete displayState[id];updatePeople();updateOnlineCount();} });
-    socket.on('playerRoomChanged', (d) => { if(players[d.id]){players[d.id].room=d.room;if(d.id!==myId){const rn={lobby:'ロビー',work:'作業部屋',meeting:'会議室'};addSys(`${players[d.id].name} → ${rn[d.room]}`);}updatePeople();} });
+    socket.on('playerRoomChanged', (d) => { if(players[d.id]){players[d.id].room=d.room;if(d.id!==myId){const rn={lobby:'ロビー',work:'作業部屋',meeting:'会議室',japanese:'和室'};addSys(`${players[d.id].name} → ${rn[d.room]}`);}updatePeople();} });
     socket.on('playerAvatarChanged', (d) => { if(players[d.id]){players[d.id].avatar=d.avatar;updatePeople();} });
     // playerStatusChanged handled later with statusMsg support
     // chatMessage handled later with reactions support
@@ -3315,12 +3519,13 @@
     function isOnDoor() {
       if(!myId||!players[myId])return null;
       const me=players[myId],r=ROOMS[currentRoom];
-      // 自分のタイル + 隣接4タイルをチェック
       const checks = [[me.x,me.y],[me.x,me.y-1],[me.x,me.y+1],[me.x-1,me.y],[me.x+1,me.y]];
       for (const [cx,cy] of checks) {
         const t = r.map[cy]?.[cx];
         if(t===T.DOOR_WORK)return'work';
         if(t===T.DOOR_MEET)return'meeting';
+        if(t===T.DOOR_LOBBY)return'lobby';
+        if(t===T.DOOR_JAPANESE)return'japanese';
       }
       return null;
     }
@@ -3330,7 +3535,7 @@
         const ds=getDisplayState(players[myId]);ds.x=r.spawn.x*TILE;ds.y=r.spawn.y*TILE;ds.targetX=ds.x;ds.targetY=ds.y;}
       resizeCanvas(); socket.emit('enterRoom',rn); socket.emit('move',{x:r.spawn.x,y:r.spawn.y,direction:'down'});
       document.getElementById('room-name').textContent=r.label;
-      addSys(`${({lobby:'ロビー',work:'作業部屋',meeting:'会議室'})[rn]} に入室`);
+      addSys(`${({lobby:'ロビー',work:'作業部屋',meeting:'会議室',japanese:'和室'})[rn]} に入室`);
     }
 
     // ===== 右パネルタブ =====
@@ -3399,8 +3604,8 @@
     });
     canvas.addEventListener('click', (e) => {
       if(!editMode)return; const rect=canvas.getBoundingClientRect();
-      const mx=Math.floor((e.clientX-rect.left)/(rect.width/canvas.width)/DRAW_TILE);
-      const my=Math.floor((e.clientY-rect.top)/(rect.height/canvas.height)/DRAW_TILE);
+      const mx=Math.floor((e.clientX-rect.left)/(rect.width/canvasLogicalW)/DRAW_TILE);
+      const my=Math.floor((e.clientY-rect.top)/(rect.height/canvasLogicalH)/DRAW_TILE);
       const room=ROOMS[currentRoom]; if(mx<0||mx>=room.cols||my<0||my>=room.rows)return;
       if(BLOCKED.has(room.map[my][mx]))return;
       if(editAction==='place'){if(placedFurniture[currentRoom]?.find(f=>f.x===mx&&f.y===my))return;socket.emit('placeFurniture',{room:currentRoom,type:selectedFurniture,x:mx,y:my});}
@@ -4199,6 +4404,11 @@
         isScreenSharing = true;
         updateMediaButtons();
 
+        // セルフプレビュー表示
+        const selfVideo = document.getElementById('screen-share-self-video');
+        selfVideo.srcObject = localScreenStream;
+        document.getElementById('screen-share-self').classList.add('show');
+
         const clients = Object.keys(peers);
         for (const peerId of clients) {
           const pc = new RTCPeerConnection(rtcConfig);
@@ -4225,6 +4435,9 @@
       for (const [id, pc] of Object.entries(screenPeers)) { pc.close(); }
       screenPeers = {};
       document.getElementById('screen-share-view').classList.remove('show');
+      document.getElementById('screen-share-self').classList.remove('show');
+      const selfVideo = document.getElementById('screen-share-self-video');
+      selfVideo.srcObject = null;
       updateMediaButtons();
       renderMeeting();
     }
@@ -4502,7 +4715,7 @@
       // ドアプロンプト
       const doorTarget = isOnDoor();
       doorPrompt.style.display = doorTarget ? 'block' : 'none';
-      if (doorTarget) { doorPrompt.textContent = `スペース → ${({work:'作業部屋',meeting:'会議室'})[doorTarget]}`; }
+      if (doorTarget) { doorPrompt.textContent = `スペース → ${({lobby:'ロビー',work:'作業部屋',meeting:'会議室',japanese:'和室'})[doorTarget]}`; }
 
       // 編集モード グリッド
       if (editMode) {
@@ -4528,10 +4741,10 @@
         ctx.font = `bold ${Math.round(SCALE*5)}px 'DotGothic16',monospace`;
         ctx.textAlign = 'center';
         ctx.fillStyle = 'rgba(33,150,243,0.8)';
-        ctx.fillRect(canvas.width/2 - 80, indicY, 160, 20);
+        ctx.fillRect(canvasLogicalW/2 - 80, indicY, 160, 20);
         ctx.fillStyle = '#fff';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`📋 ${meetingState.topic}`, canvas.width/2, indicY + 10);
+        ctx.fillText(`📋 ${meetingState.topic}`, canvasLogicalW/2, indicY + 10);
 
         // タイマー表示
         if (meetingState.timerEnd > 0) {
@@ -4539,9 +4752,9 @@
           const m = Math.floor(rem / 60000), s = Math.floor((rem % 60000) / 1000);
           const timerStr = `⏱ ${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
           ctx.fillStyle = rem < 60000 ? 'rgba(244,67,54,0.8)' : 'rgba(255,152,0,0.8)';
-          ctx.fillRect(canvas.width/2 - 40, indicY + 22, 80, 16);
+          ctx.fillRect(canvasLogicalW/2 - 40, indicY + 22, 80, 16);
           ctx.fillStyle = '#fff'; ctx.font = `bold ${Math.round(SCALE*4.5)}px 'DotGothic16',monospace`;
-          ctx.fillText(timerStr, canvas.width/2, indicY + 30);
+          ctx.fillText(timerStr, canvasLogicalW/2, indicY + 30);
         }
 
         // 挙手プレイヤーのアイコン
@@ -4625,8 +4838,8 @@
     const mmCanvas = document.getElementById('minimap-canvas');
     const mmCtx = mmCanvas.getContext('2d');
     const mmLabel = document.getElementById('minimap-label');
-    const ROOM_COLORS = { lobby: '#a0c4ff', work: '#c4ffa0', meeting: '#ffa0c4' };
-    const ROOM_NAMES = { lobby: 'ロビー', work: '作業部屋', meeting: '会議室' };
+    const ROOM_COLORS = { lobby: '#a0c4ff', work: '#c4ffa0', meeting: '#ffa0c4', japanese: '#c8b898' };
+    const ROOM_NAMES = { lobby: 'ロビー', work: '作業部屋', meeting: '会議室', japanese: '和室' };
 
     function drawMinimap() {
       const room = ROOMS[currentRoom];
@@ -4642,7 +4855,7 @@
           const t = room.map[y][x];
           if (BLOCKED.has(t)) {
             mmCtx.fillStyle = '#2a2a4a';
-          } else if (t === T.DOOR_WORK || t === T.DOOR_MEET) {
+          } else if (t === T.DOOR_WORK || t === T.DOOR_MEET || t === T.DOOR_LOBBY || t === T.DOOR_JAPANESE) {
             mmCtx.fillStyle = '#ffd700';
           } else {
             mmCtx.fillStyle = '#1a1a30';
@@ -4679,6 +4892,111 @@
       }
       mmLabel.textContent = labelParts.join(' | ');
     }
+
+    // ===== フロアマップ =====
+    let floorMapOpen = false;
+    let floorMapInterval = null;
+    const FLOOR_ROOM_COLORS = {
+      0:'#3a3a50', 19:'#4a4a38', // CARPET / TATAMI
+    };
+
+    function buildFloorMap() {
+      const grid = document.getElementById('floor-map-grid');
+      grid.innerHTML = '';
+      const roomIds = Object.keys(ROOMS);
+      for (const rid of roomIds) {
+        const room = ROOMS[rid];
+        const div = document.createElement('div');
+        div.className = 'floor-map-room' + (rid === currentRoom ? ' current' : '');
+        const title = document.createElement('div');
+        title.className = 'floor-map-room-title';
+        const count = Object.values(players).filter(p => p.room === rid).length;
+        title.innerHTML = `${ROOM_NAMES[rid] || rid}<span class="room-count">(${count}人)</span>`;
+        div.appendChild(title);
+        const cvs = document.createElement('canvas');
+        const scale = 6;
+        cvs.width = room.cols * scale;
+        cvs.height = room.rows * scale;
+        div.appendChild(cvs);
+        div.addEventListener('click', () => {
+          enterRoom(rid);
+          closeFloorMap();
+        });
+        grid.appendChild(div);
+        drawFloorMapRoom(cvs, rid, room, scale);
+      }
+    }
+
+    function drawFloorMapRoom(cvs, rid, room, scale) {
+      const c = cvs.getContext('2d');
+      c.clearRect(0, 0, cvs.width, cvs.height);
+      for (let y = 0; y < room.rows; y++) {
+        for (let x = 0; x < room.cols; x++) {
+          const t = room.map[y][x];
+          if (BLOCKED.has(t)) c.fillStyle = '#2a2a4a';
+          else if (t === T.DOOR_WORK || t === T.DOOR_MEET || t === T.DOOR_LOBBY || t === T.DOOR_JAPANESE) c.fillStyle = '#ffd700';
+          else if (t === T.TATAMI || t === T.ZABUTON) c.fillStyle = '#8a7a50';
+          else if (t === T.RUG) c.fillStyle = '#6a4a4a';
+          else c.fillStyle = '#2a2a38';
+          c.fillRect(x * scale, y * scale, scale, scale);
+        }
+      }
+      // プレイヤー描画
+      for (const p of Object.values(players)) {
+        if (p.room !== rid) continue;
+        const ds = displayState[p.id] || p;
+        const px = (ds.x !== undefined ? ds.x / TILE : p.x) * scale;
+        const py = (ds.y !== undefined ? ds.y / TILE : p.y) * scale;
+        if (p.id === myId) {
+          c.fillStyle = '#7c8aff';
+          c.fillRect(px - 1, py - 1, scale, scale);
+        } else {
+          c.fillStyle = '#4caf50';
+          c.fillRect(px, py, scale - 1, scale - 1);
+        }
+      }
+      // 部屋ボーダー色
+      if (rid === currentRoom) {
+        c.strokeStyle = '#4caf50'; c.lineWidth = 1;
+        c.strokeRect(0, 0, cvs.width, cvs.height);
+      }
+    }
+
+    function updateFloorMap() {
+      if (!floorMapOpen) return;
+      const grid = document.getElementById('floor-map-grid');
+      const cards = grid.querySelectorAll('.floor-map-room');
+      const roomIds = Object.keys(ROOMS);
+      cards.forEach((card, i) => {
+        const rid = roomIds[i];
+        if (!rid) return;
+        const room = ROOMS[rid];
+        card.className = 'floor-map-room' + (rid === currentRoom ? ' current' : '');
+        const title = card.querySelector('.floor-map-room-title');
+        const count = Object.values(players).filter(p => p.room === rid).length;
+        title.innerHTML = `${ROOM_NAMES[rid] || rid}<span class="room-count">(${count}人)</span>`;
+        const cvs = card.querySelector('canvas');
+        drawFloorMapRoom(cvs, rid, room, 6);
+      });
+    }
+
+    function openFloorMap() {
+      floorMapOpen = true;
+      buildFloorMap();
+      document.getElementById('floor-map-overlay').classList.add('show');
+      floorMapInterval = setInterval(updateFloorMap, 1000);
+    }
+
+    function closeFloorMap() {
+      floorMapOpen = false;
+      document.getElementById('floor-map-overlay').classList.remove('show');
+      if (floorMapInterval) { clearInterval(floorMapInterval); floorMapInterval = null; }
+    }
+
+    document.getElementById('btn-floor-map').addEventListener('click', () => {
+      if (floorMapOpen) closeFloorMap(); else openFloorMap();
+    });
+    document.getElementById('floor-map-close').addEventListener('click', closeFloorMap);
 
     // ===== モバイルタッチ操作 =====
     const isMobile = /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent) || window.innerWidth <= 768;
