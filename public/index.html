@@ -12,15 +12,15 @@
 
     /* === トップバー === */
     #topbar {
-      height: 44px; background: #2a2a3e; border-bottom: 2px solid #3a3a5a;
-      display: flex; align-items: center; padding: 0 16px; gap: 12px; z-index: 10;
+      height: 52px; background: #2a2a3e; border-bottom: 2px solid #3a3a5a;
+      display: flex; align-items: center; padding: 0 20px; gap: 16px; z-index: 10;
     }
-    #topbar-logo { font-size: 15px; font-weight: bold; color: #7c8aff; }
-    .topbar-sep { width: 1px; height: 24px; background: #3a3a5a; }
-    #room-name { font-size: 13px; color: #aaa; }
-    #status-selector { margin-left: auto; display: flex; gap: 4px; align-items: center; }
+    #topbar-logo { font-size: 18px; font-weight: bold; color: #7c8aff; letter-spacing: 1px; }
+    .topbar-sep { width: 1px; height: 28px; background: #3a3a5a; }
+    #room-name { font-size: 15px; color: #aaa; font-weight: bold; }
+    #status-selector { margin-left: auto; display: flex; gap: 6px; align-items: center; }
     .status-btn {
-      padding: 4px 10px; border-radius: 12px; font-size: 11px; cursor: pointer;
+      padding: 6px 14px; border-radius: 14px; font-size: 13px; cursor: pointer;
       border: 2px solid transparent; transition: all 0.15s;
       font-family: 'DotGothic16', monospace; color: #fff;
     }
@@ -29,169 +29,171 @@
     .st-online { background: #4caf50; } .st-working { background: #ff9800; }
     .st-meeting { background: #2196f3; } .st-break { background: #9c27b0; }
     .st-away { background: #757575; }
-    #online-count { font-size: 12px; color: #888; margin-left: 8px; }
+    #online-count { font-size: 14px; color: #888; margin-left: 8px; }
     #coin-display {
-      display: flex; align-items: center; gap: 4px; margin-left: 12px;
-      background: #3a3a5a; padding: 3px 10px; border-radius: 12px; font-size: 12px;
+      display: flex; align-items: center; gap: 6px; margin-left: 12px;
+      background: #3a3a5a; padding: 5px 14px; border-radius: 14px; font-size: 14px;
     }
-    #coin-icon { color: #ffd700; font-size: 14px; }
+    #coin-icon { color: #ffd700; font-size: 16px; }
     #coin-count { color: #ffd700; font-weight: bold; }
     #coin-notif {
-      position: fixed; top: 56px; right: 20px; z-index: 50;
-      background: rgba(255,215,0,0.95); color: #1a1020; padding: 8px 16px;
-      border-radius: 8px; font-size: 12px; font-weight: bold;
+      position: fixed; top: 64px; right: 20px; z-index: 50;
+      background: rgba(255,215,0,0.95); color: #1a1020; padding: 10px 20px;
+      border-radius: 10px; font-size: 14px; font-weight: bold;
       box-shadow: 0 2px 12px rgba(255,215,0,0.3);
       display: none; animation: coinIn 0.3s ease;
     }
     @keyframes coinIn { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
     /* === メインレイアウト === */
-    #main { display: flex; height: calc(100vh - 44px); }
+    #main { display: flex; height: calc(100vh - 52px); }
 
     /* === 左サイドバー === */
     #sidebar {
-      width: 220px; background: #252538; border-right: 2px solid #3a3a5a;
+      width: 240px; background: #252538; border-right: 2px solid #3a3a5a;
       display: flex; flex-direction: column; flex-shrink: 0;
     }
-    #sidebar-header { padding: 10px 12px; font-size: 12px; color: #7c8aff; font-weight: bold; border-bottom: 1px solid #3a3a5a; }
-    #people-list { flex: 1; overflow-y: auto; padding: 6px; }
-    #people-list::-webkit-scrollbar { width: 4px; }
-    #people-list::-webkit-scrollbar-thumb { background: #3a3a5a; border-radius: 2px; }
+    #sidebar-header { padding: 12px 16px; font-size: 14px; color: #7c8aff; font-weight: bold; border-bottom: 1px solid #3a3a5a; letter-spacing: 1px; }
+    #people-list { flex: 1; overflow-y: auto; padding: 8px; }
+    #people-list::-webkit-scrollbar { width: 5px; }
+    #people-list::-webkit-scrollbar-thumb { background: #3a3a5a; border-radius: 3px; }
     .person {
-      display: flex; align-items: center; gap: 8px; padding: 6px 8px;
-      border-radius: 6px; cursor: default; transition: background 0.15s; font-size: 12px;
+      display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+      border-radius: 8px; cursor: default; transition: background 0.15s; font-size: 13px;
+      margin-bottom: 2px;
     }
     .person:hover { background: #2e2e42; }
     .person-avatar {
-      width: 28px; height: 28px; border-radius: 6px; image-rendering: pixelated;
+      width: 36px; height: 36px; border-radius: 8px; image-rendering: pixelated;
       border: 2px solid #3a3a5a; flex-shrink: 0;
     }
     .person-info { flex: 1; min-width: 0; }
-    .person-name { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .person-status { font-size: 10px; display: flex; align-items: center; gap: 4px; }
-    .person-status-dot { width: 6px; height: 6px; border-radius: 50%; }
-    .person-room { font-size: 9px; color: #666; }
+    .person-name { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: bold; }
+    .person-status { font-size: 12px; display: flex; align-items: center; gap: 4px; margin-top: 2px; }
+    .person-status-dot { width: 7px; height: 7px; border-radius: 50%; }
+    .person-room { font-size: 11px; color: #666; }
     .person.nearby { background: #2a3a2a; border: 1px solid #4caf5050; }
 
     /* === ゲームエリア === */
     #game-area { flex: 1; display: flex; flex-direction: column; position: relative; }
     #canvas-wrapper {
       flex: 1; display: flex; align-items: center; justify-content: center;
-      overflow: hidden; position: relative;
+      overflow: hidden; position: relative; padding: 8px;
     }
     #game {
-      image-rendering: pixelated; border-radius: 4px;
-      box-shadow: 0 0 20px rgba(0,0,0,0.3);
+      image-rendering: pixelated; border-radius: 6px;
+      box-shadow: 0 0 24px rgba(0,0,0,0.4);
       max-width: 100%; max-height: 100%; object-fit: contain;
     }
-    #game.edit-mode { box-shadow: 0 0 20px rgba(255,215,0,0.3); }
+    #game.edit-mode { box-shadow: 0 0 24px rgba(255,215,0,0.3); }
     #proximity-popup {
-      position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
-      background: rgba(76,175,80,0.9); padding: 8px 20px; border-radius: 20px;
-      font-size: 13px; display: none; color: #fff;
+      position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: rgba(76,175,80,0.9); padding: 10px 24px; border-radius: 22px;
+      font-size: 14px; display: none; color: #fff;
       box-shadow: 0 2px 12px rgba(76,175,80,0.4);
       animation: pulse 2s ease-in-out infinite;
     }
     @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.7; } }
     #door-prompt {
-      position: absolute; bottom: 56px; left: 50%; transform: translateX(-50%);
+      position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%);
       background: rgba(42,42,62,0.95); border: 2px solid #7c8aff;
-      padding: 6px 18px; border-radius: 16px; font-size: 12px;
+      padding: 8px 22px; border-radius: 18px; font-size: 14px;
       display: none; color: #7c8aff;
     }
     #toolbar {
-      height: 40px; background: #252538; border-top: 2px solid #3a3a5a;
-      display: flex; align-items: center; padding: 0 12px; gap: 8px;
+      height: 46px; background: #252538; border-top: 2px solid #3a3a5a;
+      display: flex; align-items: center; padding: 0 16px; gap: 10px;
     }
     .tool-btn {
-      padding: 5px 12px; border-radius: 6px; font-size: 11px; cursor: pointer;
+      padding: 7px 16px; border-radius: 8px; font-size: 13px; cursor: pointer;
       background: #2e2e42; border: 1px solid #3a3a5a; color: #aaa;
       font-family: 'DotGothic16', monospace; transition: all 0.15s;
     }
     .tool-btn:hover { background: #3a3a5a; color: #fff; }
     .tool-btn.active { background: #7c8aff30; border-color: #7c8aff; color: #7c8aff; }
-    #toolbar-hint { font-size: 10px; color: #555; margin-left: auto; }
+    #toolbar-hint { font-size: 12px; color: #555; margin-left: auto; }
 
     /* === 右パネル === */
     #right-panel {
-      width: 300px; background: #252538; border-left: 2px solid #3a3a5a;
+      width: 340px; background: #252538; border-left: 2px solid #3a3a5a;
       display: flex; flex-direction: column; flex-shrink: 0;
     }
     .rp-tabs { display: flex; border-bottom: 2px solid #3a3a5a; }
     .rp-tab {
-      flex: 1; padding: 8px; text-align: center; font-size: 12px; cursor: pointer;
+      flex: 1; padding: 10px 6px; text-align: center; font-size: 13px; cursor: pointer;
       color: #666; border-bottom: 2px solid transparent; transition: all 0.15s;
+      white-space: nowrap;
     }
     .rp-tab:hover { color: #aaa; }
     .rp-tab.active { color: #7c8aff; border-bottom-color: #7c8aff; }
     .rp-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
     .rp-content.hidden { display: none; }
-    #chat-messages { flex: 1; padding: 8px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
-    #chat-messages::-webkit-scrollbar { width: 4px; }
-    #chat-messages::-webkit-scrollbar-thumb { background: #3a3a5a; border-radius: 2px; }
-    .msg { line-height: 1.5; } .msg-name { color: #7c8aff; font-weight: bold; }
-    .msg-system { color: #4caf50; font-style: italic; font-size: 11px; }
+    #chat-messages { flex: 1; padding: 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+    #chat-messages::-webkit-scrollbar { width: 5px; }
+    #chat-messages::-webkit-scrollbar-thumb { background: #3a3a5a; border-radius: 3px; }
+    .msg { line-height: 1.6; } .msg-name { color: #7c8aff; font-weight: bold; }
+    .msg-system { color: #4caf50; font-style: italic; font-size: 13px; }
     #chat-input-area { display: flex; border-top: 1px solid #3a3a5a; }
-    #chat-input { flex: 1; padding: 10px; background: #1e1e2e; border: none; color: #e0e0e0; font-family: 'DotGothic16', monospace; font-size: 13px; outline: none; }
-    #chat-send { padding: 10px 16px; background: #7c8aff; border: none; color: #fff; font-family: 'DotGothic16', monospace; font-weight: bold; cursor: pointer; }
+    #chat-input { flex: 1; padding: 12px; background: #1e1e2e; border: none; color: #e0e0e0; font-family: 'DotGothic16', monospace; font-size: 14px; outline: none; }
+    #chat-send { padding: 12px 20px; background: #7c8aff; border: none; color: #fff; font-family: 'DotGothic16', monospace; font-weight: bold; cursor: pointer; font-size: 14px; }
     #chat-send:hover { background: #6a78ee; }
-    #customize-content { padding: 12px; overflow-y: auto; }
-    #customize-content h4 { font-size: 12px; color: #7c8aff; margin: 8px 0 6px; }
+    #customize-content { padding: 14px; overflow-y: auto; }
+    #customize-content h4 { font-size: 14px; color: #7c8aff; margin: 10px 0 8px; }
     #customize-content h4:first-child { margin-top: 0; }
-    .c-preview { text-align: center; margin-bottom: 8px; }
-    .c-preview canvas { border: 2px solid #3a3a5a; border-radius: 6px; image-rendering: pixelated; }
-    .c-options { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 4px; }
+    .c-preview { text-align: center; margin-bottom: 10px; }
+    .c-preview canvas { border: 2px solid #3a3a5a; border-radius: 8px; image-rendering: pixelated; }
+    .c-options { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
     .c-opt {
-      width: 28px; height: 28px; border: 2px solid #3a3a5a; border-radius: 4px;
+      width: 34px; height: 34px; border: 2px solid #3a3a5a; border-radius: 6px;
       cursor: pointer; display: flex; align-items: center; justify-content: center;
-      font-size: 9px; color: #fff; transition: border-color 0.15s;
+      font-size: 10px; color: #fff; transition: border-color 0.15s;
     }
     .c-opt:hover { border-color: #888; }
-    .c-opt.selected { border-color: #7c8aff; box-shadow: 0 0 6px rgba(124,138,255,0.4); }
-    #furniture-content { padding: 12px; overflow-y: auto; }
-    #furniture-content h4 { font-size: 12px; color: #7c8aff; margin-bottom: 8px; }
-    .f-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .c-opt.selected { border-color: #7c8aff; box-shadow: 0 0 8px rgba(124,138,255,0.4); }
+    #furniture-content { padding: 14px; overflow-y: auto; }
+    #furniture-content h4 { font-size: 14px; color: #7c8aff; margin-bottom: 10px; }
+    .f-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
     .f-item {
-      aspect-ratio: 1; border: 2px solid #3a3a5a; border-radius: 6px;
+      aspect-ratio: 1; border: 2px solid #3a3a5a; border-radius: 8px;
       cursor: pointer; display: flex; flex-direction: column;
-      align-items: center; justify-content: center; font-size: 9px;
-      color: #aaa; background: #1e1e2e; padding: 2px; transition: all 0.15s;
+      align-items: center; justify-content: center; font-size: 11px;
+      color: #aaa; background: #1e1e2e; padding: 4px; transition: all 0.15s;
     }
     .f-item:hover { border-color: #666; }
     .f-item.selected { border-color: #7c8aff; background: #2a2a3e; }
     .f-item canvas { image-rendering: pixelated; }
-    .f-btns { display: flex; gap: 6px; margin-top: 10px; }
+    .f-btns { display: flex; gap: 8px; margin-top: 12px; }
     .f-btn {
-      flex: 1; padding: 6px; text-align: center; font-size: 11px; font-weight: bold;
-      border: 1px solid #3a3a5a; border-radius: 6px; cursor: pointer;
+      flex: 1; padding: 8px; text-align: center; font-size: 13px; font-weight: bold;
+      border: 1px solid #3a3a5a; border-radius: 8px; cursor: pointer;
       font-family: 'DotGothic16', monospace; color: #e0e0e0; background: #2e2e42;
     }
     .f-btn.active { border-color: #7c8aff; color: #7c8aff; }
     /* ショップ */
-    #shop-content { padding: 12px; overflow-y: auto; }
-    #shop-content h4 { font-size: 12px; color: #ffd700; margin-bottom: 8px; }
-    .shop-balance { text-align: center; padding: 8px; background: #1e1e2e; border-radius: 8px; margin-bottom: 10px; }
-    .shop-balance .amount { font-size: 18px; color: #ffd700; font-weight: bold; }
-    .shop-balance .label { font-size: 10px; color: #888; }
+    #shop-content { padding: 14px; overflow-y: auto; }
+    #shop-content h4 { font-size: 14px; color: #ffd700; margin-bottom: 10px; }
+    .shop-balance { text-align: center; padding: 12px; background: #1e1e2e; border-radius: 10px; margin-bottom: 12px; }
+    .shop-balance .amount { font-size: 22px; color: #ffd700; font-weight: bold; }
+    .shop-balance .label { font-size: 12px; color: #888; }
     .shop-item {
-      display: flex; align-items: center; gap: 8px; padding: 8px;
-      border: 2px solid #3a3a5a; border-radius: 8px; margin-bottom: 6px;
+      display: flex; align-items: center; gap: 10px; padding: 10px;
+      border: 2px solid #3a3a5a; border-radius: 10px; margin-bottom: 8px;
       transition: all 0.15s; cursor: pointer; background: #1e1e2e;
     }
     .shop-item:hover { border-color: #555; background: #252538; }
     .shop-item.owned { border-color: #4caf5060; background: #1a2e1a; }
-    .shop-item-icon { font-size: 20px; width: 32px; text-align: center; flex-shrink: 0; }
+    .shop-item-icon { font-size: 24px; width: 36px; text-align: center; flex-shrink: 0; }
     .shop-item-info { flex: 1; min-width: 0; }
-    .shop-item-name { font-size: 12px; font-weight: bold; }
-    .shop-item-type { font-size: 10px; color: #888; }
+    .shop-item-name { font-size: 14px; font-weight: bold; }
+    .shop-item-type { font-size: 12px; color: #888; }
     .shop-item-price {
-      font-size: 11px; font-weight: bold; color: #ffd700;
-      padding: 2px 8px; border-radius: 10px; background: #3a3a2a;
+      font-size: 13px; font-weight: bold; color: #ffd700;
+      padding: 4px 10px; border-radius: 12px; background: #3a3a2a;
       white-space: nowrap; flex-shrink: 0;
     }
     .shop-item.owned .shop-item-price { color: #4caf50; background: #1a2e1a; }
-    .shop-stats { margin-top: 12px; padding: 8px; background: #1e1e2e; border-radius: 8px; font-size: 10px; color: #888; }
-    .shop-stats div { margin-bottom: 4px; }
+    .shop-stats { margin-top: 14px; padding: 10px; background: #1e1e2e; border-radius: 10px; font-size: 12px; color: #888; }
+    .shop-stats div { margin-bottom: 6px; }
     .shop-stats span { color: #aaa; }
 
     /* === 会議パネル === */
@@ -333,22 +335,22 @@
     }
     #name-modal.hidden { display: none; }
     #name-form {
-      background: #252538; border: 2px solid #7c8aff; border-radius: 12px;
-      padding: 32px; text-align: center;
-      box-shadow: 0 0 40px rgba(124,138,255,0.2);
+      background: #252538; border: 2px solid #7c8aff; border-radius: 16px;
+      padding: 40px; text-align: center;
+      box-shadow: 0 0 60px rgba(124,138,255,0.25);
     }
-    #name-form h2 { margin-bottom: 4px; font-size: 20px; color: #7c8aff; }
-    #name-form p { margin-bottom: 18px; font-size: 13px; color: #888; }
+    #name-form h2 { margin-bottom: 8px; font-size: 24px; color: #7c8aff; letter-spacing: 2px; }
+    #name-form p { margin-bottom: 20px; font-size: 15px; color: #888; }
     #name-input {
-      padding: 10px 14px; background: #1e1e2e; border: 2px solid #3a3a5a;
-      border-radius: 6px; color: #e0e0e0; font-family: 'DotGothic16', monospace;
-      font-size: 15px; width: 220px; text-align: center; outline: none;
+      padding: 12px 16px; background: #1e1e2e; border: 2px solid #3a3a5a;
+      border-radius: 8px; color: #e0e0e0; font-family: 'DotGothic16', monospace;
+      font-size: 17px; width: 260px; text-align: center; outline: none;
     }
     #name-input:focus { border-color: #7c8aff; }
     #name-submit {
-      display: block; margin: 14px auto 0; padding: 10px 28px;
-      background: #7c8aff; border: none; border-radius: 8px; color: #fff;
-      font-family: 'DotGothic16', monospace; font-weight: bold; font-size: 15px; cursor: pointer;
+      display: block; margin: 18px auto 0; padding: 12px 36px;
+      background: #7c8aff; border: none; border-radius: 10px; color: #fff;
+      font-family: 'DotGothic16', monospace; font-weight: bold; font-size: 17px; cursor: pointer;
     }
   </style>
 </head>
@@ -417,10 +419,10 @@
     </div>
     <div id="right-panel">
       <div class="rp-tabs">
-        <div class="rp-tab active" data-rp="chat">チャット</div>
-        <div class="rp-tab" data-rp="customize">きせかえ</div>
-        <div class="rp-tab" data-rp="furniture">もようがえ</div>
-        <div class="rp-tab" data-rp="shop">ショップ</div>
+        <div class="rp-tab active" data-rp="chat">💬 チャット</div>
+        <div class="rp-tab" data-rp="customize">👔 着替</div>
+        <div class="rp-tab" data-rp="furniture">🪑 家具</div>
+        <div class="rp-tab" data-rp="shop">🛒 商店</div>
       </div>
       <div class="rp-content" id="rp-chat">
         <div id="chat-messages"></div>
@@ -1315,10 +1317,10 @@
         const isNearby = me && p.room===currentRoom && p.id!==myId && Math.sqrt((p.x-me.x)**2+(p.y-me.y)**2) <= PROXIMITY_RANGE;
         const div = document.createElement('div');
         div.className = 'person' + (isNearby?' nearby':'');
-        const cvs = document.createElement('canvas'); cvs.width=24; cvs.height=28; cvs.className='person-avatar';
+        const cvs = document.createElement('canvas'); cvs.width=32; cvs.height=36; cvs.className='person-avatar';
         const ac = cvs.getContext('2d');
         const av = p.avatar||{hair:0,body:0,pants:0,acc:-1};
-        drawCharacter(ac, 2, 2, 'down', av, 0, 1.2);
+        drawCharacter(ac, 4, 4, 'down', av, 0, 1.6);
         const rn = {lobby:'ロビー',work:'作業部屋',meeting:'会議室'};
         const stDot = STATUS_COLORS[p.status]||'#4caf50';
         div.innerHTML = `<span class="person-info"><span class="person-name">${p.name}${p.id===myId?' (YOU)':''}</span><span class="person-status"><span class="person-status-dot" style="background:${stDot}"></span>${STATUS_LABELS[p.status]||'オンライン'}</span><span class="person-room">${rn[p.room]||'ロビー'}</span></span>`;
