@@ -3069,7 +3069,8 @@
     }
 
     // ===== Socket.io =====
-    const socket = io();
+    const savedToken = localStorage.getItem('gohou_token');
+    const socket = io({ auth: { token: savedToken || undefined } });
     socket.on('connect', () => { myId = socket.id; });
     socket.on('currentPlayers', (sp) => { Object.assign(players, sp); updatePeople(); updateOnlineCount(); });
     socket.on('currentFurniture', (f) => { Object.assign(placedFurniture, f); });
@@ -3103,6 +3104,17 @@
       loginNameEl.focus();
     });
 
+    function onAuthSuccess(data) {
+      myName = data.username;
+      if (typeof myRole !== 'undefined') { myRole = data.role || 'user'; isGuest = false; }
+      socket.auth = { token: data.token };
+      socket.emit('setName', myName);
+      if (data.avatar) { myAvatar = data.avatar; socket.emit('updateAvatar', myAvatar); }
+      nameModal.classList.add('hidden');
+      if (typeof updateAdminBtn === 'function') updateAdminBtn();
+      if (data.token) localStorage.setItem('gohou_token', data.token);
+    }
+
     async function doLogin() {
       loginError.textContent = '';
       const username = loginNameEl.value.trim();
@@ -3112,13 +3124,7 @@
         const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
         const data = await res.json();
         if (!res.ok) { loginError.textContent = data.error; return; }
-        myName = data.username;
-        if (typeof myRole !== 'undefined') { myRole = data.role || 'user'; isGuest = false; }
-        socket.emit('setName', myName);
-        if (data.avatar) { myAvatar = data.avatar; socket.emit('updateAvatar', myAvatar); }
-        nameModal.classList.add('hidden');
-        if (typeof updateAdminBtn === 'function') updateAdminBtn();
-        localStorage.setItem('gohou_auth', JSON.stringify({ username, password }));
+        onAuthSuccess(data);
       } catch (e) { loginError.textContent = '接続エラー'; }
     }
 
@@ -3131,9 +3137,7 @@
         const res = await fetch('/api/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
         const data = await res.json();
         if (!res.ok) { regError.textContent = data.error; return; }
-        myName = data.username;
-        socket.emit('setName', myName);
-        nameModal.classList.add('hidden');
+        onAuthSuccess(data);
       } catch (e) { regError.textContent = '接続エラー'; }
     }
 
@@ -3146,25 +3150,19 @@
       if (typeof updateAdminBtn === 'function') updateAdminBtn();
     }
 
-    // 自動ログイン（保存済みセッション）
+    // 自動ログイン（トークン検証）
     (async () => {
-      const saved = localStorage.getItem('gohou_auth');
-      if (saved) {
+      const token = localStorage.getItem('gohou_token');
+      if (token) {
         try {
-          const { username, password } = JSON.parse(saved);
-          const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
+          const res = await fetch('/api/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }) });
           const data = await res.json();
           if (res.ok) {
-            myName = data.username;
-            if (typeof myRole !== 'undefined') { myRole = data.role || 'user'; isGuest = false; }
-            socket.emit('setName', myName);
-            if (data.avatar) { myAvatar = data.avatar; socket.emit('updateAvatar', myAvatar); }
-            nameModal.classList.add('hidden');
-            if (typeof updateAdminBtn === 'function') updateAdminBtn();
+            onAuthSuccess(data);
             return;
           }
         } catch (e) {}
-        localStorage.removeItem('gohou_auth');
+        localStorage.removeItem('gohou_token');
       }
     })();
 
@@ -3181,7 +3179,7 @@
 
     // ===== チャット =====
     const chatMessages = document.getElementById('chat-messages'); let chatInput = document.getElementById('chat-input');
-    function addMsg(n,m) { const d=document.createElement('div');d.className='msg';d.innerHTML=`<span class="msg-name">${n}:</span> ${m}`;chatMessages.appendChild(d);chatMessages.scrollTop=chatMessages.scrollHeight; }
+    function addMsg(n,m,msgId) { const d=document.createElement('div');d.className='msg';const sp=document.createElement('span');sp.className='msg-name';sp.textContent=n+':';d.appendChild(sp);d.appendChild(document.createTextNode(' '+m));if(msgId){const rb=document.createElement('span');rb.className='msg-react-btn';rb.title='リアクション';rb.textContent='😀';d.appendChild(rb);const rd=document.createElement('div');rd.className='msg-reactions';rd.dataset.reactions=msgId;d.appendChild(rd);}chatMessages.appendChild(d);chatMessages.scrollTop=chatMessages.scrollHeight; }
     function addSys(t) { const d=document.createElement('div');d.className='msg msg-system';d.textContent=t;chatMessages.appendChild(d);chatMessages.scrollTop=chatMessages.scrollHeight; }
     let isComposing = false;
     chatInput.addEventListener('compositionstart', () => { isComposing = true; });
@@ -4816,7 +4814,9 @@
         div.className = `dm-msg ${isSent ? 'sent' : 'received'}`;
         const time = new Date(m.timestamp);
         const timeStr = `${String(time.getHours()).padStart(2, '0')}:${String(time.getMinutes()).padStart(2, '0')}`;
-        div.innerHTML = `${!isSent ? `<span class="dm-msg-name">${m.from}</span>` : ''} ${m.message} <span class="dm-msg-time">${timeStr}</span>`;
+        if (!isSent) { const ns = document.createElement('span'); ns.className = 'dm-msg-name'; ns.textContent = m.from; div.appendChild(ns); }
+        div.appendChild(document.createTextNode(' ' + m.message + ' '));
+        const ts = document.createElement('span'); ts.className = 'dm-msg-time'; ts.textContent = timeStr; div.appendChild(ts);
         container.appendChild(div);
       }
       container.scrollTop = container.scrollHeight;
@@ -4937,7 +4937,15 @@
       const d = document.createElement('div');
       d.className = 'msg';
       if (msgId) d.dataset.msgId = msgId;
-      d.innerHTML = `<span class="msg-name">${n}:</span> ${m}${msgId ? '<span class="msg-react-btn" title="リアクション">😀</span>' : ''}<div class="msg-reactions" data-reactions="${msgId || ''}"></div>`;
+      const sp = document.createElement('span'); sp.className = 'msg-name'; sp.textContent = n + ':';
+      d.appendChild(sp);
+      d.appendChild(document.createTextNode(' ' + m));
+      if (msgId) {
+        const rb = document.createElement('span'); rb.className = 'msg-react-btn'; rb.title = 'リアクション'; rb.textContent = '😀';
+        d.appendChild(rb);
+        const rd = document.createElement('div'); rd.className = 'msg-reactions'; rd.dataset.reactions = msgId;
+        d.appendChild(rd);
+      }
       const chatMessages = document.getElementById('chat-messages');
       chatMessages.appendChild(d);
       chatMessages.scrollTop = chatMessages.scrollHeight;

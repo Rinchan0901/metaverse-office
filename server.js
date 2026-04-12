@@ -4,8 +4,9 @@ const { Server } = require('socket.io');
 const path = require('path');
 const fs = require('fs');
 const { createClient } = require('redis');
-
 const crypto = require('crypto');
+const bcrypt = require('bcrypt');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 const server = http.createServer(app);
@@ -13,6 +14,18 @@ const io = new Server(server);
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
+
+// ===== レート制限 =====
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15分
+  max: 20, // 15分あたり20回まで
+  message: { error: '試行回数が多すぎます。しばらく待ってから再試行してください' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// ===== セッショントークン管理 =====
+const sessions = {}; // token -> { username, createdAt }
 
 // ===== データ永続化 (Redis優先、なければファイルフォールバック) =====
 let redis = null;
@@ -61,38 +74,88 @@ function saveAccounts() {
   dataSet('accounts', accounts);
 }
 
-function hashPass(password) {
+const BCRYPT_ROUNDS = 10;
+
+function generateToken() {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+// 旧SHA256ハッシュ (既存アカウント移行用)
+function legacyHash(password) {
   return crypto.createHash('sha256').update(password + 'metaverse-salt').digest('hex');
 }
 
+// セッション検証API
+app.post('/api/verify', (req, res) => {
+  const { token } = req.body;
+  if (!token || !sessions[token]) return res.status(401).json({ error: 'invalid' });
+  const s = sessions[token];
+  // 30日でトークン期限切れ
+  if (Date.now() - s.createdAt > 30 * 24 * 60 * 60 * 1000) {
+    delete sessions[token];
+    return res.status(401).json({ error: 'expired' });
+  }
+  const acc = accounts[s.username];
+  if (!acc) return res.status(401).json({ error: 'invalid' });
+  res.json({ ok: true, username: s.username, avatar: acc.avatar, role: acc.role || 'user', token });
+});
+
 // アカウント登録
-app.post('/api/register', (req, res) => {
-  const { username, password } = req.body;
-  if (!username || !password) return res.status(400).json({ error: 'ユーザー名とパスワードが必要です' });
-  const name = String(username).slice(0, 12).replace(/[<>&"']/g, '');
-  if (name.length < 2) return res.status(400).json({ error: '名前は2文字以上' });
-  if (String(password).length < 4) return res.status(400).json({ error: 'パスワードは4文字以上' });
-  if (accounts[name]) return res.status(400).json({ error: 'この名前は既に使われています' });
-  accounts[name] = {
-    password: hashPass(String(password)),
-    avatar: { hair: 0, body: 0, pants: 0, acc: -1 },
-    createdAt: Date.now(),
-  };
-  saveAccounts();
-  // コインデータも初期化
-  getPlayerCoins(name);
-  res.json({ ok: true, username: name });
+app.post('/api/register', authLimiter, async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) return res.status(400).json({ error: 'ユーザー名とパスワードが必要です' });
+    const name = String(username).slice(0, 12).replace(/[<>&"']/g, '');
+    if (name.length < 2) return res.status(400).json({ error: '名前は2文字以上' });
+    if (String(password).length < 4) return res.status(400).json({ error: 'パスワードは4文字以上' });
+    if (accounts[name]) return res.status(400).json({ error: 'この名前は既に使われています' });
+    const hashed = await bcrypt.hash(String(password), BCRYPT_ROUNDS);
+    accounts[name] = {
+      password: hashed,
+      avatar: { hair: 0, body: 0, pants: 0, acc: -1 },
+      createdAt: Date.now(),
+    };
+    saveAccounts();
+    getPlayerCoins(name);
+    const token = generateToken();
+    sessions[token] = { username: name, createdAt: Date.now() };
+    res.json({ ok: true, username: name, token });
+  } catch (e) {
+    console.error('Register error:', e);
+    res.status(500).json({ error: 'サーバーエラー' });
+  }
 });
 
 // ログイン
-app.post('/api/login', (req, res) => {
-  const { username, password } = req.body;
-  if (!username || !password) return res.status(400).json({ error: 'ユーザー名とパスワードが必要です' });
-  const name = String(username).slice(0, 12).replace(/[<>&"']/g, '');
-  const acc = accounts[name];
-  if (!acc) return res.status(401).json({ error: 'アカウントが見つかりません' });
-  if (acc.password !== hashPass(String(password))) return res.status(401).json({ error: 'パスワードが違います' });
-  res.json({ ok: true, username: name, avatar: acc.avatar, role: acc.role || 'user' });
+app.post('/api/login', authLimiter, async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) return res.status(400).json({ error: 'ユーザー名とパスワードが必要です' });
+    const name = String(username).slice(0, 12).replace(/[<>&"']/g, '');
+    const acc = accounts[name];
+    if (!acc) return res.status(401).json({ error: 'アカウントが見つかりません' });
+
+    // bcryptハッシュか旧SHA256ハッシュかを判定して検証
+    let valid = false;
+    if (acc.password.startsWith('$2')) {
+      valid = await bcrypt.compare(String(password), acc.password);
+    } else {
+      // 旧ハッシュ形式 → 検証後にbcryptへ移行
+      valid = (acc.password === legacyHash(String(password)));
+      if (valid) {
+        acc.password = await bcrypt.hash(String(password), BCRYPT_ROUNDS);
+        saveAccounts();
+      }
+    }
+    if (!valid) return res.status(401).json({ error: 'パスワードが違います' });
+
+    const token = generateToken();
+    sessions[token] = { username: name, createdAt: Date.now() };
+    res.json({ ok: true, username: name, avatar: acc.avatar, role: acc.role || 'user', token });
+  } catch (e) {
+    console.error('Login error:', e);
+    res.status(500).json({ error: 'サーバーエラー' });
+  }
 });
 
 // 管理者設定（最初に登録されたアカウントを管理者にする、または環境変数で指定）
@@ -356,8 +419,18 @@ app.get('/api/coins/:playerName', (req, res) => {
   res.json({ playerName: req.params.playerName, ...data });
 });
 
+// Socket.io認証ミドルウェア
+io.use((socket, next) => {
+  const token = socket.handshake.auth?.token;
+  if (token && sessions[token]) {
+    socket.authUser = sessions[token].username;
+  }
+  // 認証なしでも接続は許可（ゲスト・ログイン前）
+  next();
+});
+
 io.on('connection', (socket) => {
-  console.log(`接続: ${socket.id}`);
+  console.log(`接続: ${socket.id}${socket.authUser ? ` (${socket.authUser})` : ''}`);
 
   // 新規プレイヤー追加
   players[socket.id] = {
