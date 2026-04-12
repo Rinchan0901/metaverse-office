@@ -533,6 +533,25 @@
       font-family: 'DotGothic16', monospace;
     }
 
+    /* === メディアコントロールバー === */
+    #media-controls {
+      position: fixed; bottom: 46px; left: 50%; transform: translateX(-50%);
+      z-index: 60; display: flex; gap: 6px; padding: 4px 10px;
+      background: rgba(24,16,32,0.9); border-radius: 20px;
+      border: 1px solid rgba(124,138,255,0.3); backdrop-filter: blur(6px);
+      box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+    }
+    .media-btn {
+      width: 40px; height: 40px; border-radius: 50%; border: none;
+      font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background .15s, transform .1s; color: #fff;
+    }
+    .media-btn:hover { transform: scale(1.1); }
+    .media-btn.on { background: rgba(76,175,80,0.6); }
+    .media-btn.off { background: rgba(198,40,40,0.6); }
+    .media-btn.neutral { background: rgba(100,100,120,0.5); }
+    .media-btn.active-share { background: rgba(33,150,243,0.6); }
+
     /* === ビデオ通話 === */
     #video-container {
       position: absolute; bottom: 50px; right: 10px; z-index: 20;
@@ -1217,6 +1236,13 @@
     <div id="logout-btn" title="ログアウト" style="cursor:pointer;padding:4px 10px;font-size:12px;color:#aaa;border:1px solid #3a3a5a;border-radius:6px;margin-left:8px;white-space:nowrap;">🚪 退出</div>
   </div>
   <div id="coin-notif"></div>
+
+  <!-- メディアコントロール（常時表示） -->
+  <div id="media-controls" style="display:none;">
+    <button class="media-btn off" id="btn-mic-toggle" title="マイク OFF">🔇</button>
+    <button class="media-btn off" id="btn-cam-toggle" title="カメラ OFF">📷</button>
+    <button class="media-btn neutral" id="btn-screen-share" title="画面共有">🖥️</button>
+  </div>
   <div id="levelup-popup">
     <div class="lvl-icon">⬆️</div>
     <div class="lvl-text">LEVEL UP!</div>
@@ -1343,9 +1369,7 @@
         <div class="tool-btn" id="btn-emote" title="エモート">😄</div>
         <div class="tool-btn" id="btn-dm" style="position:relative;" title="ダイレクトメッセージ">📩 DM<span id="dm-badge">0</span></div>
         <div class="tool-sep"></div>
-        <div class="tool-btn" id="btn-cam-toggle" style="display:none;">📷</div>
-        <div class="tool-btn" id="btn-mic-toggle" style="display:none;">🎤</div>
-        <div class="tool-btn" id="btn-screen-share" title="画面共有">🖥️ 共有</div>
+        <div class="tool-btn" id="btn-screen-share-old" style="display:none;"></div>
         <div class="tool-btn" id="btn-sound-settings" title="通知音設定">🔔</div>
         <div class="tool-btn" id="btn-floor-map" title="フロアマップ">🗺️ 全室</div>
         <div class="tool-btn" id="btn-game" title="ミニゲーム (G)">🎮 ゲーム</div>
@@ -3319,6 +3343,7 @@
         socket.emit('updateAvatar', myAvatar);
       }
       nameModal.classList.add('hidden');
+      document.getElementById('media-controls').style.display = '';
       if (typeof updateAdminBtn === 'function') updateAdminBtn();
       if (data.token) localStorage.setItem('gohou_token', data.token);
     }
@@ -3355,6 +3380,7 @@
       if (typeof myRole !== 'undefined') { isGuest = true; myRole = 'user'; }
       socket.emit('setName', n);
       nameModal.classList.add('hidden');
+      document.getElementById('media-controls').style.display = '';
       if (typeof updateAdminBtn === 'function') updateAdminBtn();
     }
 
@@ -4127,8 +4153,8 @@
     let localScreenStream = null;
     let screenPeers = {}; // peerId -> pc (for screen share)
     let voiceJoined = false;
-    let micMuted = false;
-    let cameraMuted = false;
+    let micMuted = true;
+    let cameraMuted = true;
     let isScreenSharing = false;
     let proximityActive = false; // 近接通話が有効か
     const DISCONNECT_RANGE = PROXIMITY_RANGE + 1; // ヒステリシス（4タイル）
@@ -4139,37 +4165,41 @@
       if (localStream) return true;
       try {
         localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-        micMuted = false; cameraMuted = false;
-        updateMediaButtons();
-        return true;
       } catch (e) {
         try {
           localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-          micMuted = false; cameraMuted = true;
-          updateMediaButtons();
-          return true;
+          cameraMuted = true; // ビデオ取得失敗時は強制OFF
         } catch (e2) {
           showCoinNotif('カメラ/マイクへのアクセスが拒否されました');
           return false;
         }
       }
+      // ユーザーのON/OFF設定を反映
+      localStream.getAudioTracks().forEach(t => { t.enabled = !micMuted; });
+      localStream.getVideoTracks().forEach(t => { t.enabled = !cameraMuted; });
+      updateMediaButtons();
+      return true;
     }
 
     function updateMediaButtons() {
       const camBtn = document.getElementById('btn-cam-toggle');
       const micBtn = document.getElementById('btn-mic-toggle');
-      const show = proximityActive || voiceJoined;
-      camBtn.style.display = show ? '' : 'none';
-      micBtn.style.display = show ? '' : 'none';
-      camBtn.textContent = cameraMuted ? '📷' : '📷';
-      camBtn.style.background = cameraMuted ? 'rgba(198,40,40,0.5)' : 'rgba(76,175,80,0.4)';
-      camBtn.title = cameraMuted ? 'カメラOFF' : 'カメラON';
-      micBtn.textContent = micMuted ? '🔇' : '🎤';
-      micBtn.style.background = micMuted ? 'rgba(198,40,40,0.5)' : 'rgba(76,175,80,0.4)';
-      micBtn.title = micMuted ? 'ミュート中' : 'マイクON';
       const scrBtn = document.getElementById('btn-screen-share');
-      scrBtn.textContent = isScreenSharing ? '🖥️ 共有中' : '🖥️ 共有';
-      scrBtn.style.background = isScreenSharing ? 'rgba(33,150,243,0.5)' : '';
+
+      // マイク
+      micBtn.textContent = micMuted ? '🔇' : '🎤';
+      micBtn.className = 'media-btn ' + (micMuted ? 'off' : 'on');
+      micBtn.title = micMuted ? 'マイク OFF' : 'マイク ON';
+
+      // カメラ
+      camBtn.textContent = cameraMuted ? '📷' : '📹';
+      camBtn.className = 'media-btn ' + (cameraMuted ? 'off' : 'on');
+      camBtn.title = cameraMuted ? 'カメラ OFF' : 'カメラ ON';
+
+      // 画面共有
+      scrBtn.textContent = isScreenSharing ? '🖥️' : '🖥️';
+      scrBtn.className = 'media-btn ' + (isScreenSharing ? 'active-share' : 'neutral');
+      scrBtn.title = isScreenSharing ? '画面共有中' : '画面共有';
     }
 
     // 近接チェック（gameLoopから30フレームごとに呼ばれる）
@@ -4415,17 +4445,19 @@
     }
 
     function toggleMic() {
-      if (!localStream) return;
       micMuted = !micMuted;
-      localStream.getAudioTracks().forEach(t => { t.enabled = !micMuted; });
+      if (localStream) {
+        localStream.getAudioTracks().forEach(t => { t.enabled = !micMuted; });
+      }
       updateMediaButtons();
       renderMeeting();
     }
 
     function toggleCamera() {
-      if (!localStream) return;
       cameraMuted = !cameraMuted;
-      localStream.getVideoTracks().forEach(t => { t.enabled = !cameraMuted; });
+      if (localStream) {
+        localStream.getVideoTracks().forEach(t => { t.enabled = !cameraMuted; });
+      }
       updateMediaButtons();
     }
 
