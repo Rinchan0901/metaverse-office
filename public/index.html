@@ -340,6 +340,40 @@
       cursor: pointer;
     }
 
+    /* === ホワイトボード === */
+    #whiteboard-panel {
+      display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 40px;
+      background: rgba(20,20,40,0.97); z-index: 22; flex-direction: column;
+      border: 2px solid #ff9800; border-radius: 0 0 8px 8px;
+    }
+    #whiteboard-panel.show { display: flex; }
+    .wb-header {
+      display: flex; align-items: center; gap: 8px; padding: 6px 12px;
+      background: #ff9800; color: #fff; font-size: 13px; font-weight: bold;
+    }
+    .wb-header-title { flex: 1; }
+    .wb-close { cursor: pointer; font-size: 16px; opacity: 0.8; }
+    .wb-close:hover { opacity: 1; }
+    .wb-toolbar {
+      display: flex; align-items: center; gap: 6px; padding: 6px 10px;
+      background: #1a1a2e; border-bottom: 1px solid #3a3a5a; flex-wrap: wrap;
+    }
+    .wb-tool-btn {
+      padding: 4px 10px; border-radius: 12px; font-size: 11px; cursor: pointer;
+      border: 1px solid #3a3a5a; font-family: 'DotGothic16', monospace;
+      color: #aaa; background: #2e2e42; transition: all 0.15s;
+    }
+    .wb-tool-btn:hover { background: #3a3a5a; color: #fff; }
+    .wb-tool-btn.active { background: #ff9800; border-color: #ff9800; color: #fff; }
+    .wb-color-btn {
+      width: 22px; height: 22px; border-radius: 50%; cursor: pointer;
+      border: 2px solid transparent; transition: border-color 0.15s;
+    }
+    .wb-color-btn.active { border-color: #fff; }
+    .wb-size-slider { width: 60px; accent-color: #ff9800; }
+    .wb-canvas-wrap { flex: 1; position: relative; overflow: hidden; background: #fff; }
+    #whiteboard-canvas { width: 100%; height: 100%; cursor: crosshair; display: block; touch-action: none; }
+
     /* === ビデオ通話 === */
     #video-container {
       position: absolute; bottom: 50px; right: 10px; z-index: 20;
@@ -961,6 +995,32 @@
           <div class="mt-body" id="mt-body"></div>
           <div class="mt-footer" id="mt-footer"></div>
         </div>
+        <!-- ホワイトボード -->
+        <div id="whiteboard-panel">
+          <div class="wb-header">
+            <span>🖊️</span>
+            <span class="wb-header-title">ホワイトボード</span>
+            <span class="wb-close" id="wb-close">✕</span>
+          </div>
+          <div class="wb-toolbar">
+            <button class="wb-tool-btn active" id="wb-pen" data-tool="pen">✏️ ペン</button>
+            <button class="wb-tool-btn" id="wb-eraser" data-tool="eraser">🧹 消しゴム</button>
+            <span style="color:#555;">|</span>
+            <button class="wb-color-btn active" data-color="#222222" style="background:#222;"></button>
+            <button class="wb-color-btn" data-color="#e53935" style="background:#e53935;"></button>
+            <button class="wb-color-btn" data-color="#1e88e5" style="background:#1e88e5;"></button>
+            <button class="wb-color-btn" data-color="#43a047" style="background:#43a047;"></button>
+            <button class="wb-color-btn" data-color="#ff9800" style="background:#ff9800;"></button>
+            <button class="wb-color-btn" data-color="#8e24aa" style="background:#8e24aa;"></button>
+            <span style="color:#555;">|</span>
+            <input type="range" class="wb-size-slider" id="wb-size" min="1" max="20" value="3" title="太さ">
+            <span style="color:#555;">|</span>
+            <button class="wb-tool-btn" id="wb-clear">🗑️ 全消去</button>
+          </div>
+          <div class="wb-canvas-wrap">
+            <canvas id="whiteboard-canvas"></canvas>
+          </div>
+        </div>
       </div>
       <!-- ポモドーロバー -->
       <div id="pomo-bar">
@@ -980,6 +1040,7 @@
       <div id="toolbar">
         <div class="tool-btn" id="btn-furniture" title="もようがえ (F)">🪑 家具</div>
         <div class="tool-btn" id="btn-meeting" style="display:none;" title="会議 (M)">📋 会議</div>
+        <div class="tool-btn" id="btn-whiteboard" style="display:none;" title="ホワイトボード (W)">🖊️ ボード</div>
         <div class="tool-btn" id="btn-bgm" title="BGM設定">🎵 BGM</div>
         <div class="tool-btn" id="btn-pomo" title="ポモドーロタイマー">🍅 集中</div>
         <div class="tool-sep"></div>
@@ -3122,22 +3183,21 @@
     const chatMessages = document.getElementById('chat-messages'); let chatInput = document.getElementById('chat-input');
     function addMsg(n,m) { const d=document.createElement('div');d.className='msg';d.innerHTML=`<span class="msg-name">${n}:</span> ${m}`;chatMessages.appendChild(d);chatMessages.scrollTop=chatMessages.scrollHeight; }
     function addSys(t) { const d=document.createElement('div');d.className='msg msg-system';d.textContent=t;chatMessages.appendChild(d);chatMessages.scrollTop=chatMessages.scrollHeight; }
+    let isComposing = false;
+    chatInput.addEventListener('compositionstart', () => { isComposing = true; });
+    chatInput.addEventListener('compositionend', () => { isComposing = false; });
+
     function sendChat() {
-      const m=chatInput.value.trim();
-      if(m){
-        socket.emit('chat',m);
-        // IME対応: 一旦blurしてcompositionを終了させてからクリア
-        chatInput.blur();
-        chatInput.value='';
-        chatInput.setAttribute('value','');
-        // inputを再作成して確実にクリア
-        const newInput = chatInput.cloneNode(false);
-        chatInput.parentNode.replaceChild(newInput, chatInput);
-        chatInput = newInput;
-        chatInput.addEventListener('focus', () => { chatFocused=true; });
-        chatInput.addEventListener('blur', () => { chatFocused=false; });
-        chatInput.addEventListener('keydown', (e) => { if(e.key==='Enter'){e.preventDefault();sendChat();} });
-        chatInput.focus();
+      if (isComposing) return;
+      const m = chatInput.value.trim();
+      if (m) {
+        socket.emit('chat', m);
+        chatInput.type = 'hidden';
+        chatInput.value = '';
+        requestAnimationFrame(() => {
+          chatInput.type = 'text';
+          chatInput.focus();
+        });
       }
     }
     document.getElementById('chat-send').addEventListener('click', sendChat);
@@ -3587,6 +3647,175 @@
         mtTimer.style.color = '#ffd700';
       }
     }
+
+    // ===== ホワイトボード =====
+    const wbPanel = document.getElementById('whiteboard-panel');
+    const wbCanvas = document.getElementById('whiteboard-canvas');
+    const wbCtx = wbCanvas.getContext('2d');
+    const btnWhiteboard = document.getElementById('btn-whiteboard');
+    let wbOpen = false;
+    let wbTool = 'pen';
+    let wbColor = '#222222';
+    let wbSize = 3;
+    let wbDrawing = false;
+    let wbLastX = 0, wbLastY = 0;
+    let wbStrokes = []; // 全ストローク保存 [{tool,color,size,points:[{x,y}]}]
+
+    function updateWhiteboardBtn() {
+      btnWhiteboard.style.display = currentRoom === 'meeting' ? '' : 'none';
+      if (currentRoom !== 'meeting' && wbOpen) toggleWhiteboard(false);
+      if (currentRoom === 'meeting') socket.emit('getWhiteboard');
+    }
+
+    function toggleWhiteboard(show) {
+      wbOpen = typeof show === 'boolean' ? show : !wbOpen;
+      wbPanel.classList.toggle('show', wbOpen);
+      btnWhiteboard.classList.toggle('active', wbOpen);
+      if (wbOpen) resizeWbCanvas();
+    }
+
+    btnWhiteboard.addEventListener('click', () => toggleWhiteboard());
+    document.getElementById('wb-close').addEventListener('click', () => toggleWhiteboard(false));
+
+    document.addEventListener('keydown', (e) => {
+      if ((e.key === 'w' || e.key === 'W') && !chatFocused && nameModal.classList.contains('hidden') && currentRoom === 'meeting') {
+        toggleWhiteboard();
+      }
+    });
+
+    function resizeWbCanvas() {
+      const wrap = wbCanvas.parentElement;
+      wbCanvas.width = wrap.clientWidth;
+      wbCanvas.height = wrap.clientHeight;
+      redrawWhiteboard();
+    }
+    window.addEventListener('resize', () => { if (wbOpen) resizeWbCanvas(); });
+
+    function redrawWhiteboard() {
+      wbCtx.fillStyle = '#fff';
+      wbCtx.fillRect(0, 0, wbCanvas.width, wbCanvas.height);
+      for (const s of wbStrokes) {
+        drawStroke(s);
+      }
+    }
+
+    function drawStroke(s) {
+      if (s.points.length < 2) return;
+      wbCtx.lineCap = 'round';
+      wbCtx.lineJoin = 'round';
+      wbCtx.strokeStyle = s.tool === 'eraser' ? '#ffffff' : s.color;
+      wbCtx.lineWidth = s.size;
+      wbCtx.beginPath();
+      wbCtx.moveTo(s.points[0].x * wbCanvas.width, s.points[0].y * wbCanvas.height);
+      for (let i = 1; i < s.points.length; i++) {
+        wbCtx.lineTo(s.points[i].x * wbCanvas.width, s.points[i].y * wbCanvas.height);
+      }
+      wbCtx.stroke();
+    }
+
+    function drawSegment(s, fromIdx) {
+      if (fromIdx < 1) return;
+      wbCtx.lineCap = 'round';
+      wbCtx.lineJoin = 'round';
+      wbCtx.strokeStyle = s.tool === 'eraser' ? '#ffffff' : s.color;
+      wbCtx.lineWidth = s.size;
+      wbCtx.beginPath();
+      wbCtx.moveTo(s.points[fromIdx - 1].x * wbCanvas.width, s.points[fromIdx - 1].y * wbCanvas.height);
+      wbCtx.lineTo(s.points[fromIdx].x * wbCanvas.width, s.points[fromIdx].y * wbCanvas.height);
+      wbCtx.stroke();
+    }
+
+    function getWbPos(e) {
+      const rect = wbCanvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return { x: (clientX - rect.left) / rect.width, y: (clientY - rect.top) / rect.height };
+    }
+
+    function wbPointerDown(e) {
+      e.preventDefault();
+      wbDrawing = true;
+      const pos = getWbPos(e);
+      wbLastX = pos.x; wbLastY = pos.y;
+      const stroke = { tool: wbTool, color: wbColor, size: wbTool === 'eraser' ? wbSize * 4 : wbSize, points: [pos] };
+      wbStrokes.push(stroke);
+      socket.emit('wbStrokeStart', { tool: stroke.tool, color: stroke.color, size: stroke.size, point: pos });
+    }
+
+    function wbPointerMove(e) {
+      if (!wbDrawing) return;
+      e.preventDefault();
+      const pos = getWbPos(e);
+      const stroke = wbStrokes[wbStrokes.length - 1];
+      stroke.points.push(pos);
+      drawSegment(stroke, stroke.points.length - 1);
+      socket.emit('wbStrokeMove', pos);
+    }
+
+    function wbPointerUp(e) {
+      if (!wbDrawing) return;
+      wbDrawing = false;
+      socket.emit('wbStrokeEnd');
+    }
+
+    wbCanvas.addEventListener('mousedown', wbPointerDown);
+    wbCanvas.addEventListener('mousemove', wbPointerMove);
+    wbCanvas.addEventListener('mouseup', wbPointerUp);
+    wbCanvas.addEventListener('mouseleave', wbPointerUp);
+    wbCanvas.addEventListener('touchstart', wbPointerDown, { passive: false });
+    wbCanvas.addEventListener('touchmove', wbPointerMove, { passive: false });
+    wbCanvas.addEventListener('touchend', wbPointerUp);
+
+    // ツールバー操作
+    document.querySelectorAll('.wb-tool-btn[data-tool]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        wbTool = btn.dataset.tool;
+        document.querySelectorAll('.wb-tool-btn[data-tool]').forEach(b => b.classList.toggle('active', b === btn));
+      });
+    });
+    document.querySelectorAll('.wb-color-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        wbColor = btn.dataset.color;
+        wbTool = 'pen';
+        document.querySelectorAll('.wb-color-btn').forEach(b => b.classList.toggle('active', b === btn));
+        document.querySelectorAll('.wb-tool-btn[data-tool]').forEach(b => b.classList.toggle('active', b.dataset.tool === 'pen'));
+      });
+    });
+    document.getElementById('wb-size').addEventListener('input', (e) => { wbSize = Number(e.target.value); });
+    document.getElementById('wb-clear').addEventListener('click', () => {
+      socket.emit('wbClear');
+    });
+
+    // サーバーからのホワイトボードイベント
+    socket.on('wbStrokeStart', (data) => {
+      const stroke = { tool: data.tool, color: data.color, size: data.size, points: [data.point], _remote: true };
+      if (!window._remoteStrokes) window._remoteStrokes = {};
+      window._remoteStrokes[data.from] = stroke;
+    });
+    socket.on('wbStrokeMove', (data) => {
+      if (!window._remoteStrokes) return;
+      const stroke = window._remoteStrokes[data.from];
+      if (!stroke) return;
+      stroke.points.push(data.point);
+      drawSegment(stroke, stroke.points.length - 1);
+    });
+    socket.on('wbStrokeEnd', (data) => {
+      if (!window._remoteStrokes) return;
+      const stroke = window._remoteStrokes[data.from];
+      if (stroke) {
+        wbStrokes.push(stroke);
+        delete window._remoteStrokes[data.from];
+      }
+    });
+    socket.on('wbClear', () => {
+      wbStrokes = [];
+      if (window._remoteStrokes) window._remoteStrokes = {};
+      redrawWhiteboard();
+    });
+    socket.on('wbFullState', (strokes) => {
+      wbStrokes = strokes || [];
+      if (wbOpen) redrawWhiteboard();
+    });
 
     // ===== WebRTC ビデオ/音声通話・画面共有（近接自動接続） =====
     const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
@@ -4056,6 +4285,7 @@
       _origEnterRoom(rn);
       myHandRaised = false;
       updateMeetingBtn();
+      updateWhiteboardBtn();
       // BGM: 部屋移動時に切り替え
       socket.emit('getBgm', rn);
       updateBgmBar();
@@ -4064,6 +4294,7 @@
     };
     // 初回
     updateMeetingBtn();
+    updateWhiteboardBtn();
     updateBgmBar();
     socket.emit('getBgm', currentRoom);
 

@@ -290,6 +290,10 @@ function saveRoomThemes() { dataSet('roomThemes', roomThemes); }
 let customRooms = {};
 function saveCustomRooms() { dataSet('customRooms', customRooms); }
 
+// ===== ホワイトボード =====
+let whiteboardStrokes = []; // [{tool,color,size,points:[{x,y}]}]
+let whiteboardActiveStrokes = {}; // socketId -> current stroke being drawn
+
 // ===== 会議システム =====
 let meeting = {
   active: false,
@@ -841,6 +845,47 @@ io.on('connection', (socket) => {
     io.emit('chatMessage', { id: 'system', name: 'システム', message: `⏱️ タイマー: ${mins}分 設定` });
   });
 
+  // ===== ホワイトボード =====
+  socket.on('getWhiteboard', () => {
+    socket.emit('wbFullState', whiteboardStrokes);
+  });
+
+  socket.on('wbStrokeStart', (data) => {
+    if (!players[socket.id] || players[socket.id].room !== 'meeting') return;
+    const stroke = {
+      tool: data.tool === 'eraser' ? 'eraser' : 'pen',
+      color: String(data.color || '#222').slice(0, 9),
+      size: Math.min(80, Math.max(1, Number(data.size) || 3)),
+      points: [data.point]
+    };
+    whiteboardActiveStrokes[socket.id] = stroke;
+    socket.broadcast.emit('wbStrokeStart', { from: socket.id, tool: stroke.tool, color: stroke.color, size: stroke.size, point: data.point });
+  });
+
+  socket.on('wbStrokeMove', (point) => {
+    const stroke = whiteboardActiveStrokes[socket.id];
+    if (!stroke) return;
+    stroke.points.push(point);
+    socket.broadcast.emit('wbStrokeMove', { from: socket.id, point });
+  });
+
+  socket.on('wbStrokeEnd', () => {
+    const stroke = whiteboardActiveStrokes[socket.id];
+    if (stroke) {
+      whiteboardStrokes.push(stroke);
+      delete whiteboardActiveStrokes[socket.id];
+      socket.broadcast.emit('wbStrokeEnd', { from: socket.id });
+    }
+  });
+
+  socket.on('wbClear', () => {
+    if (!players[socket.id] || players[socket.id].room !== 'meeting') return;
+    whiteboardStrokes = [];
+    whiteboardActiveStrokes = {};
+    io.emit('wbClear');
+    io.emit('chatMessage', { id: 'system', name: 'システム', message: `🖊️ ${players[socket.id].name} がホワイトボードをクリアしました` });
+  });
+
   // ===== 部屋BGM =====
   socket.on('getBgm', (room) => {
     if (roomBgm[room]) {
@@ -925,6 +970,8 @@ io.on('connection', (socket) => {
     // 会議の挙手から削除
     meeting.hands = meeting.hands.filter(id => id !== socket.id);
     if (meeting.active) broadcastMeeting();
+    // ホワイトボード描画中ストロークをクリーンアップ
+    delete whiteboardActiveStrokes[socket.id];
     // WebRTC通知
     io.emit('rtcPeerLeft', { peerId: socket.id });
     delete players[socket.id];
