@@ -2,8 +2,15 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>五方よしOFFICE</title>
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#7c8aff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="五方よし">
+  <link rel="apple-touch-icon" href="/icons/icon-192.svg">
   <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
   <script src="https://www.youtube.com/iframe_api"></script>
   <style>
@@ -4964,6 +4971,11 @@
       }
     };
 
+  </script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
   </script>
 </body>
 </html>
