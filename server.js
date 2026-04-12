@@ -213,7 +213,62 @@ const SHOP_ITEMS = [
   // エモート
   { id: 'emote_dance', name: 'ダンスエモート', price: 50, type: 'emote', value: 'dance', icon: '💃' },
   { id: 'emote_sparkle', name: 'キラキラ', price: 30, type: 'emote', value: 'sparkle', icon: '✨' },
+  { id: 'emote_heart', name: 'ハートエモート', price: 40, type: 'emote', value: 'heart', icon: '❤️' },
+  { id: 'emote_fire', name: 'ファイヤー', price: 45, type: 'emote', value: 'fire', icon: '🔥' },
+  // ペット
+  { id: 'pet_cat', name: 'ネコ', price: 150, type: 'pet', value: 'cat', icon: '🐱' },
+  { id: 'pet_dog', name: 'イヌ', price: 150, type: 'pet', value: 'dog', icon: '🐶' },
+  { id: 'pet_bird', name: 'トリ', price: 100, type: 'pet', value: 'bird', icon: '🐦' },
+  { id: 'pet_slime', name: 'スライム', price: 200, type: 'pet', value: 'slime', icon: '🟢' },
 ];
+
+// ===== 実績システム =====
+const ACHIEVEMENTS = [
+  { id: 'first_login', name: '初ログイン', desc: '初めてログイン', icon: '🎉', condition: (d) => true },
+  { id: 'work_1h', name: '作業1時間', desc: '累計1時間作業', icon: '⏰', condition: (d) => d.workMinutes >= 60 },
+  { id: 'work_10h', name: '作業10時間', desc: '累計10時間作業', icon: '🏆', condition: (d) => d.workMinutes >= 600 },
+  { id: 'work_100h', name: '作業マスター', desc: '累計100時間作業', icon: '👑', condition: (d) => d.workMinutes >= 6000 },
+  { id: 'coins_100', name: 'お金持ち', desc: '100コイン獲得', icon: '💰', condition: (d) => d.totalEarned >= 100 },
+  { id: 'coins_1000', name: '大富豪', desc: '1000コイン獲得', icon: '💎', condition: (d) => d.totalEarned >= 1000 },
+  { id: 'items_3', name: 'コレクター', desc: '3個アイテム購入', icon: '🛍️', condition: (d) => d.purchasedItems.length >= 3 },
+  { id: 'items_10', name: 'ショッピング王', desc: '10個アイテム購入', icon: '👜', condition: (d) => d.purchasedItems.length >= 10 },
+  { id: 'chat_50', name: 'おしゃべり', desc: '50回チャット', icon: '💬', condition: (d) => (d.chatCount || 0) >= 50 },
+  { id: 'pet_owner', name: 'ペットオーナー', desc: 'ペットを購入', icon: '🐾', condition: (d) => d.purchasedItems.some(i => i.startsWith('pet_')) },
+];
+
+function checkAchievements(name, socket) {
+  const data = getPlayerCoins(name);
+  if (!data.achievements) data.achievements = [];
+  let newAch = false;
+  for (const ach of ACHIEVEMENTS) {
+    if (!data.achievements.includes(ach.id) && ach.condition(data)) {
+      data.achievements.push(ach.id);
+      newAch = true;
+      if (socket) {
+        socket.emit('achievementUnlocked', ach);
+        io.emit('chatMessage', { id: 'system', name: 'システム', message: `🏅 ${name} が実績「${ach.name}」を解除！` });
+      }
+    }
+  }
+  if (newAch) saveCoins();
+}
+
+// ===== 部屋テーマ =====
+const ROOM_THEMES_FILE = path.join(__dirname, 'room-themes.json');
+let roomThemes = { lobby: { floor: 0, wall: 0 }, work: { floor: 0, wall: 0 }, meeting: { floor: 0, wall: 0 } };
+try { if (fs.existsSync(ROOM_THEMES_FILE)) roomThemes = JSON.parse(fs.readFileSync(ROOM_THEMES_FILE, 'utf8')); } catch(e) {}
+function saveRoomThemes() { fs.writeFileSync(ROOM_THEMES_FILE, JSON.stringify(roomThemes, null, 2)); }
+
+// ===== カスタム部屋 =====
+const CUSTOM_ROOMS_FILE = path.join(__dirname, 'custom-rooms.json');
+let customRooms = {}; // { roomId: { name, owner, theme: {floor,wall}, cols, rows } }
+try { if (fs.existsSync(CUSTOM_ROOMS_FILE)) customRooms = JSON.parse(fs.readFileSync(CUSTOM_ROOMS_FILE, 'utf8')); } catch(e) {}
+function saveCustomRooms() { fs.writeFileSync(CUSTOM_ROOMS_FILE, JSON.stringify(customRooms, null, 2)); }
+
+// カスタム部屋用家具初期化
+for (const rid of Object.keys(customRooms)) {
+  if (!furniture[rid]) furniture[rid] = [];
+}
 
 // ===== 会議システム =====
 let meeting = {
@@ -293,12 +348,17 @@ io.on('connection', (socket) => {
     status: 'online',
     statusMsg: '',
     pomodoro: null, // { endTime, type: 'work'|'break' }
+    pet: null, // 'cat'|'dog'|'bird'|'slime'
+    emote: null, // { type, startTime }
   };
 
   // 既存プレイヤー一覧を送信
   socket.emit('currentPlayers', players);
   socket.emit('currentFurniture', furniture);
   socket.emit('shopItems', SHOP_ITEMS);
+  socket.emit('roomThemes', roomThemes);
+  socket.emit('customRoomsList', customRooms);
+  socket.emit('achievementsList', ACHIEVEMENTS);
 
   // 他プレイヤーに通知
   socket.broadcast.emit('playerJoined', players[socket.id]);
@@ -311,7 +371,15 @@ io.on('connection', (socket) => {
       io.emit('playerMoved', players[socket.id]);
       // コインデータ送信
       const data = getPlayerCoins(sanitized);
-      socket.emit('coinInit', { coins: data.coins, totalEarned: data.totalEarned, purchasedItems: data.purchasedItems, workMinutes: data.workMinutes });
+      socket.emit('coinInit', { coins: data.coins, totalEarned: data.totalEarned, purchasedItems: data.purchasedItems, workMinutes: data.workMinutes, achievements: data.achievements || [] });
+      // 実績チェック
+      checkAchievements(sanitized, socket);
+      // ペット復元
+      const activePet = (data.purchasedItems || []).find(i => i.startsWith('pet_') && i === data.activePet);
+      if (activePet) {
+        const petType = SHOP_ITEMS.find(si => si.id === activePet)?.value;
+        if (petType) { players[socket.id].pet = petType; io.emit('playerPetChanged', { id: socket.id, pet: petType }); }
+      }
     }
   });
 
@@ -327,7 +395,7 @@ io.on('connection', (socket) => {
 
   // 部屋移動
   socket.on('enterRoom', (room) => {
-    const valid = ['lobby', 'work', 'meeting'];
+    const valid = ['lobby', 'work', 'meeting', ...Object.keys(customRooms)];
     if (players[socket.id] && valid.includes(room)) {
       const prevRoom = players[socket.id].room;
       players[socket.id].room = room;
@@ -442,6 +510,7 @@ io.on('connection', (socket) => {
 
     socket.emit('shopBought', { itemId, coins: data.coins, item });
     socket.emit('coinUpdate', { coins: data.coins, earned: -item.price, reason: `${item.name} 購入` });
+    checkAchievements(player.name, socket);
   });
 
   // 家具配置
@@ -475,17 +544,119 @@ io.on('connection', (socket) => {
   socket.on('chat', (message) => {
     if (players[socket.id]) {
       const sanitized = String(message).slice(0, 200).replace(/[<>&"']/g, '');
+      const msgId = Date.now() + '_' + Math.random().toString(36).slice(2, 6);
       io.emit('chatMessage', {
         id: socket.id,
         name: players[socket.id].name,
         message: sanitized,
+        msgId,
       });
       chatCount++;
+      // チャットカウントをcoinDataに保存
+      const data = getPlayerCoins(players[socket.id].name);
+      data.chatCount = (data.chatCount || 0) + 1;
       if (chatCount % 10 === 0) {
         const newBal = addCoins(players[socket.id].name, 1, 'チャット');
         socket.emit('coinUpdate', { coins: newBal, earned: 1, reason: 'チャット報酬' });
       }
+      // 実績チェック
+      if (chatCount % 10 === 0) checkAchievements(players[socket.id].name, socket);
+      if (chatCount % 50 === 0) saveCoins();
     }
+  });
+
+  // チャットリアクション
+  socket.on('chatReaction', ({ msgId, emoji }) => {
+    if (!players[socket.id]) return;
+    const validEmoji = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏', '🎉'];
+    if (!validEmoji.includes(emoji)) return;
+    io.emit('chatReactionUpdate', { msgId, emoji, from: players[socket.id].name });
+  });
+
+  // エモートアニメーション
+  socket.on('playEmote', (emoteType) => {
+    if (!players[socket.id]) return;
+    const validEmotes = ['dance', 'sparkle', 'heart', 'fire', 'wave', 'clap'];
+    // 無料エモート: wave, clap / 有料: それ以外は購入チェック
+    const freeEmotes = ['wave', 'clap'];
+    if (!validEmotes.includes(emoteType)) return;
+    if (!freeEmotes.includes(emoteType)) {
+      const data = getPlayerCoins(players[socket.id].name);
+      const itemId = `emote_${emoteType}`;
+      if (!data.purchasedItems.includes(itemId)) return;
+    }
+    players[socket.id].emote = { type: emoteType, startTime: Date.now() };
+    io.emit('playerEmote', { id: socket.id, emote: emoteType });
+    // 3秒後にクリア
+    setTimeout(() => {
+      if (players[socket.id]) { players[socket.id].emote = null; }
+    }, 3000);
+  });
+
+  // ペット設定
+  socket.on('setPet', (petItemId) => {
+    if (!players[socket.id]) return;
+    const data = getPlayerCoins(players[socket.id].name);
+    if (!petItemId) {
+      players[socket.id].pet = null;
+      data.activePet = null;
+      saveCoins();
+      io.emit('playerPetChanged', { id: socket.id, pet: null });
+      return;
+    }
+    if (!data.purchasedItems.includes(petItemId)) return;
+    const item = SHOP_ITEMS.find(i => i.id === petItemId && i.type === 'pet');
+    if (!item) return;
+    players[socket.id].pet = item.value;
+    data.activePet = petItemId;
+    saveCoins();
+    io.emit('playerPetChanged', { id: socket.id, pet: item.value });
+  });
+
+  // 部屋テーマ変更
+  socket.on('setRoomTheme', ({ room, floor, wall }) => {
+    if (!players[socket.id]) return;
+    if (!isAdmin(players[socket.id].name)) return;
+    if (roomThemes[room]) {
+      roomThemes[room] = { floor: Number(floor) || 0, wall: Number(wall) || 0 };
+      saveRoomThemes();
+      io.emit('roomThemeChanged', { room, theme: roomThemes[room] });
+    }
+  });
+
+  // カスタム部屋作成
+  socket.on('createRoom', ({ name: roomName }) => {
+    if (!players[socket.id]) return;
+    const pName = players[socket.id].name;
+    const rName = String(roomName).slice(0, 12).replace(/[<>&"']/g, '');
+    if (!rName || rName.length < 2) return;
+    // 部屋数制限
+    const owned = Object.values(customRooms).filter(r => r.owner === pName).length;
+    if (owned >= 3) return socket.emit('roomError', '部屋は最大3つまで');
+    const roomId = 'custom_' + Date.now().toString(36);
+    customRooms[roomId] = { name: rName, owner: pName, theme: { floor: 0, wall: 0 }, cols: 10, rows: 8 };
+    furniture[roomId] = [];
+    saveCustomRooms();
+    saveFurniture();
+    io.emit('customRoomsList', customRooms);
+    io.emit('chatMessage', { id: 'system', name: 'システム', message: `🏠 ${pName} が部屋「${rName}」を作成！` });
+  });
+
+  // カスタム部屋削除
+  socket.on('deleteRoom', (roomId) => {
+    if (!players[socket.id]) return;
+    const room = customRooms[roomId];
+    if (!room) return;
+    if (room.owner !== players[socket.id].name && !isAdmin(players[socket.id].name)) return;
+    delete customRooms[roomId];
+    delete furniture[roomId];
+    saveCustomRooms();
+    saveFurniture();
+    // 部屋にいるプレイヤーをロビーに移動
+    for (const [sid, p] of Object.entries(players)) {
+      if (p.room === roomId) { p.room = 'lobby'; p.x = 5; p.y = 5; io.emit('playerRoomChanged', { id: sid, room: 'lobby' }); }
+    }
+    io.emit('customRoomsList', customRooms);
   });
 
   // ===== WebRTC シグナリング（音声通話・画面共有） =====

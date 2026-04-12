@@ -487,6 +487,50 @@
     .status-emoji-opt:hover { border-color: #7c8aff; }
     .status-emoji-opt.selected { border-color: #7c8aff; background: #7c8aff20; }
 
+    /* === 実績通知 === */
+    #achievement-popup {
+      position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
+      background: linear-gradient(135deg, #ffd700, #ff9800); color: #1a1020;
+      padding: 14px 28px; border-radius: 14px; font-size: 14px; font-weight: bold;
+      z-index: 99; display: none; box-shadow: 0 4px 20px rgba(255,215,0,0.4);
+      animation: achIn 0.5s ease;
+    }
+    @keyframes achIn { from { transform: translateX(-50%) translateY(-20px); opacity: 0; } to { transform: translateX(-50%) translateY(0); opacity: 1; } }
+
+    /* === チャットリアクション === */
+    .msg-reactions { display: flex; gap: 3px; margin-top: 2px; flex-wrap: wrap; }
+    .msg-reaction {
+      padding: 1px 6px; border-radius: 10px; font-size: 11px; cursor: pointer;
+      background: #2e2e42; border: 1px solid #3a3a5a; transition: all 0.15s;
+    }
+    .msg-reaction:hover { border-color: #7c8aff; }
+    .msg-reaction.mine { border-color: #7c8aff; background: #7c8aff20; }
+    .msg-react-btn { font-size: 11px; cursor: pointer; opacity: 0; transition: opacity 0.15s; margin-left: 4px; }
+    .msg:hover .msg-react-btn { opacity: 0.6; }
+    .msg-react-btn:hover { opacity: 1; }
+    .react-picker {
+      display: none; position: absolute; background: #252538; border: 1px solid #3a3a5a;
+      border-radius: 8px; padding: 4px; gap: 2px; z-index: 50; flex-wrap: wrap; width: 180px;
+    }
+    .react-picker.show { display: flex; }
+    .react-pick { font-size: 16px; cursor: pointer; padding: 3px 5px; border-radius: 4px; }
+    .react-pick:hover { background: #3a3a5a; }
+
+    /* === エモートメニュー === */
+    #emote-menu {
+      position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
+      background: #252538; border: 2px solid #7c8aff; border-radius: 12px;
+      padding: 10px; display: none; gap: 6px; z-index: 80; flex-wrap: wrap; max-width: 250px;
+    }
+    #emote-menu.show { display: flex; }
+    .emote-opt {
+      width: 40px; height: 40px; border-radius: 8px; border: 2px solid #3a3a5a;
+      font-size: 20px; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; background: #1e1e2e;
+    }
+    .emote-opt:hover { border-color: #7c8aff; background: #7c8aff20; }
+    .emote-opt.locked { opacity: 0.3; cursor: not-allowed; }
+
     /* DM通知バッジ */
     #dm-badge {
       position: absolute; top: -4px; right: -4px; background: #f44336; color: #fff;
@@ -720,9 +764,57 @@
         <h4>📊 統計</h4>
         <div id="admin-stats"></div>
       </div>
+      <div class="admin-section">
+        <h4>🎨 部屋テーマ</h4>
+        <div style="margin-bottom:8px;">
+          <label style="font-size:11px;color:#aaa;">対象部屋:</label>
+          <select id="theme-room-sel" style="background:#2a2a3e;color:#fff;border:1px solid #444;border-radius:4px;padding:3px 6px;font-size:12px;">
+            <option value="lobby">ロビー</option>
+            <option value="work">作業部屋</option>
+            <option value="meeting">会議室</option>
+          </select>
+        </div>
+        <div style="margin-bottom:6px;">
+          <label style="font-size:11px;color:#aaa;">床:</label>
+          <div id="theme-floor-opts" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:2px;"></div>
+        </div>
+        <div style="margin-bottom:6px;">
+          <label style="font-size:11px;color:#aaa;">壁:</label>
+          <div id="theme-wall-opts" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:2px;"></div>
+        </div>
+        <button id="theme-apply-btn" style="background:#7c8aff;color:#fff;border:none;border-radius:4px;padding:4px 12px;font-size:12px;cursor:pointer;">適用</button>
+      </div>
       <button class="admin-close" id="admin-close">閉じる</button>
     </div>
   </div>
+
+  <!-- カスタム部屋作成モーダル -->
+  <div id="create-room-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:150;align-items:center;justify-content:center;">
+    <div style="background:#1e1e2e;border:1px solid #7c8aff;border-radius:12px;padding:24px;width:300px;">
+      <h3 style="color:#c8d0ff;margin:0 0 12px;">🏠 カスタム部屋を作成</h3>
+      <input type="text" id="create-room-name" placeholder="部屋名（最大20文字）" maxlength="20" style="width:100%;box-sizing:border-box;background:#2a2a3e;color:#fff;border:1px solid #444;border-radius:6px;padding:8px;font-size:14px;margin-bottom:12px;">
+      <div style="display:flex;gap:8px;">
+        <button id="create-room-ok" style="flex:1;background:#7c8aff;color:#fff;border:none;border-radius:6px;padding:8px;font-size:13px;cursor:pointer;">作成</button>
+        <button id="create-room-cancel" style="flex:1;background:#444;color:#fff;border:none;border-radius:6px;padding:8px;font-size:13px;cursor:pointer;">キャンセル</button>
+      </div>
+      <div id="create-room-error" style="color:#f66;font-size:11px;margin-top:8px;"></div>
+    </div>
+  </div>
+
+  <!-- ペット選択モーダル -->
+  <div id="pet-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:150;align-items:center;justify-content:center;">
+    <div style="background:#1e1e2e;border:1px solid #7c8aff;border-radius:12px;padding:24px;width:280px;">
+      <h3 style="color:#c8d0ff;margin:0 0 12px;">🐾 ペット選択</h3>
+      <div id="pet-options" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:12px;"></div>
+      <button id="pet-modal-close" style="width:100%;background:#444;color:#fff;border:none;border-radius:6px;padding:8px;font-size:13px;cursor:pointer;">閉じる</button>
+    </div>
+  </div>
+
+  <!-- 実績ポップアップ -->
+  <div id="achievement-popup"></div>
+
+  <!-- エモートメニュー -->
+  <div id="emote-menu"></div>
 
   <!-- カスタムステータスモーダル -->
   <div id="status-msg-modal">
@@ -856,6 +948,7 @@
         <div class="tool-btn" id="btn-meeting" style="display:none;">会議 (M)</div>
         <div class="tool-btn" id="btn-bgm">🎵 BGM</div>
         <div class="tool-btn" id="btn-pomo">🍅 ポモドーロ</div>
+        <div class="tool-btn" id="btn-emote">😄 エモート</div>
         <div class="tool-btn" id="btn-dm" style="position:relative;">📩 DM<span id="dm-badge">0</span></div>
         <div id="toolbar-hint">矢印キー: 移動 / スペース: 入室 / ESC: ロビー</div>
       </div>
@@ -912,6 +1005,7 @@
   </div>
 
   <script>
+
     // ===== 定数 =====
     const TILE = 32; // 論理タイルサイズ
     const SCALE = 2;
@@ -1025,228 +1119,454 @@
       return `rgb(${r},${g},${b})`;
     }
 
-    // ===== タイル描画 =====
+    // ===== タイル描画（高品質ピクセルアート） =====
     function drawTile(x, y, type) {
       const px = x * DRAW_TILE, py = y * DRAW_TILE, dt = DRAW_TILE;
+      const s2 = SCALE; // shorthand
 
-      // カーペット（メイン床）
+      // カーペット（メイン床）- ディザパターン付き
       if (type === T.CARPET || type === T.CARPET2) {
         const isAlt = type === T.CARPET2;
-        const base = isAlt ? '#8a9ab0' : '#9aa8b8';
-        const dark = isAlt ? '#7e8ea4' : '#8e9cac';
+        const fc = getThemeFloorColor();
+        const base = fc || (isAlt ? '#c8c0b4' : '#d4ccc0');
+        const dark = fc ? adjustColor(fc, -8) : (isAlt ? '#bab2a6' : '#c8c0b4');
+        const light = fc ? adjustColor(fc, 8) : (isAlt ? '#d0c8bc' : '#dcd4c8');
         ctx.fillStyle = base; ctx.fillRect(px, py, dt, dt);
-        // カーペットの微妙なテクスチャ
-        ctx.fillStyle = dark;
-        const s = (x*7 + y*13) % 4;
-        if (s===0) { ctx.fillRect(px+8,py+8,2,2); ctx.fillRect(px+40,py+36,2,2); }
-        if (s===1) { ctx.fillRect(px+24,py+12,2,2); ctx.fillRect(px+12,py+44,2,2); }
-        if (s===2) { ctx.fillRect(px+36,py+20,2,2); ctx.fillRect(px+20,py+48,2,2); }
-        ctx.strokeStyle = isAlt ? '#748498' : '#8494a4'; ctx.lineWidth = 0.5;
+        // タイルパターン（チェッカーボード風）
+        const hash = (x*17 + y*31) % 8;
+        for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) {
+          const ox = i * 16, oy = j * 16;
+          if ((i + j + hash) % 2 === 0) {
+            ctx.fillStyle = dark; ctx.fillRect(px+ox, py+oy, 16, 16);
+          }
+        }
+        // 織りテクスチャ（細かいドット）
+        ctx.fillStyle = light;
+        for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) {
+          if (((x*3+i) * 7 + (y*3+j) * 13 + hash) % 5 === 0)
+            ctx.fillRect(px + i*8 + 2, py + j*8 + 2, 2, 2);
+        }
+        ctx.strokeStyle = adjustColor(base, -16); ctx.lineWidth = 0.5;
+        ctx.strokeRect(px+0.5, py+0.5, dt-1, dt-1);
+        return;
+      }
+      // ウッドフロア - 木目パターン
+      if (type === T.WOOD) {
+        const fc = getThemeFloorColor();
+        const base = fc || '#d4a86a';
+        const plankW = dt;
+        const plankH = dt / 2;
+        for (let row = 0; row < 2; row++) {
+          const py2 = py + row * plankH;
+          const offset = ((x + row) % 2) * (dt/2);
+          ctx.fillStyle = base; ctx.fillRect(px, py2, plankW, plankH);
+          // 木目ライン
+          ctx.fillStyle = adjustColor(base, -12);
+          ctx.fillRect(px, py2 + 6, plankW, 2);
+          ctx.fillRect(px, py2 + 18, plankW, 1);
+          ctx.fillRect(px, py2 + 26, plankW, 2);
+          // 節
+          if ((x*7+y*13+row) % 5 === 0) {
+            ctx.fillStyle = adjustColor(base, -20);
+            fillCirc(ctx, px + 20 + (row*18), py2 + 14, 3);
+          }
+          // ハイライト
+          ctx.fillStyle = adjustColor(base, 15);
+          ctx.fillRect(px + 4, py2 + 2, plankW - 8, 2);
+          // 板間の隙間
+          ctx.fillStyle = adjustColor(base, -30);
+          ctx.fillRect(px, py2 + plankH - 1, plankW, 1);
+        }
+        ctx.strokeStyle = adjustColor(base, -25); ctx.lineWidth = 0.5;
         ctx.strokeRect(px, py, dt, dt);
         return;
       }
-      // ウッドフロア
-      if (type === T.WOOD) { drawWood(px, py, dt, x, y); return; }
 
-      // オフィス壁（モダン）
+      // オフィス壁 - レンガ風テクスチャ
       if (type === T.WALL2) {
-        // 下半分: パネル
-        ctx.fillStyle = '#4a5568'; ctx.fillRect(px, py, dt, dt);
-        ctx.fillStyle = '#556578'; ctx.fillRect(px+2, py+2, dt-4, dt-4);
-        // 上半分: やや明るめ
-        ctx.fillStyle = '#5a6a7e'; ctx.fillRect(px+2, py+2, dt-4, dt/2-2);
-        // 巾木ライン
-        ctx.fillStyle = '#3a4558'; ctx.fillRect(px, py+dt-4, dt, 4);
-        // ハイライト
-        ctx.fillStyle = '#6a7a8e'; ctx.fillRect(px+3, py+3, dt-6, 2);
-        ctx.strokeStyle = '#3a4558'; ctx.lineWidth = 1; ctx.strokeRect(px, py, dt, dt);
+        const wc = getThemeWallColor();
+        const base = wc || '#5a6578';
+        const light = adjustColor(base, 14);
+        const dark = adjustColor(base, -14);
+        const darker = adjustColor(base, -22);
+        ctx.fillStyle = base; ctx.fillRect(px, py, dt, dt);
+        // 壁パネル上部
+        ctx.fillStyle = light; ctx.fillRect(px+2, py+2, dt-4, dt/2-4);
+        // 壁パネル下部
+        ctx.fillStyle = adjustColor(base, 6); ctx.fillRect(px+2, py+dt/2, dt-4, dt/2-6);
+        // 巾木ライン（2段）
+        ctx.fillStyle = darker; ctx.fillRect(px, py+dt-6, dt, 6);
+        ctx.fillStyle = adjustColor(base, -8); ctx.fillRect(px+1, py+dt-5, dt-2, 4);
+        // パネルモールディング（縁取り）
+        ctx.fillStyle = adjustColor(base, 20); ctx.fillRect(px+3, py+3, dt-6, 1);
+        ctx.fillRect(px+3, py+3, 1, dt/2-6);
+        ctx.fillRect(px+dt-4, py+3, 1, dt/2-6);
+        // テクスチャドット
+        ctx.fillStyle = adjustColor(base, 5);
+        for (let i = 0; i < 4; i++) for (let j = 0; j < 3; j++) {
+          if ((x*5+i+j*3) % 3 === 0) ctx.fillRect(px+8+i*12, py+6+j*12, 2, 2);
+        }
+        ctx.strokeStyle = dark; ctx.lineWidth = 1; ctx.strokeRect(px, py, dt, dt);
         return;
       }
-      // 旧壁（互換性）
       if (type === T.WALL) {
-        ctx.fillStyle = '#4a5568'; ctx.fillRect(px, py, dt, dt);
-        ctx.fillStyle = '#556578'; ctx.fillRect(px+2, py+2, dt-4, dt-4);
-        ctx.fillStyle = '#3a4558'; ctx.fillRect(px, py+dt-4, dt, 4);
-        ctx.strokeStyle = '#3a4558'; ctx.lineWidth = 1; ctx.strokeRect(px, py, dt, dt);
+        const wc = getThemeWallColor();
+        const base = wc || '#5a6578';
+        ctx.fillStyle = base; ctx.fillRect(px, py, dt, dt);
+        ctx.fillStyle = adjustColor(base, 10); ctx.fillRect(px+2, py+2, dt-4, dt-8);
+        ctx.fillStyle = adjustColor(base, -18); ctx.fillRect(px, py+dt-5, dt, 5);
+        ctx.strokeStyle = adjustColor(base, -14); ctx.lineWidth = 1; ctx.strokeRect(px, py, dt, dt);
         return;
       }
-      // 窓
+      // 窓 - 景色付き
       if (type === T.WINDOW) {
-        // 壁ベース
-        ctx.fillStyle = '#4a5568'; ctx.fillRect(px, py, dt, dt);
-        // 窓枠
-        ctx.fillStyle = '#6a7a8e'; ctx.fillRect(px+6, py+4, dt-12, dt-12);
-        // ガラス（空色グラデーション）
-        ctx.fillStyle = '#a8d8ea'; ctx.fillRect(px+8, py+6, dt-16, dt-16);
-        ctx.fillStyle = '#c8e8f8'; ctx.fillRect(px+8, py+6, dt-16, (dt-16)/2);
+        const wc = getThemeWallColor();
+        const wb = wc || '#5a6578';
+        ctx.fillStyle = wb; ctx.fillRect(px, py, dt, dt);
+        // 窓枠（木製風）
+        ctx.fillStyle = '#8a7a6a'; ctx.fillRect(px+6, py+3, dt-12, dt-10);
+        ctx.fillStyle = '#9a8a7a'; ctx.fillRect(px+7, py+4, dt-14, dt-12);
+        // ガラス - 空のグラデーション
+        ctx.fillStyle = '#88c8e8'; ctx.fillRect(px+9, py+6, dt-18, dt-16);
+        ctx.fillStyle = '#a0d8f0'; ctx.fillRect(px+9, py+6, dt-18, (dt-16)/3);
+        ctx.fillStyle = '#78b8d8'; ctx.fillRect(px+9, py+6+(dt-16)*2/3, dt-18, (dt-16)/3);
+        // 雲
+        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        fillCirc(ctx, px+18, py+12, 5); fillCirc(ctx, px+24, py+11, 6); fillCirc(ctx, px+30, py+12, 4);
+        // 遠景の建物シルエット
+        ctx.fillStyle = 'rgba(100,140,180,0.3)';
+        ctx.fillRect(px+12, py+28, 8, 16); ctx.fillRect(px+24, py+24, 10, 20);
+        ctx.fillRect(px+38, py+30, 12, 14);
         // 窓の十字フレーム
-        ctx.fillStyle = '#6a7a8e';
+        ctx.fillStyle = '#8a7a6a';
         ctx.fillRect(px+dt/2-1, py+6, 3, dt-16);
-        ctx.fillRect(px+8, py+dt/2-3, dt-16, 3);
+        ctx.fillRect(px+9, py+dt/2-2, dt-18, 3);
         // 光の反射
-        ctx.fillStyle = 'rgba(255,255,255,0.3)';
-        ctx.fillRect(px+10, py+8, 8, 6);
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        ctx.fillRect(px+11, py+8, 6, 4);
         // 巾木
-        ctx.fillStyle = '#3a4558'; ctx.fillRect(px, py+dt-4, dt, 4);
-        ctx.strokeStyle = '#3a4558'; ctx.lineWidth = 1; ctx.strokeRect(px, py, dt, dt);
+        ctx.fillStyle = adjustColor(wb, -18); ctx.fillRect(px, py+dt-5, dt, 5);
+        ctx.strokeStyle = adjustColor(wb, -14); ctx.lineWidth = 1; ctx.strokeRect(px, py, dt, dt);
         return;
       }
 
-      // ここから先は床を先に描く
       drawFloor(x, y);
 
-      // デスク（モダンオフィス）
+      // デスク - キーボード・マウスパッド・小物付き
       if (type === T.DESK) {
-        // 脚
-        ctx.fillStyle = '#6a6a7a'; ctx.fillRect(px+10,py+dt-10,4,10); ctx.fillRect(px+dt-14,py+dt-10,4,10);
-        // 天板
-        ctx.fillStyle = '#e8e0d0'; ctx.fillRect(px+4, py+12, dt-8, dt-18);
-        ctx.fillStyle = '#f0e8d8'; ctx.fillRect(px+6, py+14, dt-12, dt-24);
-        // 天板エッジ
-        ctx.fillStyle = '#d8d0c0'; ctx.fillRect(px+4, py+12, dt-8, 3);
+        // 脚（金属）
+        ctx.fillStyle = '#707080'; ctx.fillRect(px+8,py+dt-8,4,8); ctx.fillRect(px+dt-12,py+dt-8,4,8);
+        // 天板（木製）
+        ctx.fillStyle = '#d8c8a8'; ctx.fillRect(px+2, py+14, dt-4, dt-18);
+        ctx.fillStyle = '#e8d8b8'; ctx.fillRect(px+4, py+16, dt-8, dt-24);
+        // 天板前面エッジ
+        ctx.fillStyle = '#c8b898'; ctx.fillRect(px+2, py+dt-6, dt-4, 4);
+        // 天板側面
+        ctx.fillStyle = '#c0b090'; ctx.fillRect(px+2, py+14, 2, dt-18);
+        ctx.fillRect(px+dt-4, py+14, 2, dt-18);
+        // キーボード
+        ctx.fillStyle = '#e0e0e0'; ctx.fillRect(px+12, py+22, 24, 10);
+        ctx.fillStyle = '#d0d0d0'; ctx.fillRect(px+13, py+23, 22, 8);
+        // キーの行
+        ctx.fillStyle = '#c8c8c8';
+        for (let k=0;k<6;k++) ctx.fillRect(px+14+k*3.5, py+24, 3, 2);
+        for (let k=0;k<6;k++) ctx.fillRect(px+14+k*3.5, py+27, 3, 2);
+        // マウス
+        ctx.fillStyle = '#e8e8e8'; ctx.fillRect(px+42, py+26, 6, 8);
+        ctx.fillStyle = '#d0d0d0'; ctx.fillRect(px+43, py+27, 4, 3);
+        // マウスパッド
+        ctx.fillStyle = '#404060'; ctx.fillRect(px+40, py+24, 12, 14);
+        ctx.fillStyle = '#e8e8e8'; ctx.fillRect(px+42, py+26, 6, 8);
+        // メモ帳
+        ctx.fillStyle = '#f8f0c0'; ctx.fillRect(px+6, py+18, 12, 14);
+        ctx.fillStyle = '#e8e0b0'; ctx.fillRect(px+6, py+18, 12, 2);
+        // ペン
+        ctx.fillStyle = '#3060c0'; ctx.fillRect(px+8, py+34, 1, 8);
         return;
       }
-      // モニター
+      // モニター - 画面にコード表示
       if (type === T.MONITOR) {
         // デスク部分
-        ctx.fillStyle = '#6a6a7a'; ctx.fillRect(px+10,py+dt-10,4,10); ctx.fillRect(px+dt-14,py+dt-10,4,10);
-        ctx.fillStyle = '#e8e0d0'; ctx.fillRect(px+4, py+18, dt-8, dt-24);
-        // モニター
-        ctx.fillStyle = '#2a2a3a'; ctx.fillRect(px+10, py+2, dt-20, dt-24);
-        ctx.fillStyle = '#3a4a6a'; ctx.fillRect(px+12, py+4, dt-24, dt-30);
-        // 画面内容
-        ctx.fillStyle = '#4a6a9a'; ctx.fillRect(px+14, py+6, 10, 4);
-        ctx.fillStyle = '#5a8aba'; ctx.fillRect(px+14, py+12, 16, 3);
-        ctx.fillStyle = '#4a7aaa'; ctx.fillRect(px+14, py+17, 12, 3);
+        ctx.fillStyle = '#707080'; ctx.fillRect(px+8,py+dt-8,4,8); ctx.fillRect(px+dt-12,py+dt-8,4,8);
+        ctx.fillStyle = '#d8c8a8'; ctx.fillRect(px+2, py+20, dt-4, dt-24);
+        ctx.fillStyle = '#e8d8b8'; ctx.fillRect(px+4, py+22, dt-8, dt-28);
+        ctx.fillStyle = '#c8b898'; ctx.fillRect(px+2, py+dt-6, dt-4, 4);
+        // モニター本体
+        ctx.fillStyle = '#1a1a2a'; ctx.fillRect(px+6, py+0, dt-12, dt-22);
+        // ベゼル
+        ctx.fillStyle = '#2a2a3a'; ctx.fillRect(px+7, py+1, dt-14, dt-24);
+        // 画面
+        ctx.fillStyle = '#1e2d3d'; ctx.fillRect(px+9, py+3, dt-18, dt-28);
+        // コード風テキスト
+        ctx.fillStyle = '#5aaa5a'; ctx.fillRect(px+11, py+5, 14, 2);
+        ctx.fillStyle = '#5a8aaa'; ctx.fillRect(px+11, py+9, 20, 2);
+        ctx.fillStyle = '#aa8a5a'; ctx.fillRect(px+15, py+13, 12, 2);
+        ctx.fillStyle = '#5aaa5a'; ctx.fillRect(px+11, py+17, 18, 2);
+        ctx.fillStyle = '#8a6aaa'; ctx.fillRect(px+15, py+21, 16, 2);
+        ctx.fillStyle = '#5a8aaa'; ctx.fillRect(px+11, py+25, 10, 2);
+        ctx.fillStyle = '#aa5a5a'; ctx.fillRect(px+11, py+29, 22, 2);
+        ctx.fillStyle = '#5aaa5a'; ctx.fillRect(px+15, py+33, 8, 2);
+        // LED
+        ctx.fillStyle = '#4aff4a'; fillCirc(ctx, px+dt/2, py+dt-24, 1);
         // スタンド
-        ctx.fillStyle = '#3a3a4a'; ctx.fillRect(px+dt/2-3, py+dt-26, 6, 8);
-        ctx.fillRect(px+dt/2-8, py+dt-20, 16, 3);
+        ctx.fillStyle = '#3a3a4a'; ctx.fillRect(px+dt/2-3, py+dt-22, 6, 3);
+        ctx.fillRect(px+dt/2-8, py+dt-20, 16, 2);
+        // コーヒーカップ
+        ctx.fillStyle = '#f0f0f0'; ctx.fillRect(px+dt-16, py+24, 8, 10);
+        ctx.fillStyle = '#8a6040'; ctx.fillRect(px+dt-15, py+25, 6, 5);
+        // 取っ手
+        ctx.fillStyle = '#f0f0f0'; ctx.fillRect(px+dt-8, py+26, 3, 4);
         return;
       }
-      // チェア（オフィスチェア）
+      // チェア - より立体的
       if (type === T.CHAIR) {
-        // ベース（車輪）
-        ctx.fillStyle = '#4a4a5a'; ctx.fillRect(px+dt/2-10, py+dt-6, 20, 4);
-        // 支柱
-        ctx.fillStyle = '#5a5a6a'; ctx.fillRect(px+dt/2-2, py+dt-14, 4, 10);
+        // 車輪ベース（星形）
+        ctx.fillStyle = '#505060';
+        ctx.fillRect(px+dt/2-12, py+dt-5, 24, 3);
+        ctx.fillRect(px+dt/2-2, py+dt-8, 4, 6);
+        // 車輪
+        ctx.fillStyle = '#404050';
+        fillCirc(ctx, px+dt/2-10, py+dt-3, 2);
+        fillCirc(ctx, px+dt/2+10, py+dt-3, 2);
+        fillCirc(ctx, px+dt/2, py+dt-3, 2);
+        // ガスシリンダー
+        ctx.fillStyle = '#606070'; ctx.fillRect(px+dt/2-2, py+dt-14, 4, 8);
         // 座面
-        ctx.fillStyle = '#3a5a8a'; ctx.fillRect(px+14, py+dt-20, dt-28, 8);
+        ctx.fillStyle = '#3a5888'; ctx.fillRect(px+12, py+dt-20, dt-24, 8);
+        ctx.fillStyle = '#4a68a0'; ctx.fillRect(px+14, py+dt-19, dt-28, 6);
         // 背もたれ
-        ctx.fillStyle = '#3a5a8a'; ctx.fillRect(px+16, py+8, dt-32, dt-24);
-        ctx.fillStyle = '#4a6a9a'; ctx.fillRect(px+18, py+10, dt-36, dt-30);
+        ctx.fillStyle = '#3a5888'; ctx.fillRect(px+14, py+6, dt-28, dt-22);
+        ctx.fillStyle = '#4a68a0'; ctx.fillRect(px+16, py+8, dt-32, dt-28);
+        // メッシュパターン
+        ctx.fillStyle = '#3a5888';
+        ctx.fillRect(px+16, py+14, dt-32, 1);
+        ctx.fillRect(px+16, py+20, dt-32, 1);
+        ctx.fillRect(px+16, py+26, dt-32, 1);
+        // ランバーサポート
+        ctx.fillStyle = '#3060a0'; ctx.fillRect(px+14, py+dt-26, dt-28, 4);
         return;
       }
-      // 観葉植物（オフィス用）
+      // 観葉植物 - 細かい葉のディテール
       if (type === T.PLANT) {
-        // 鉢
-        ctx.fillStyle = '#f0f0e8'; ctx.fillRect(px+dt/2-10, py+dt-18, 20, 16);
-        ctx.fillStyle = '#e0e0d8'; ctx.fillRect(px+dt/2-12, py+dt-18, 24, 4);
-        ctx.fillStyle = '#d0d0c8'; ctx.fillRect(px+dt/2-8, py+dt-6, 16, 4);
+        // 鉢（テラコッタ風）
+        ctx.fillStyle = '#c07040'; ctx.fillRect(px+dt/2-10, py+dt-16, 20, 14);
+        ctx.fillStyle = '#d08050'; ctx.fillRect(px+dt/2-12, py+dt-16, 24, 4);
+        ctx.fillStyle = '#b06030'; ctx.fillRect(px+dt/2-8, py+dt-4, 16, 3);
+        // 土
+        ctx.fillStyle = '#5a3a20'; ctx.fillRect(px+dt/2-9, py+dt-16, 18, 3);
         // 幹
-        ctx.fillStyle = '#6a8a4a'; ctx.fillRect(px+dt/2-2, py+dt-28, 4, 12);
-        // 葉
-        ctx.fillStyle = '#5aaa50'; fillCirc(ctx, px+dt/2, py+dt/2-10, 16);
-        ctx.fillStyle = '#6abb60'; fillCirc(ctx, px+dt/2-8, py+dt/2-16, 10);
-        fillCirc(ctx, px+dt/2+8, py+dt/2-16, 10);
-        ctx.fillStyle = '#7acc70'; fillCirc(ctx, px+dt/2, py+dt/2-22, 8);
+        ctx.fillStyle = '#6a5030'; ctx.fillRect(px+dt/2-2, py+dt-26, 4, 12);
+        ctx.fillStyle = '#7a6040'; ctx.fillRect(px+dt/2-1, py+dt-26, 2, 12);
+        // 葉（多層）
+        const cx = px+dt/2, cy = py+dt/2-12;
+        ctx.fillStyle = '#3a8a30'; fillCirc(ctx, cx, cy, 16);
+        ctx.fillStyle = '#4aa840'; fillCirc(ctx, cx-7, cy-6, 10);
+        ctx.fillStyle = '#4aa840'; fillCirc(ctx, cx+7, cy-6, 10);
+        ctx.fillStyle = '#5ac050'; fillCirc(ctx, cx, cy-10, 8);
+        ctx.fillStyle = '#3a9a30'; fillCirc(ctx, cx-10, cy+4, 8);
+        ctx.fillStyle = '#3a9a30'; fillCirc(ctx, cx+10, cy+4, 8);
+        // 葉のハイライト
+        ctx.fillStyle = '#6ad060';
+        fillCirc(ctx, cx-4, cy-8, 4);
+        fillCirc(ctx, cx+6, cy-4, 3);
+        // 葉のディテール（小さい点）
+        ctx.fillStyle = '#2a7a20';
+        for (let i = 0; i < 6; i++) {
+          const ax = cx + Math.cos(i*1.05)*12, ay = cy + Math.sin(i*1.05)*10;
+          ctx.fillRect(ax, ay, 2, 2);
+        }
         return;
       }
-      // ドア
+      // ドア - マットと光効果
       if (type === T.DOOR_WORK || type === T.DOOR_MEET) {
         const isW = type === T.DOOR_WORK;
+        // ドアマット
+        ctx.fillStyle = '#4a4a3a'; ctx.fillRect(px+6, py+dt-8, dt-12, 6);
+        ctx.fillStyle = '#5a5a4a'; ctx.fillRect(px+8, py+dt-7, dt-16, 4);
         // ドアフレーム
-        ctx.fillStyle = '#5a6a7e'; ctx.fillRect(px+8, py+2, dt-16, dt-4);
+        ctx.fillStyle = '#8a7a6a'; ctx.fillRect(px+8, py+1, dt-16, dt-8);
         // ドア本体
-        ctx.fillStyle = isW ? '#7a9ab8' : '#7ab8c8';
-        ctx.fillRect(px+10, py+4, dt-20, dt-8);
-        // ドアのパネル
-        ctx.fillStyle = isW ? '#8aaac8' : '#8ac8d8';
-        ctx.fillRect(px+12, py+6, dt-24, (dt-16)/2);
-        ctx.fillRect(px+12, py+dt/2+2, dt-24, (dt-16)/2-4);
+        ctx.fillStyle = isW ? '#6a8ab0' : '#6ab0b8';
+        ctx.fillRect(px+10, py+3, dt-20, dt-12);
+        // ドアのパネル（上下2段）
+        ctx.fillStyle = isW ? '#7a9ac0' : '#7ac0c8';
+        ctx.fillRect(px+13, py+6, dt-26, (dt-20)/2-2);
+        ctx.fillRect(px+13, py+dt/2, dt-26, (dt-20)/2-4);
+        // パネル凹み影
+        ctx.fillStyle = isW ? '#5a7a9a' : '#5a9aa0';
+        ctx.fillRect(px+13, py+6, dt-26, 1);
+        ctx.fillRect(px+13, py+6, 1, (dt-20)/2-2);
         // ドアノブ
-        ctx.fillStyle = '#c0c8d0'; fillCirc(ctx, px+dt-18, py+dt/2, 4);
+        ctx.fillStyle = '#e0d0a0'; fillCirc(ctx, px+dt-17, py+dt/2-2, 3);
+        ctx.fillStyle = '#c0b080'; fillCirc(ctx, px+dt-17, py+dt/2-2, 2);
         // ラベル
-        ctx.fillStyle = '#fff'; ctx.font = `bold ${Math.round(SCALE*5)}px 'DotGothic16',monospace`;
+        ctx.fillStyle = '#fff'; ctx.font = `bold ${Math.round(SCALE*4.5)}px 'DotGothic16',monospace`;
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(isW ? 'WORK' : 'MEET', px+dt/2, py+dt/2);
+        ctx.fillText(isW ? 'WORK' : 'MEET', px+dt/2, py+dt/2-2);
+        // 光漏れ
+        ctx.fillStyle = 'rgba(255,240,200,0.15)';
+        ctx.fillRect(px+10, py+dt-12, dt-20, 2);
         return;
       }
-      // ホワイトボード
+      // ホワイトボード - 付箋・図形付き
       if (type === T.BOARD) {
-        // フレーム
-        ctx.fillStyle = '#c0c8d0'; ctx.fillRect(px+4, py+2, dt-8, dt-8);
-        // ボード面
-        ctx.fillStyle = '#f8f8f6'; ctx.fillRect(px+6, py+4, dt-12, dt-14);
-        // 書き込み
-        ctx.fillStyle = '#4a6a9a'; ctx.fillRect(px+10, py+10, dt-24, 2);
-        ctx.fillStyle = '#e06050'; ctx.fillRect(px+10, py+18, dt-30, 2);
-        ctx.fillStyle = '#4a9a6a'; ctx.fillRect(px+10, py+26, dt-26, 2);
+        ctx.fillStyle = '#b0b8c0'; ctx.fillRect(px+3, py+1, dt-6, dt-6);
+        ctx.fillStyle = '#f4f4f0'; ctx.fillRect(px+5, py+3, dt-10, dt-12);
+        // 図形（フロー図）
+        ctx.fillStyle = '#4a7aaa'; ctx.fillRect(px+8, py+6, 14, 8);
+        ctx.strokeStyle = '#4a7aaa'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(px+15, py+14); ctx.lineTo(px+15, py+20); ctx.stroke();
+        ctx.fillRect(px+8, py+20, 14, 6);
+        // 矢印
+        ctx.beginPath(); ctx.moveTo(px+22, py+10); ctx.lineTo(px+30, py+10); ctx.stroke();
+        // 付箋
+        ctx.fillStyle = '#fff3a0'; ctx.fillRect(px+30, py+6, 12, 10);
+        ctx.fillStyle = '#f0c0c0'; ctx.fillRect(px+30, py+20, 12, 10);
+        ctx.fillStyle = '#c0f0c0'; ctx.fillRect(px+44, py+6, 10, 10);
+        // 付箋のテキスト
+        ctx.fillStyle = '#888'; ctx.fillRect(px+32, py+9, 8, 1);
+        ctx.fillRect(px+32, py+12, 6, 1);
+        ctx.fillRect(px+32, py+23, 8, 1);
         // マーカートレイ
-        ctx.fillStyle = '#c0c0c0'; ctx.fillRect(px+8, py+dt-10, dt-16, 4);
-        ctx.fillStyle = '#e06050'; ctx.fillRect(px+12, py+dt-12, 6, 3);
-        ctx.fillStyle = '#4a6a9a'; ctx.fillRect(px+20, py+dt-12, 6, 3);
+        ctx.fillStyle = '#a0a0a0'; ctx.fillRect(px+8, py+dt-8, dt-16, 3);
+        ctx.fillStyle = '#e04040'; ctx.fillRect(px+12, py+dt-10, 4, 4);
+        ctx.fillStyle = '#4040e0'; ctx.fillRect(px+18, py+dt-10, 4, 4);
+        ctx.fillStyle = '#40a040'; ctx.fillRect(px+24, py+dt-10, 4, 4);
+        // イレーサー
+        ctx.fillStyle = '#e0e0e0'; ctx.fillRect(px+dt-22, py+dt-10, 10, 4);
         return;
       }
-      // ラグ（オフィスラグ）
+      // ラグ - ペルシャ風パターン
       if (type === T.RUG) {
-        ctx.fillStyle = '#6a7a9a'; ctx.fillRect(px+2, py+2, dt-4, dt-4);
-        ctx.fillStyle = '#7a8aaa'; ctx.fillRect(px+4, py+4, dt-8, dt-8);
-        ctx.fillStyle = '#8a9aba'; ctx.fillRect(px+dt/2-10, py+dt/2-10, 20, 20);
-        ctx.fillStyle = '#6a7a9a'; ctx.fillRect(px+dt/2-4, py+dt/2-4, 8, 8);
+        // ラグベース
+        ctx.fillStyle = '#5a3a50'; ctx.fillRect(px+1, py+1, dt-2, dt-2);
+        // ボーダー
+        ctx.fillStyle = '#7a5a6a'; ctx.fillRect(px+3, py+3, dt-6, dt-6);
+        ctx.fillStyle = '#5a3a50'; ctx.fillRect(px+5, py+5, dt-10, dt-10);
+        // 中央パターン
+        ctx.fillStyle = '#8a6a78'; ctx.fillRect(px+dt/2-8, py+dt/2-8, 16, 16);
+        ctx.fillStyle = '#9a7a88'; ctx.fillRect(px+dt/2-6, py+dt/2-6, 12, 12);
+        ctx.fillStyle = '#aa8a98'; ctx.fillRect(px+dt/2-3, py+dt/2-3, 6, 6);
+        // 角の装飾
+        ctx.fillStyle = '#c8a0a0';
+        ctx.fillRect(px+6, py+6, 4, 4); ctx.fillRect(px+dt-10, py+6, 4, 4);
+        ctx.fillRect(px+6, py+dt-10, 4, 4); ctx.fillRect(px+dt-10, py+dt-10, 4, 4);
+        // フリンジ
+        ctx.fillStyle = '#7a5a6a';
+        for (let f = 0; f < 8; f++) { ctx.fillRect(px+4+f*7, py, 2, 2); ctx.fillRect(px+4+f*7, py+dt-2, 2, 2); }
         return;
       }
-      // 受付カウンター
+      // 受付カウンター - ベル・書類付き
       if (type === T.COUNTER) {
-        ctx.fillStyle = '#5a4a3a'; ctx.fillRect(px+2, py+6, dt-4, dt-8);
-        ctx.fillStyle = '#7a6a5a'; ctx.fillRect(px+4, py+8, dt-8, dt-14);
+        // カウンター本体
+        ctx.fillStyle = '#5a4030'; ctx.fillRect(px+1, py+8, dt-2, dt-10);
+        ctx.fillStyle = '#6a5040'; ctx.fillRect(px+3, py+10, dt-6, dt-14);
+        // パネルディテール
+        ctx.fillStyle = '#504030'; ctx.fillRect(px+dt/2-1, py+10, 2, dt-14);
         // カウンタートップ
-        ctx.fillStyle = '#e8e0d0'; ctx.fillRect(px, py+4, dt, 6);
-        ctx.fillStyle = '#f0e8d8'; ctx.fillRect(px+2, py+4, dt-4, 4);
+        ctx.fillStyle = '#f0e8d0'; ctx.fillRect(px, py+4, dt, 6);
+        ctx.fillStyle = '#e8e0c8'; ctx.fillRect(px+1, py+5, dt-2, 4);
+        // エッジハイライト
+        ctx.fillStyle = '#f8f0d8'; ctx.fillRect(px+2, py+4, dt-4, 1);
+        // ベル
+        ctx.fillStyle = '#e0c060'; fillCirc(ctx, px+14, py+6, 4);
+        ctx.fillStyle = '#d0b050'; fillCirc(ctx, px+14, py+5, 3);
+        ctx.fillStyle = '#c0a040'; ctx.fillRect(px+13, py+3, 2, 2);
+        // 書類/ファイル
+        ctx.fillStyle = '#f8f8f0'; ctx.fillRect(px+30, py+4, 14, 4);
+        ctx.fillStyle = '#e8e8e0'; ctx.fillRect(px+32, py+3, 10, 4);
         return;
       }
-      // ソファ（待合用）
+      // ソファ - クッション模様付き
       if (type === T.SOFA_T) {
-        // ベース
-        ctx.fillStyle = '#3a5a7a'; ctx.fillRect(px+4, py+10, dt-8, dt-14);
-        // クッション
-        ctx.fillStyle = '#4a7aaa'; ctx.fillRect(px+6, py+14, dt-12, dt-22);
+        // ベースフレーム
+        ctx.fillStyle = '#2a4a6a'; ctx.fillRect(px+3, py+8, dt-6, dt-10);
+        // クッション（2個）
+        ctx.fillStyle = '#3a6a9a'; ctx.fillRect(px+6, py+14, dt/2-6, dt-22);
+        ctx.fillStyle = '#3a6a9a'; ctx.fillRect(px+dt/2+2, py+14, dt/2-8, dt-22);
+        // クッションハイライト
+        ctx.fillStyle = '#4a7aaa';
+        ctx.fillRect(px+8, py+16, dt/2-10, dt-28);
+        ctx.fillRect(px+dt/2+4, py+16, dt/2-12, dt-28);
         // 背もたれ
-        ctx.fillStyle = '#3a6a8a'; ctx.fillRect(px+4, py+8, dt-8, 10);
+        ctx.fillStyle = '#2a5a80'; ctx.fillRect(px+3, py+6, dt-6, 12);
+        ctx.fillStyle = '#3a6a90'; ctx.fillRect(px+5, py+8, dt-10, 8);
         // アームレスト
+        ctx.fillStyle = '#2a4a6a';
+        ctx.fillRect(px+1, py+8, 5, dt-12);
+        ctx.fillRect(px+dt-6, py+8, 5, dt-12);
+        // アームレスト丸み
         ctx.fillStyle = '#3a5a7a';
-        ctx.fillRect(px+2, py+10, 6, dt-16);
-        ctx.fillRect(px+dt-8, py+10, 6, dt-16);
-        // ハイライト
-        ctx.fillStyle = '#5a8aba'; ctx.fillRect(px+8, py+16, 10, 8);
-        ctx.fillRect(px+dt-20, py+16, 10, 8);
+        ctx.fillRect(px+2, py+8, 3, 4);
+        ctx.fillRect(px+dt-5, py+8, 3, 4);
+        // ステッチライン
+        ctx.fillStyle = '#2a5a80';
+        ctx.fillRect(px+dt/2, py+14, 1, dt-22);
         return;
       }
-      // 棚
+      // 棚 - 本・ファイル・小物
       if (type === T.SHELF) {
-        ctx.fillStyle = '#5a4a3a'; ctx.fillRect(px+4, py+2, dt-8, dt-4);
-        ctx.fillStyle = '#7a6a5a'; ctx.fillRect(px+6, py+4, dt-12, dt-8);
-        // 棚板
-        ctx.fillStyle = '#4a3a2a'; ctx.fillRect(px+6, py+dt/3+2, dt-12, 2);
-        ctx.fillRect(px+6, py+dt*2/3, dt-12, 2);
-        // 本
-        ctx.fillStyle = '#4a6a9a'; ctx.fillRect(px+8, py+6, 6, dt/3-4);
-        ctx.fillStyle = '#9a5a5a'; ctx.fillRect(px+16, py+6, 6, dt/3-4);
-        ctx.fillStyle = '#5a9a5a'; ctx.fillRect(px+24, py+6, 8, dt/3-4);
-        // ファイル
-        ctx.fillStyle = '#e8e0d0'; ctx.fillRect(px+8, py+dt/3+6, 10, dt/3-6);
-        ctx.fillStyle = '#d0c8b8'; ctx.fillRect(px+20, py+dt/3+6, 10, dt/3-6);
+        // 棚本体
+        ctx.fillStyle = '#5a4030'; ctx.fillRect(px+3, py+1, dt-6, dt-2);
+        ctx.fillStyle = '#6a5040'; ctx.fillRect(px+5, py+3, dt-10, dt-6);
+        // 棚板（3段）
+        const shelfY = [py+dt/4, py+dt/2+2, py+dt*3/4+2];
+        ctx.fillStyle = '#4a3020';
+        for (const sy of shelfY) ctx.fillRect(px+4, sy, dt-8, 2);
+        // 上段: 本
+        const bookColors = ['#4a6aaa','#aa4a4a','#4aaa6a','#8a6aaa','#aa8a4a'];
+        for (let b = 0; b < 5; b++) {
+          const bx = px+6+b*9, bh = 10 + (b*3)%4;
+          ctx.fillStyle = bookColors[b]; ctx.fillRect(bx, shelfY[0]-bh, 7, bh);
+          ctx.fillStyle = adjustColor(bookColors[b], 20); ctx.fillRect(bx+1, shelfY[0]-bh+1, 1, bh-2);
+        }
+        // 中段: バインダー・ファイル
+        ctx.fillStyle = '#e0d8c0'; ctx.fillRect(px+6, shelfY[1]-12, 10, 12);
+        ctx.fillStyle = '#d0c8b0'; ctx.fillRect(px+18, shelfY[1]-14, 10, 14);
+        ctx.fillStyle = '#c0b8a0'; ctx.fillRect(px+30, shelfY[1]-10, 12, 10);
+        // ラベル
+        ctx.fillStyle = '#8a8a8a'; ctx.fillRect(px+8, shelfY[1]-8, 6, 3);
+        ctx.fillRect(px+20, shelfY[1]-10, 6, 3);
+        // 下段: 箱・小物
+        ctx.fillStyle = '#8a7a6a'; ctx.fillRect(px+6, shelfY[2]-10, 14, 10);
+        ctx.fillStyle = '#9a8a7a'; ctx.fillRect(px+7, shelfY[2]-9, 12, 8);
+        ctx.fillStyle = '#6aaa6a'; fillCirc(ctx, px+36, shelfY[2]-6, 5); // 植物
+        ctx.fillStyle = '#5a8a5a'; fillCirc(ctx, px+36, shelfY[2]-8, 3);
         return;
       }
     }
+    const FLOOR_COLORS = ['#a8a8b8', '#c8b898', '#98b8c8', '#b898c8', '#98c898', '#c89898'];
+    const WALL_COLORS = ['#5a5a72', '#72685a', '#5a6872', '#685a72', '#5a7258', '#725a5a'];
+    function getThemeFloorColor() {
+      const t = (window._currentThemes || {})[currentRoom];
+      if (t && t.floor > 0) return FLOOR_COLORS[t.floor] || FLOOR_COLORS[0];
+      return null;
+    }
+    function getThemeWallColor() {
+      const t = (window._currentThemes || {})[currentRoom];
+      if (t && t.wall > 0) return WALL_COLORS[t.wall] || WALL_COLORS[0];
+      return null;
+    }
     function drawFloor(x,y) {
       const px=x*DRAW_TILE, py=y*DRAW_TILE, dt=DRAW_TILE;
-      // オフィスカーペット
-      ctx.fillStyle = '#9aa8b8'; ctx.fillRect(px, py, dt, dt);
-      ctx.fillStyle = '#8e9cac';
+      const fc = getThemeFloorColor();
+      const base = fc || '#d4ccc0';
+      ctx.fillStyle = base; ctx.fillRect(px, py, dt, dt);
+      // チェッカーボード微妙パターン
+      const hash = (x+y) % 2;
+      if (hash) { ctx.fillStyle = adjustColor(base, -6); ctx.fillRect(px, py, dt, dt); }
+      // 織りテクスチャ
+      ctx.fillStyle = adjustColor(base, hash ? 4 : -4);
       const s = (x*7 + y*13) % 4;
       if (s===0) { ctx.fillRect(px+8,py+8,2,2); ctx.fillRect(px+40,py+36,2,2); }
       if (s===1) { ctx.fillRect(px+24,py+12,2,2); ctx.fillRect(px+12,py+44,2,2); }
-      ctx.strokeStyle = '#8494a4'; ctx.lineWidth = 0.5; ctx.strokeRect(px, py, dt, dt);
+      if (s===2) { ctx.fillRect(px+36,py+24,2,2); ctx.fillRect(px+20,py+48,2,2); }
+      ctx.strokeStyle = adjustColor(base, -14); ctx.lineWidth = 0.5; ctx.strokeRect(px+0.5, py+0.5, dt-1, dt-1);
+    }
+    function adjustColor(hex, amt) {
+      let r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+      r = Math.max(0, Math.min(255, r+amt)); g = Math.max(0, Math.min(255, g+amt)); b = Math.max(0, Math.min(255, b+amt));
+      return '#' + [r,g,b].map(c => c.toString(16).padStart(2,'0')).join('');
     }
     function drawWood(px,py,dt,x,y){
       ctx.fillStyle='#c8a06a'; ctx.fillRect(px,py,dt,dt);
@@ -1724,8 +2044,8 @@
     socket.on('playerLeft', (id) => { if(players[id]){addSys(`${players[id].name} がログアウト`);delete players[id];delete displayState[id];updatePeople();updateOnlineCount();} });
     socket.on('playerRoomChanged', (d) => { if(players[d.id]){players[d.id].room=d.room;if(d.id!==myId){const rn={lobby:'ロビー',work:'作業部屋',meeting:'会議室'};addSys(`${players[d.id].name} → ${rn[d.room]}`);}updatePeople();} });
     socket.on('playerAvatarChanged', (d) => { if(players[d.id]){players[d.id].avatar=d.avatar;updatePeople();} });
-    socket.on('playerStatusChanged', (d) => { if(players[d.id]){players[d.id].status=d.status;updatePeople();} });
-    socket.on('chatMessage', (d) => { addMsg(d.name, d.message); });
+    // playerStatusChanged handled later with statusMsg support
+    // chatMessage handled later with reactions support
     socket.on('furniturePlaced', (d) => { if(placedFurniture[d.room])placedFurniture[d.room].push(d.item); });
     socket.on('furnitureRemoved', (d) => { if(placedFurniture[d.room])placedFurniture[d.room]=placedFurniture[d.room].filter(f=>f.id!==d.id); });
 
@@ -1800,6 +2120,7 @@
     loginPassEl.addEventListener('keydown', (e) => { e.stopPropagation(); });
     regNameEl.addEventListener('keydown', (e) => { e.stopPropagation(); });
     regPassEl.addEventListener('keydown', (e) => { e.stopPropagation(); });
+
 
     // ===== チャット =====
     const chatMessages = document.getElementById('chat-messages'), chatInput = document.getElementById('chat-input');
@@ -1974,6 +2295,7 @@
       socket.emit('move', { x:nx, y:ny, direction:dir });
     }
 
+
     // ===== コインシステム =====
     let myCoins = 0, myTotalEarned = 0, myPurchasedItems = [], myWorkMinutes = 0;
     let shopItems = [];
@@ -1981,6 +2303,7 @@
     socket.on('coinInit', (data) => {
       myCoins = data.coins; myTotalEarned = data.totalEarned;
       myPurchasedItems = data.purchasedItems || []; myWorkMinutes = data.workMinutes || 0;
+      window._coinData = data;
       updateCoinDisplay();
     });
     socket.on('coinUpdate', (data) => {
@@ -2438,6 +2761,7 @@
       document.getElementById('screen-share-view').classList.remove('show');
     });
 
+
     // ===== YouTube BGM システム =====
     let ytPlayer = null;
     let ytReady = false;
@@ -2551,6 +2875,7 @@
     updateBgmBar();
     socket.emit('getBgm', currentRoom);
 
+
     // ===== ゲームループ =====
     let frameCount = 0;
     function gameLoop() {
@@ -2642,11 +2967,17 @@
 
       // 定期的にメンバー更新
       frameCount++;
+      // エモート・ペット描画
+      if (typeof window._drawExtras === 'function') window._drawExtras();
+
       if (frameCount % 60 === 0) updatePeople();
 
       requestAnimationFrame(gameLoop);
     }
+
     gameLoop();
+
+
 
     // ===== モバイルタッチ操作 =====
     const isMobile = /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent) || window.innerWidth <= 768;
@@ -2747,13 +3078,14 @@
       document.querySelector('[data-mob="more"]').click();
     });
 
+
     // ===== プロフィール =====
     var myRole = 'user';
     var isGuest = true;
 
     function updateAdminBtn() {
       const adminBtn = document.getElementById('btn-admin');
-      if (adminBtn) adminBtn.style.display = (myRole === 'admin' || isAdmin()) ? '' : 'none';
+      if (adminBtn) adminBtn.style.display = (myRole === 'admin' || isAdminLocal()) ? '' : 'none';
     }
     function isAdminLocal() { return myRole === 'admin'; }
 
@@ -2815,6 +3147,7 @@
       });
     };
 
+
     // ===== 管理者パネル =====
     // ツールバーに管理者ボタン追加
     const adminBtnEl = document.createElement('div');
@@ -2829,6 +3162,7 @@
       panel.classList.toggle('show');
       if (panel.classList.contains('show')) {
         socket.emit('adminGetUsers');
+        if (typeof window.buildThemeOpts === 'function') window.buildThemeOpts();
       }
     });
 
@@ -2896,6 +3230,7 @@
       location.reload();
     });
 
+
     // ===== 通知サウンド =====
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     let audioCtx = null;
@@ -2925,14 +3260,10 @@
     function sndPomo() { playSound(523, 0.2, 'square', 0.1); setTimeout(() => playSound(659, 0.2, 'square', 0.1), 200); setTimeout(() => playSound(784, 0.3, 'square', 0.12), 400); }
 
     // 既存イベントに通知サウンドをフック
-    const _origAddMsg = addMsg;
-    addMsg = function(n, m) {
-      _origAddMsg(n, m);
-      if (n !== myName) sndChat();
-    };
     socket.on('playerJoined', (p) => { if (p.name !== myName) sndJoin(); });
     socket.on('playerLeft', () => { sndLeave(); });
     socket.on('coinUpdate', (d) => { sndCoin(); });
+
 
     // ===== ポモドーロタイマー =====
     let pomoState = null; // { endTime, type }
@@ -3144,7 +3475,7 @@
       if (e.target.id === 'status-msg-modal') document.getElementById('status-msg-modal').classList.remove('show');
     });
 
-    // ステータスメッセージをメンバーリストに表示（person-statusを拡張）
+    // ステータスメッセージをメンバーリストに表示
     socket.on('playerStatusChanged', (d) => {
       if (players[d.id]) {
         players[d.id].status = d.status;
@@ -3152,6 +3483,337 @@
         updatePeople();
       }
     });
+
+    // ===== 実績・バッジシステム =====
+    let myAchievements = [];
+    let allAchievements = [];
+
+    socket.on('achievementsList', (list) => { allAchievements = list; });
+    socket.on('coinInit', (d) => {
+      if (d.achievements) myAchievements = d.achievements;
+    });
+
+    socket.on('achievementUnlocked', (ach) => {
+      myAchievements.push(ach.id);
+      const popup = document.getElementById('achievement-popup');
+      popup.textContent = `🏅 実績解除！「${ach.icon} ${ach.name}」`;
+      popup.style.display = 'block';
+      sndPomo();
+      setTimeout(() => { popup.style.display = 'none'; }, 4000);
+    });
+
+    // ===== チャットリアクション =====
+    const chatReactions = {}; // { msgId: { emoji: [names] } }
+
+    // addMsgを拡張してリアクション付きにする (元のaddMsgを上書き)
+    addMsg = function(n, m, msgId) {
+      const d = document.createElement('div');
+      d.className = 'msg';
+      if (msgId) d.dataset.msgId = msgId;
+      d.innerHTML = `<span class="msg-name">${n}:</span> ${m}${msgId ? '<span class="msg-react-btn" title="リアクション">😀</span>' : ''}<div class="msg-reactions" data-reactions="${msgId || ''}"></div>`;
+      const chatMessages = document.getElementById('chat-messages');
+      chatMessages.appendChild(d);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+      if (n !== myName) sndChat();
+      // リアクションボタン
+      const reactBtn = d.querySelector('.msg-react-btn');
+      if (reactBtn) {
+        reactBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          showReactPicker(e.target, msgId);
+        });
+      }
+    };
+
+    // chatMessageイベントを上書き
+    socket.off('chatMessage');
+    socket.on('chatMessage', (d) => {
+      if (d.msgId) {
+        addMsg(d.name, d.message, d.msgId);
+      } else {
+        addMsg(d.name, d.message);
+      }
+    });
+
+    let activeReactPicker = null;
+    function showReactPicker(anchor, msgId) {
+      if (activeReactPicker) { activeReactPicker.remove(); activeReactPicker = null; }
+      const picker = document.createElement('div');
+      picker.className = 'react-picker show';
+      picker.style.position = 'absolute';
+      const rect = anchor.getBoundingClientRect();
+      picker.style.top = (rect.top - 40) + 'px';
+      picker.style.left = rect.left + 'px';
+      const emojis = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏', '🎉'];
+      for (const em of emojis) {
+        const span = document.createElement('span');
+        span.className = 'react-pick';
+        span.textContent = em;
+        span.addEventListener('click', () => {
+          socket.emit('chatReaction', { msgId, emoji: em });
+          picker.remove();
+          activeReactPicker = null;
+        });
+        picker.appendChild(span);
+      }
+      document.body.appendChild(picker);
+      activeReactPicker = picker;
+      setTimeout(() => document.addEventListener('click', () => { if (activeReactPicker) { activeReactPicker.remove(); activeReactPicker = null; } }, { once: true }), 10);
+    }
+
+    socket.on('chatReactionUpdate', ({ msgId, emoji, from }) => {
+      if (!chatReactions[msgId]) chatReactions[msgId] = {};
+      if (!chatReactions[msgId][emoji]) chatReactions[msgId][emoji] = [];
+      if (!chatReactions[msgId][emoji].includes(from)) chatReactions[msgId][emoji].push(from);
+      renderReactions(msgId);
+    });
+
+    function renderReactions(msgId) {
+      const container = document.querySelector(`[data-reactions="${msgId}"]`);
+      if (!container) return;
+      container.innerHTML = '';
+      const reactions = chatReactions[msgId] || {};
+      for (const [emoji, names] of Object.entries(reactions)) {
+        const span = document.createElement('span');
+        span.className = 'msg-reaction' + (names.includes(myName) ? ' mine' : '');
+        span.textContent = `${emoji} ${names.length}`;
+        span.title = names.join(', ');
+        span.addEventListener('click', () => socket.emit('chatReaction', { msgId, emoji }));
+        container.appendChild(span);
+      }
+    }
+
+    // ===== エモートアニメーション =====
+    const emoteAnimations = {}; // { playerId: { type, startTime } }
+    const EMOTE_ICONS = { dance: '💃', sparkle: '✨', heart: '❤️', fire: '🔥', wave: '👋', clap: '👏' };
+
+    socket.on('playerEmote', ({ id, emote }) => {
+      emoteAnimations[id] = { type: emote, startTime: Date.now() };
+      setTimeout(() => { delete emoteAnimations[id]; }, 3000);
+    });
+
+    // エモートメニュー
+    const emoteMenu = document.getElementById('emote-menu');
+    document.getElementById('btn-emote').addEventListener('click', () => {
+      emoteMenu.classList.toggle('show');
+      if (emoteMenu.classList.contains('show')) buildEmoteMenu();
+    });
+
+    function buildEmoteMenu() {
+      emoteMenu.innerHTML = '';
+      const allEmotes = [
+        { type: 'wave', icon: '👋', free: true },
+        { type: 'clap', icon: '👏', free: true },
+        { type: 'dance', icon: '💃', itemId: 'emote_dance' },
+        { type: 'sparkle', icon: '✨', itemId: 'emote_sparkle' },
+        { type: 'heart', icon: '❤️', itemId: 'emote_heart' },
+        { type: 'fire', icon: '🔥', itemId: 'emote_fire' },
+      ];
+      const data = window._coinData || {};
+      const owned = data.purchasedItems || [];
+      for (const em of allEmotes) {
+        const div = document.createElement('div');
+        const unlocked = em.free || owned.includes(em.itemId);
+        div.className = 'emote-opt' + (unlocked ? '' : ' locked');
+        div.textContent = em.icon;
+        div.title = unlocked ? em.type : '未購入';
+        if (unlocked) {
+          div.addEventListener('click', () => {
+            socket.emit('playEmote', em.type);
+            emoteMenu.classList.remove('show');
+          });
+        }
+        emoteMenu.appendChild(div);
+      }
+    }
+
+    // coinInitデータは上部のhandlerでwindow._coinDataに保存済み
+
+    // エモートをゲームループで描画（drawPlayer後に呼ぶ）
+    // gameLoopのプレイヤー描画後に追加
+
+    // ===== ペットシステム =====
+    const PET_SPRITES = {
+      cat: { emoji: '🐱', color: '#ff9800' },
+      dog: { emoji: '🐶', color: '#8d6e63' },
+      bird: { emoji: '🐦', color: '#42a5f5' },
+      slime: { emoji: '🟢', color: '#4caf50' },
+    };
+
+    socket.on('playerPetChanged', ({ id, pet }) => {
+      if (players[id]) players[id].pet = pet;
+    });
+
+    // ===== 部屋テーマ =====
+    const FLOOR_NAMES = ['デフォルト', 'ウォーム', 'クール', 'パープル', 'グリーン', 'レッド'];
+    const WALL_NAMES = ['デフォルト', 'ウォーム', 'クール', 'パープル', 'グリーン', 'レッド'];
+    window._currentThemes = window._currentThemes || {};
+
+    socket.on('roomThemes', (themes) => { window._currentThemes = themes; });
+    socket.on('roomThemeChanged', ({ room, theme }) => { window._currentThemes[room] = theme; });
+
+    // テーマピッカーUI
+    let selectedFloor = 0, selectedWall = 0;
+    window.buildThemeOpts = function buildThemeOpts() {
+      const floorC = document.getElementById('theme-floor-opts');
+      const wallC = document.getElementById('theme-wall-opts');
+      if (!floorC || !wallC) return;
+      floorC.innerHTML = ''; wallC.innerHTML = '';
+      const room = document.getElementById('theme-room-sel').value;
+      const t = (window._currentThemes || {})[room] || { floor: 0, wall: 0 };
+      selectedFloor = t.floor; selectedWall = t.wall;
+      FLOOR_COLORS.forEach((c, i) => {
+        const s = document.createElement('div');
+        s.style.cssText = `width:28px;height:28px;border-radius:4px;background:${c};cursor:pointer;border:2px solid ${i===selectedFloor?'#7c8aff':'transparent'}`;
+        s.title = FLOOR_NAMES[i];
+        s.addEventListener('click', () => { selectedFloor = i; buildThemeOpts(); });
+        floorC.appendChild(s);
+      });
+      WALL_COLORS.forEach((c, i) => {
+        const s = document.createElement('div');
+        s.style.cssText = `width:28px;height:28px;border-radius:4px;background:${c};cursor:pointer;border:2px solid ${i===selectedWall?'#7c8aff':'transparent'}`;
+        s.title = WALL_NAMES[i];
+        s.addEventListener('click', () => { selectedWall = i; buildThemeOpts(); });
+        wallC.appendChild(s);
+      });
+    }
+    document.getElementById('theme-room-sel').addEventListener('change', buildThemeOpts);
+    document.getElementById('theme-apply-btn').addEventListener('click', () => {
+      const room = document.getElementById('theme-room-sel').value;
+      socket.emit('setRoomTheme', { room, floor: selectedFloor, wall: selectedWall });
+      showCoinNotif('テーマを変更しました');
+    });
+
+    // ===== カスタム部屋 =====
+    let customRoomsList = {};
+
+    socket.on('customRoomsList', (rooms) => {
+      customRoomsList = rooms;
+    });
+
+    socket.on('roomError', (msg) => { showCoinNotif(msg); });
+
+    // カスタム部屋作成ボタンをツールバーに追加
+    const createRoomBtn = document.createElement('div');
+    createRoomBtn.className = 'tool-btn';
+    createRoomBtn.textContent = '🏠 部屋作成';
+    document.getElementById('toolbar').insertBefore(createRoomBtn, document.getElementById('toolbar-hint'));
+
+    createRoomBtn.addEventListener('click', () => {
+      document.getElementById('create-room-modal').style.display = 'flex';
+      document.getElementById('create-room-name').value = '';
+      document.getElementById('create-room-error').textContent = '';
+      document.getElementById('create-room-name').focus();
+    });
+    document.getElementById('create-room-cancel').addEventListener('click', () => {
+      document.getElementById('create-room-modal').style.display = 'none';
+    });
+    document.getElementById('create-room-modal').addEventListener('click', (e) => {
+      if (e.target.id === 'create-room-modal') document.getElementById('create-room-modal').style.display = 'none';
+    });
+    document.getElementById('create-room-name').addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') document.getElementById('create-room-ok').click();
+    });
+    document.getElementById('create-room-ok').addEventListener('click', () => {
+      const name = document.getElementById('create-room-name').value.trim();
+      if (!name) { document.getElementById('create-room-error').textContent = '部屋名を入力してください'; return; }
+      socket.emit('createRoom', { name });
+      document.getElementById('create-room-modal').style.display = 'none';
+    });
+
+    // カスタム部屋への入室: ドアプロンプトを拡張
+    socket.on('roomCreated', (room) => {
+      showCoinNotif(`部屋「${room.name}」を作成しました！`);
+    });
+
+    // ===== ペット選択 =====
+    // ショップタブにペットボタンを追加
+    const petBtn = document.createElement('div');
+    petBtn.className = 'tool-btn';
+    petBtn.textContent = '🐾 ペット';
+    document.getElementById('toolbar').insertBefore(petBtn, document.getElementById('toolbar-hint'));
+
+    petBtn.addEventListener('click', () => {
+      document.getElementById('pet-modal').style.display = 'flex';
+      buildPetOptions();
+    });
+    document.getElementById('pet-modal-close').addEventListener('click', () => {
+      document.getElementById('pet-modal').style.display = 'none';
+    });
+    document.getElementById('pet-modal').addEventListener('click', (e) => {
+      if (e.target.id === 'pet-modal') document.getElementById('pet-modal').style.display = 'none';
+    });
+
+    function buildPetOptions() {
+      const container = document.getElementById('pet-options');
+      container.innerHTML = '';
+      const data = window._coinData || {};
+      const owned = data.purchasedItems || [];
+      const activePet = data.activePet || null;
+      const pets = [
+        { id: null, emoji: '❌', name: 'なし' },
+        { id: 'pet_cat', emoji: '🐱', name: 'ネコ' },
+        { id: 'pet_dog', emoji: '🐶', name: 'イヌ' },
+        { id: 'pet_bird', emoji: '🐦', name: 'トリ' },
+        { id: 'pet_slime', emoji: '🟢', name: 'スライム' },
+      ];
+      for (const pet of pets) {
+        const div = document.createElement('div');
+        const unlocked = pet.id === null || owned.includes(pet.id);
+        const active = (pet.id === null && !activePet) || (pet.id === activePet);
+        div.style.cssText = `width:56px;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:${active?'#3a3a6e':'#2a2a3e'};border:2px solid ${active?'#7c8aff':'#444'};border-radius:8px;cursor:${unlocked?'pointer':'not-allowed'};opacity:${unlocked?'1':'0.4'};font-size:24px;`;
+        div.innerHTML = `${pet.emoji}<span style="font-size:9px;color:#aaa;">${pet.name}</span>`;
+        if (unlocked) {
+          div.addEventListener('click', () => {
+            socket.emit('setPet', pet.id);
+            if (window._coinData) window._coinData.activePet = pet.id;
+            document.getElementById('pet-modal').style.display = 'none';
+            showCoinNotif(pet.id ? `${pet.emoji} ${pet.name}を連れています` : 'ペットを外しました');
+          });
+        }
+        container.appendChild(div);
+      }
+    }
+
+    // ===== ゲームループ拡張（エモート・ペット描画） =====
+    // 既存のgameLoopの描画後にエモートとペットを追加描画
+    // drawPlayer後のフックとして毎フレーム実行
+    window._drawExtras = () => {
+      for (const player of Object.values(players)) {
+        if (player.room !== currentRoom) continue;
+        const ds = getDisplayState(player);
+        const px = ds.x * SCALE;
+        const py = ds.y * SCALE;
+
+        // ペット描画
+        if (player.pet && PET_SPRITES[player.pet]) {
+          const pet = PET_SPRITES[player.pet];
+          const petX = px + DRAW_TILE + 4;
+          const petY = py + DRAW_TILE - 10;
+          ctx.font = `${Math.round(SCALE * 5)}px serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(pet.emoji, petX, petY);
+        }
+
+        // エモートアニメーション
+        const emote = emoteAnimations[player.id];
+        if (emote) {
+          const elapsed = Date.now() - emote.startTime;
+          const icon = EMOTE_ICONS[emote.type] || '✨';
+          const progress = Math.min(elapsed / 3000, 1);
+          const yOff = -20 - Math.sin(progress * Math.PI * 4) * 8;
+          const alpha = 1 - progress;
+          ctx.globalAlpha = alpha;
+          ctx.font = `${Math.round(SCALE * 8)}px serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'bottom';
+          ctx.fillText(icon, px + DRAW_TILE / 2, py + yOff);
+          ctx.globalAlpha = 1;
+        }
+      }
+    };
 
   </script>
 </body>
