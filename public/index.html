@@ -11,6 +11,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="五方よし">
   <link rel="apple-touch-icon" href="/icons/icon-192.svg">
+  <script src="/furniture-sprites.js"></script>
+  <script src="/avatar-data.js"></script>
   <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
   <script src="https://www.youtube.com/iframe_api"></script>
   <style>
@@ -44,6 +46,19 @@
     }
     #coin-icon { color: #ffd700; font-size: 16px; }
     #coin-count { color: #ffd700; font-weight: bold; }
+    #level-display {
+      display: flex; align-items: center; gap: 6px; margin-left: 8px;
+      background: #2a3a5a; padding: 5px 12px; border-radius: 14px; font-size: 13px;
+    }
+    #level-badge { color: #7cffb2; font-weight: 900; font-size: 14px; }
+    #xp-bar-wrap {
+      width: 80px; height: 8px; background: #1a1a2e; border-radius: 4px; overflow: hidden;
+    }
+    #xp-bar {
+      height: 100%; background: linear-gradient(90deg, #4caf50, #7cffb2);
+      border-radius: 4px; transition: width 0.4s ease; width: 0%;
+    }
+    #xp-text { font-size: 10px; color: #7cffb2; white-space: nowrap; }
     #coin-notif {
       position: fixed; top: 64px; right: 20px; z-index: 50;
       background: rgba(255,215,0,0.95); color: #1a1020; padding: 10px 20px;
@@ -52,6 +67,16 @@
       display: none; animation: coinIn 0.3s ease;
     }
     @keyframes coinIn { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    #levelup-popup {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      background: linear-gradient(135deg, #1a2e1a, #2a4a2a); border: 2px solid #7cffb2;
+      border-radius: 16px; padding: 24px 32px; text-align: center;
+      z-index: 999; display: none; animation: coinIn 0.3s ease;
+      box-shadow: 0 0 30px rgba(124,255,178,0.3);
+    }
+    #levelup-popup .lvl-icon { font-size: 36px; }
+    #levelup-popup .lvl-text { font-size: 22px; color: #7cffb2; font-weight: 900; margin: 8px 0; }
+    #levelup-popup .lvl-reward { font-size: 14px; color: #ffd700; }
 
     /* === メインレイアウト === */
     #main { display: flex; height: calc(100vh - 52px); }
@@ -165,7 +190,11 @@
     .c-opt.selected { border-color: #7c8aff; box-shadow: 0 0 8px rgba(124,138,255,0.4); }
     #furniture-content { padding: 14px; overflow-y: auto; }
     #furniture-content h4 { font-size: 14px; color: #7c8aff; margin-bottom: 10px; }
-    .f-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .furn-cat-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+    .furn-cat-tab { padding: 3px 7px; font-size: 11px; border: 1px solid #3a3a5a; border-radius: 6px; cursor: pointer; background: #2e2e42; color: #aaa; font-family: 'DotGothic16', monospace; }
+    .furn-cat-tab:hover { border-color: #666; color: #ddd; }
+    .furn-cat-tab.active { border-color: #7c8aff; color: #7c8aff; background: #2a2a3e; }
+    .f-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; max-height: 320px; overflow-y: auto; }
     .f-item {
       aspect-ratio: 1; border: 2px solid #3a3a5a; border-radius: 8px;
       cursor: pointer; display: flex; flex-direction: column;
@@ -397,6 +426,74 @@
       border: 2px solid #ff9800; border-radius: 0 0 8px 8px;
     }
     #whiteboard-panel.show { display: flex; }
+
+    /* ===== ミニゲーム ===== */
+    #game-select-panel, #wordwolf-panel, #quiz-panel {
+      display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+      width: 420px; max-width: 95vw; max-height: 80vh; overflow-y: auto;
+      background: rgba(20,20,40,0.97); z-index: 25; flex-direction: column;
+      border: 2px solid #7c8aff; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+    #game-select-panel.show, #wordwolf-panel.show, #quiz-panel.show { display: flex; }
+    .game-panel-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 16px; background: #7c8aff; color: #fff; font-size: 14px; font-weight: bold;
+      border-radius: 10px 10px 0 0;
+    }
+    .game-close { cursor: pointer; font-size: 16px; opacity: 0.8; }
+    .game-close:hover { opacity: 1; }
+    .game-cards { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+    .game-card {
+      display: flex; align-items: center; gap: 12px; padding: 14px;
+      background: #1a1a3a; border: 2px solid #2a2a5a; border-radius: 10px;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .game-card:hover { border-color: #7c8aff; background: #1a1a4a; }
+    .game-card-icon { font-size: 32px; }
+    .game-card-title { font-size: 14px; font-weight: bold; color: #fff; }
+    .game-card-desc { font-size: 11px; color: #888; margin-top: 2px; }
+    #ww-body, #quiz-body { padding: 16px; color: #e0e0e0; font-size: 13px; }
+    #ww-body input, #quiz-body input, #quiz-body textarea {
+      width: 100%; padding: 8px 12px; background: #1a1a30; border: 1px solid #3a3a5a;
+      border-radius: 6px; color: #e0e0e0; font-family: inherit; font-size: 13px; outline: none;
+      margin-bottom: 8px;
+    }
+    #quiz-body textarea { min-height: 80px; resize: vertical; }
+    .game-btn {
+      padding: 10px 16px; border: none; border-radius: 8px; cursor: pointer;
+      font-family: inherit; font-size: 13px; font-weight: bold; transition: all 0.15s;
+    }
+    .game-btn-primary { background: #7c8aff; color: #fff; }
+    .game-btn-primary:hover { background: #6a7aef; }
+    .game-btn-danger { background: #e53935; color: #fff; }
+    .game-btn-success { background: #4caf50; color: #fff; }
+    .game-btn-secondary { background: #3a3a5a; color: #ccc; }
+    .game-btn:disabled { opacity: 0.5; cursor: default; }
+    .game-player-list { list-style: none; padding: 0; margin: 8px 0; }
+    .game-player-list li {
+      padding: 6px 10px; margin: 4px 0; background: #1a1a3a; border-radius: 6px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .game-word-card {
+      text-align: center; padding: 20px; margin: 12px 0;
+      background: linear-gradient(135deg, #2a1a4a, #1a2a4a);
+      border: 2px solid #7c8aff; border-radius: 12px;
+    }
+    .game-word-card .word { font-size: 28px; font-weight: bold; color: #fff; }
+    .game-word-card .label { font-size: 12px; color: #888; margin-bottom: 4px; }
+    .game-timer { text-align: center; font-size: 24px; font-weight: bold; color: #ff9800; margin: 8px 0; }
+    .quiz-buzz-btn {
+      width: 120px; height: 120px; border-radius: 50%; border: 4px solid #c62828;
+      background: radial-gradient(circle, #ff1744, #c62828); color: #fff;
+      font-size: 24px; font-weight: bold; cursor: pointer; margin: 16px auto; display: block;
+      box-shadow: 0 4px 16px rgba(255,23,68,0.4); transition: transform 0.1s;
+    }
+    .quiz-buzz-btn:hover { transform: scale(1.05); }
+    .quiz-buzz-btn:active { transform: scale(0.95); }
+    .quiz-buzz-btn:disabled { background: #555; border-color: #444; cursor: default; box-shadow: none; }
+    .quiz-scoreboard { margin: 8px 0; }
+    .quiz-scoreboard li { font-size: 14px; }
+    .quiz-scoreboard li .score { color: #ff9800; font-weight: bold; }
     .wb-header {
       display: flex; align-items: center; gap: 8px; padding: 6px 12px;
       background: #ff9800; color: #fff; font-size: 13px; font-weight: bold;
@@ -818,6 +915,9 @@
       .status-btn { padding: 3px 8px; font-size: 10px; }
       #online-count { font-size: 11px; }
       #coin-display { padding: 3px 8px; font-size: 12px; margin-left: 4px; }
+      #level-display { padding: 3px 8px; font-size: 11px; margin-left: 4px; }
+      #xp-bar-wrap { width: 50px; height: 6px; }
+      #xp-text { font-size: 9px; }
       #sidebar { display: none; }
       #right-panel { display: none; }
       #main { height: calc(100vh - 40px); }
@@ -976,6 +1076,25 @@
         </div>
         <button id="theme-apply-btn" style="background:#7c8aff;color:#fff;border:none;border-radius:4px;padding:4px 12px;font-size:12px;cursor:pointer;">適用</button>
       </div>
+      <div class="admin-section">
+        <h4>🔑 YouTube API Key</h4>
+        <p style="font-size:11px;color:#888;margin-bottom:6px;">BGMプレイリスト機能に必要です。<a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener" style="color:#7c8aff;">Google Cloud Console</a> で取得してください。</p>
+        <div style="display:flex;gap:6px;">
+          <input type="password" id="admin-yt-key" placeholder="AIza..." maxlength="64" style="flex:1;background:#2a2a3e;color:#fff;border:1px solid #444;border-radius:4px;padding:4px 8px;font-size:12px;">
+          <button id="admin-yt-key-save" style="background:#7c8aff;color:#fff;border:none;border-radius:4px;padding:4px 12px;font-size:12px;cursor:pointer;">保存</button>
+        </div>
+        <div id="admin-yt-key-status" style="font-size:11px;margin-top:4px;"></div>
+        <details style="margin-top:8px;font-size:11px;color:#888;">
+          <summary style="cursor:pointer;color:#aaa;">取得手順</summary>
+          <ol style="margin:6px 0 0 16px;line-height:1.8;">
+            <li><a href="https://console.cloud.google.com/" target="_blank" rel="noopener" style="color:#7c8aff;">Google Cloud Console</a> にアクセス</li>
+            <li>プロジェクトを作成（または既存を選択）</li>
+            <li>「APIとサービス」→「ライブラリ」→「YouTube Data API v3」を有効化</li>
+            <li>「認証情報」→「認証情報を作成」→「APIキー」</li>
+            <li>作成されたキーをコピーして上に貼り付け</li>
+          </ol>
+        </details>
+      </div>
       <button class="admin-close" id="admin-close">閉じる</button>
     </div>
   </div>
@@ -1084,12 +1203,25 @@
       <div class="status-btn st-away" data-st="away">離席</div>
     </div>
     <div id="online-count"></div>
+    <div id="level-display">
+      <span id="level-badge">Lv.1</span>
+      <div>
+        <div id="xp-bar-wrap"><div id="xp-bar"></div></div>
+        <div id="xp-text">0 / 100 XP</div>
+      </div>
+    </div>
     <div id="coin-display"><span id="coin-icon">&#x1FA99;</span> <span id="coin-count">0</span></div>
     <div id="status-msg-area">
       <div id="status-msg-display" title="クリックでステータスメッセージを設定">💬 ステータス</div>
     </div>
+    <div id="logout-btn" title="ログアウト" style="cursor:pointer;padding:4px 10px;font-size:12px;color:#aaa;border:1px solid #3a3a5a;border-radius:6px;margin-left:8px;white-space:nowrap;">🚪 退出</div>
   </div>
   <div id="coin-notif"></div>
+  <div id="levelup-popup">
+    <div class="lvl-icon">⬆️</div>
+    <div class="lvl-text">LEVEL UP!</div>
+    <div class="lvl-reward"></div>
+  </div>
 
   <!-- メイン -->
   <div id="main">
@@ -1162,6 +1294,30 @@
           </div>
         </div>
       </div>
+      <!-- ゲーム選択パネル -->
+      <div id="game-select-panel">
+        <div class="game-panel-header"><span>🎮 ミニゲーム</span><div class="game-close" id="game-select-close">✕</div></div>
+        <div class="game-cards">
+          <div class="game-card" id="game-card-ww">
+            <div class="game-card-icon">🐺</div>
+            <div class="game-card-info"><div class="game-card-title">ワードウルフ</div><div class="game-card-desc">少数派のお題を持つウルフを見つけ出せ！</div></div>
+          </div>
+          <div class="game-card" id="game-card-quiz">
+            <div class="game-card-icon">⚡</div>
+            <div class="game-card-info"><div class="game-card-title">早押しクイズ</div><div class="game-card-desc">素早くボタンを押して正解を勝ち取れ！</div></div>
+          </div>
+        </div>
+      </div>
+      <!-- ワードウルフパネル -->
+      <div id="wordwolf-panel">
+        <div class="game-panel-header"><span>🐺 ワードウルフ</span><div class="game-close" id="ww-close">✕</div></div>
+        <div id="ww-body"></div>
+      </div>
+      <!-- 早押しクイズパネル -->
+      <div id="quiz-panel">
+        <div class="game-panel-header"><span>⚡ 早押しクイズ</span><div class="game-close" id="quiz-close">✕</div></div>
+        <div id="quiz-body"></div>
+      </div>
       <!-- ポモドーロバー -->
       <div id="pomo-bar">
         <span id="pomo-icon">🍅</span>
@@ -1192,6 +1348,7 @@
         <div class="tool-btn" id="btn-screen-share" title="画面共有">🖥️ 共有</div>
         <div class="tool-btn" id="btn-sound-settings" title="通知音設定">🔔</div>
         <div class="tool-btn" id="btn-floor-map" title="フロアマップ">🗺️ 全室</div>
+        <div class="tool-btn" id="btn-game" title="ミニゲーム (G)">🎮 ゲーム</div>
         <div id="toolbar-hint">矢印/スペース/ESC</div>
       </div>
       <!-- YouTube Player (hidden) -->
@@ -1215,11 +1372,14 @@
       </div>
       <div class="rp-content hidden" id="rp-customize">
         <div id="customize-content">
-          <div class="c-preview"><canvas id="preview-canvas" width="96" height="112"></canvas></div>
-          <h4>かみがた</h4><div class="c-options" id="hair-options"></div>
-          <h4>ふく（うえ）</h4><div class="c-options" id="body-options"></div>
-          <h4>ふく（した）</h4><div class="c-options" id="pants-options"></div>
-          <h4>アクセサリー</h4><div class="c-options" id="acc-options"></div>
+          <div class="c-preview"><canvas id="preview-canvas" width="120" height="140"></canvas></div>
+          <h4>💇 かみがた</h4><div class="c-options" id="hair-shape-options"></div>
+          <h4>🎨 ヘアカラー</h4><div class="c-options" id="hair-options"></div>
+          <h4>🧑 スキン</h4><div class="c-options" id="skin-options"></div>
+          <h4>🏋️ たいけい</h4><div class="c-options" id="body-type-options"></div>
+          <h4>👔 ふく（うえ）</h4><div class="c-options" id="body-options"></div>
+          <h4>👖 ふく（した）</h4><div class="c-options" id="pants-options"></div>
+          <h4>👑 アクセサリー</h4><div class="c-options" id="acc-options"></div>
         </div>
       </div>
       <div class="rp-content hidden" id="rp-shop">
@@ -1228,14 +1388,15 @@
             <div class="label">コイン残高</div>
             <div class="amount" id="shop-coins">0</div>
           </div>
-          <h4>プレミアムアイテム</h4>
-          <div id="shop-list"></div>
+          <div class="furn-cat-tabs" id="shop-cat-tabs"></div>
+          <div id="shop-list" style="max-height:400px;overflow-y:auto;"></div>
           <div class="shop-stats" id="shop-stats"></div>
         </div>
       </div>
       <div class="rp-content hidden" id="rp-furniture">
         <div id="furniture-content">
           <h4>家具をえらぶ</h4>
+          <div class="furn-cat-tabs" id="furn-cat-tabs"></div>
           <div class="f-grid" id="furniture-palette"></div>
           <div class="f-btns">
             <div class="f-btn active" id="btn-place">おく</div>
@@ -1252,8 +1413,8 @@
     const TILE = 32; // 論理タイルサイズ
     const SCALE = 2;
     const DRAW_TILE = TILE * SCALE; // 64px描画タイル
-    const CHAR_W = 16, CHAR_H = 24; // キャラの論理サイズ
-    const CHAR_DW = CHAR_W * SCALE, CHAR_DH = CHAR_H * SCALE; // 描画サイズ 32x48
+    const CHAR_W = 24, CHAR_H = 32; // キャラの論理サイズ（高解像度化: 16x24→24x32）
+    const CHAR_DW = CHAR_W * SCALE, CHAR_DH = CHAR_H * SCALE; // 描画サイズ 48x64
     const MOVE_SPEED = 2.5; // ピクセル/フレーム（論理座標）
     const PROXIMITY_RANGE = 3;
     const ANIM_SPEED = 8; // フレームごとのアニメ切り替え
@@ -1325,30 +1486,32 @@
         label:'和室', labelColor:'#c8b898' },
     };
 
-    const HAIR_COLORS = ['#5a3825','#1a1a2e','#e8c170','#c73650','#f0f0f0','#ff8c42','#e85d9a','#6ec6ff'];
-    const BODY_COLORS = ['#e94560','#4a90d9','#5cb85c','#f0ad4e','#9b59b6','#1abc9c','#ff6b6b','#f5f5f5'];
-    const PANTS_COLORS = ['#2c3e6b','#4a4a5a','#8b6b4a','#3a6b4a','#5a3a6a','#6b4a3a','#2a4a6a','#4a4a4a'];
-    const SKIN = '#fce4c8';
+    // 色配列は avatar-data.js の拡張版を使用（後方互換: 旧8色は先頭に含む）
+    const HAIR_COLORS = HAIR_COLORS_EX;
+    const BODY_COLORS = BODY_COLORS_EX;
+    const PANTS_COLORS = PANTS_COLORS_EX;
     const ACC_TYPES = [
       {label:'なし',id:-1}, {label:'帽子',id:0,color:'#e94560'},
       {label:'メガネ',id:1,color:'#e0e0e0'}, {label:'リボン',id:2,color:'#ff69b4'},
-      {label:'ヘッドホン',id:3,color:'#555'}, {label:'王冠',id:4,color:'#ffd700'}
+      {label:'ヘッドホン',id:3,color:'#555'}, {label:'王冠',id:4,color:'#ffd700'},
+      {label:'サングラス',id:5,color:'#222'}, {label:'マスク',id:6,color:'#f0f0f0'},
+      {label:'ティアラ',id:7,color:'#c0c0ff'}, {label:'ネクタイ',id:8,color:'#4a90d9'},
+      {label:'蝶ネクタイ',id:9,color:'#e94560'}, {label:'イヤリング',id:10,color:'#ffd700'},
+      {label:'ベレー帽',id:11,color:'#8a3030'}, {label:'キャップ',id:12,color:'#2a4a8a'},
+      {label:'猫耳',id:13,color:'#fce4c8'}, {label:'天使の輪',id:14,color:'#fff8a0'}
     ];
-    const FURNITURE_DEFS = {
-      sofa:{name:'ソファ',blocked:true}, table:{name:'テーブル',blocked:true},
-      lamp:{name:'ランプ',blocked:true}, bookshelf:{name:'本棚',blocked:true},
-      rug_small:{name:'ラグ',blocked:false}, plant_big:{name:'大きな木',blocked:true},
-      vending:{name:'自販機',blocked:true}, poster:{name:'ポスター',blocked:true},
-      clock:{name:'時計',blocked:true}, trophy:{name:'トロフィー',blocked:true},
-      tv:{name:'テレビ',blocked:true}, aquarium:{name:'水槽',blocked:true}
-    };
+    // FURNITURE_DEFS は furniture-sprites.js の FURN_SPRITES から自動生成
+    const FURNITURE_DEFS = {};
+    for (const [k,v] of Object.entries(FURN_SPRITES)) {
+      FURNITURE_DEFS[k] = { name: v.name, blocked: v.blocked };
+    }
     const STATUS_LABELS = {online:'オンライン',working:'作業中',meeting:'会議中',break:'休憩',away:'離席'};
     const STATUS_COLORS = {online:'#4caf50',working:'#ff9800',meeting:'#2196f3',break:'#9c27b0',away:'#757575'};
 
     const canvas = document.getElementById('game'), ctx = canvas.getContext('2d');
     let myId = null, myName = '', currentRoom = 'lobby', myStatus = 'online';
     const players = {};
-    let chatFocused = false, myAvatar = { hair:0, body:0, pants:0, acc:-1 };
+    let chatFocused = false, myAvatar = { hairShape:0, hairColor:0, bodyType:0, bodyColor:0, pantsColor:0, skinColor:0, acc:-1 };
     let editMode = false, editAction = 'place', selectedFurniture = 'sofa';
     const placedFurniture = { lobby:[], work:[], meeting:[], japanese:[] };
 
@@ -2544,545 +2707,170 @@
       c.beginPath(); c.arc(cx,cy,r,0,Math.PI*2); c.fill();
     }
 
-    // ===== 家具描画（高品質ピクセルアート） =====
+    // ===== 家具描画（データ駆動型スプライトレンダラー） =====
     function drawFurniture(c,type,px,py,dt) {
-      const o=2;
-      if(type==='sofa'){
-        // 影
-        c.fillStyle='rgba(0,0,0,0.1)';c.fillRect(px+4,py+dt-4,dt-4,4);
-        // 木製脚
-        c.fillStyle='#6a5030';c.fillRect(px+6,py+dt-5,4,5);c.fillRect(px+dt-10,py+dt-5,4,5);
-        c.fillStyle='#7a6040';c.fillRect(px+6,py+dt-5,4,2);c.fillRect(px+dt-10,py+dt-5,4,2);
-        // フレーム
-        c.fillStyle='#8a2020';c.fillRect(px+2,py+8,dt-4,dt-12);
-        c.fillStyle='#a03030';c.fillRect(px+3,py+9,dt-6,dt-14);
-        // 背もたれ（カーブ風）
-        c.fillStyle='#b03838';c.fillRect(px+3,py+6,dt-6,10);
-        c.fillStyle='#c04848';c.fillRect(px+4,py+7,dt-8,7);
-        c.fillStyle='#d05858';c.fillRect(px+5,py+7,dt-10,3);
-        // 座面クッション（2個）
-        c.fillStyle='#d85848';c.fillRect(px+5,py+18,dt/2-5,dt-24);
-        c.fillRect(px+dt/2+1,py+18,dt/2-6,dt-24);
-        c.fillStyle='#e86858';c.fillRect(px+6,py+19,dt/2-7,dt-28);
-        c.fillRect(px+dt/2+2,py+19,dt/2-8,dt-28);
-        // クッション光沢
-        c.fillStyle='#f08070';c.fillRect(px+7,py+20,dt/2-10,4);
-        c.fillRect(px+dt/2+3,py+20,dt/2-10,4);
-        // ステッチ
-        c.fillStyle='#b03838';c.fillRect(px+dt/2-1,py+18,2,dt-24);
-        // 投げ枕
-        c.fillStyle='#e8c040';c.fillRect(px+8,py+14,10,8);
-        c.fillStyle='#f0d050';c.fillRect(px+9,py+15,8,6);
-        c.fillStyle='#f8e060';c.fillRect(px+10,py+15,4,3);
-        c.fillStyle='#40a0e0';c.fillRect(px+dt-18,py+15,10,7);
-        c.fillStyle='#50b0f0';c.fillRect(px+dt-17,py+16,8,5);
-        // アームレスト
-        c.fillStyle='#8a2020';c.fillRect(px+0,py+8,4,dt-14);
-        c.fillRect(px+dt-4,py+8,4,dt-14);
-        c.fillStyle='#a03030';c.fillRect(px+0,py+8,4,4);
-        c.fillRect(px+dt-4,py+8,4,4);
-      }
-      else if(type==='table'){
-        // 影
-        c.fillStyle='rgba(0,0,0,0.1)';c.fillRect(px+8,py+dt-4,dt-8,4);
-        // 脚（4本、丸みのある）
-        c.fillStyle='#7a5a3a';c.fillRect(px+10,py+dt-10,5,10);c.fillRect(px+dt-15,py+dt-10,5,10);
-        c.fillStyle='#8a6a4a';c.fillRect(px+11,py+dt-10,2,10);c.fillRect(px+dt-14,py+dt-10,2,10);
-        // テーブルトップ（木製、木目テクスチャ）
-        c.fillStyle='#a8804a';c.fillRect(px+4,py+8,dt-8,dt-14);
-        c.fillStyle='#b8905a';c.fillRect(px+5,py+8,dt-10,dt-16);
-        c.fillStyle='#d4a86a';c.fillRect(px+6,py+9,dt-12,dt-20);
-        // 天板ハイライト
-        c.fillStyle='#e0b87a';c.fillRect(px+6,py+8,dt-12,2);
-        c.fillStyle='#c8a060';c.fillRect(px+6,py+dt-11,dt-12,2);
-        // 木目
-        c.fillStyle='#c09850';c.fillRect(px+10,py+12,20,1);c.fillRect(px+14,py+16,16,1);
-        c.fillRect(px+8,py+20,24,1);
-        // エッジベベル
-        c.fillStyle='#e4bc7a';c.fillRect(px+5,py+8,1,dt-16);
-        c.fillStyle='#a07840';c.fillRect(px+dt-6,py+8,1,dt-16);
-      }
-      else if(type==='lamp'){
-        // 影（光の輪）
-        c.fillStyle='rgba(255,240,180,0.15)';fillCirc(c,px+dt/2,py+dt/2,dt/2);
-        // ベースプレート
-        c.fillStyle='#707070';c.fillRect(px+dt/2-10,py+dt-8,20,6);
-        c.fillStyle='#888888';c.fillRect(px+dt/2-9,py+dt-8,18,3);
-        c.fillStyle='#606060';c.fillRect(px+dt/2-9,py+dt-4,18,2);
-        // ポール（クロームパイプ）
-        c.fillStyle='#707070';c.fillRect(px+dt/2-2,py+16,5,dt-24);
-        c.fillStyle='#909090';c.fillRect(px+dt/2-1,py+16,2,dt-24);
-        c.fillStyle='#606060';c.fillRect(px+dt/2+2,py+16,1,dt-24);
-        // ランプシェード（テーパー形状）
-        c.fillStyle='#e8c040';c.fillRect(px+dt/2-14,py+4,28,16);
-        c.fillStyle='#f0d050';c.fillRect(px+dt/2-12,py+5,24,13);
-        c.fillStyle='#f8e060';c.fillRect(px+dt/2-10,py+6,20,10);
-        // シェード影（下部暗い）
-        c.fillStyle='#d8b030';c.fillRect(px+dt/2-14,py+16,28,4);
-        c.fillStyle='#c8a020';c.fillRect(px+dt/2-12,py+18,24,2);
-        // シェードハイライト
-        c.fillStyle='#fff8c0';c.fillRect(px+dt/2-8,py+7,10,6);
-        // 光の効果（グロー）
-        c.fillStyle='rgba(255,255,200,0.2)';fillCirc(c,px+dt/2,py+14,16);
-        c.fillStyle='rgba(255,255,240,0.1)';fillCirc(c,px+dt/2,py+14,20);
-        // ランプ内の電球
-        c.fillStyle='#fff8d0';fillCirc(c,px+dt/2,py+16,3);
-        c.fillStyle='rgba(255,255,255,0.5)';fillCirc(c,px+dt/2,py+15,1.5);
-      }
-      else if(type==='bookshelf'){
-        // 影
-        c.fillStyle='rgba(0,0,0,0.1)';c.fillRect(px+5,py+5,dt-4,dt-4);
-        // 棚本体
-        c.fillStyle='#5a3a1a';c.fillRect(px+2,py+2,dt-4,dt-4);
-        c.fillStyle='#6a4a2a';c.fillRect(px+3,py+3,dt-6,dt-6);
-        c.fillStyle='#8a6a4a';c.fillRect(px+4,py+4,dt-8,dt-8);
-        // 側板ベベル
-        c.fillStyle='#9a7a5a';c.fillRect(px+4,py+4,2,dt-8);
-        c.fillStyle='#5a3a1a';c.fillRect(px+dt-6,py+4,2,dt-8);
-        // 棚板（3段）
-        c.fillStyle='#5a3a1a';
-        c.fillRect(px+4,py+dt/3+2,dt-8,3);
-        c.fillRect(px+4,py+dt*2/3+2,dt-8,3);
-        c.fillStyle='#6a4a2a';
-        c.fillRect(px+5,py+dt/3+2,dt-10,1);
-        c.fillRect(px+5,py+dt*2/3+2,dt-10,1);
-        // 上段: 本（多様なサイズ・色）
-        const bc=['#d05040','#4080c0','#50a050','#e0a030','#8050a0','#c06080'];
-        const bw=[7,6,8,6,7,5];
-        let bxx=px+6;
-        for(let b=0;b<6&&bxx<px+dt-8;b++){
-          const bh=dt/3-6-(b%3);
-          c.fillStyle=bc[b];c.fillRect(bxx,py+5,bw[b],bh);
-          c.fillStyle=adjustColor(bc[b],20);c.fillRect(bxx,py+5,1,bh);
-          c.fillStyle=adjustColor(bc[b],-15);c.fillRect(bxx+bw[b]-1,py+5,1,bh);
-          c.fillStyle=adjustColor(bc[b],30);c.fillRect(bxx+1,py+7,bw[b]-2,1);
-          bxx+=bw[b]+1;
-        }
-        // 中段: バインダー・ファイル
-        c.fillStyle='#e0d0b0';c.fillRect(px+7,py+dt/3+6,10,dt/3-7);
-        c.fillStyle='#f0e0c0';c.fillRect(px+8,py+dt/3+7,8,dt/3-9);
-        c.fillStyle='#4a6a9a';c.fillRect(px+19,py+dt/3+6,8,dt/3-7);
-        c.fillStyle='#5a7aaa';c.fillRect(px+20,py+dt/3+7,6,dt/3-9);
-        c.fillStyle='#9b59b6';c.fillRect(px+29,py+dt/3+6,8,dt/3-7);
-        c.fillStyle='#ab69c6';c.fillRect(px+30,py+dt/3+7,6,dt/3-9);
-        // ラベル
-        c.fillStyle='#f0f0f0';c.fillRect(px+9,py+dt/3+10,6,3);
-        c.fillStyle='#f0f0f0';c.fillRect(px+21,py+dt/3+10,4,3);
-        // 下段: ボックスと植物
-        c.fillStyle='#c8b898';c.fillRect(px+7,py+dt*2/3+6,14,dt/3-9);
-        c.fillStyle='#d8c8a8';c.fillRect(px+8,py+dt*2/3+7,12,dt/3-11);
-        // 小さな鉢植え
-        c.fillStyle='#c07040';c.fillRect(px+28,py+dt-10,8,6);
-        c.fillStyle='#3a8a30';fillCirc(c,px+32,py+dt-13,5);
-        c.fillStyle='#4aa840';fillCirc(c,px+31,py+dt-14,3);
-        // オブジェ
-        c.fillStyle='#f0c040';c.fillRect(px+40,py+dt*2/3+6,6,dt/3-9);
-        c.fillStyle='#f8d050';c.fillRect(px+41,py+dt*2/3+7,4,dt/3-11);
-      }
-      else if(type==='rug_small'){
-        // 影
-        c.fillStyle='rgba(0,0,0,0.06)';c.fillRect(px+7,py+11,dt-12,dt-20);
-        // ラグベース
-        c.fillStyle='#c49060';c.fillRect(px+6,py+10,dt-12,dt-20);
-        // 外枠
-        c.fillStyle='#d4a06a';c.fillRect(px+7,py+11,dt-14,dt-22);
-        // 内枠
-        c.fillStyle='#b48050';c.fillRect(px+9,py+13,dt-18,dt-26);
-        c.fillStyle='#c49060';c.fillRect(px+10,py+14,dt-20,dt-28);
-        // 中央模様
-        c.fillStyle='#e4b87a';c.fillRect(px+dt/2-6,py+dt/2-6,12,12);
-        c.fillStyle='#d4a86a';c.fillRect(px+dt/2-4,py+dt/2-4,8,8);
-        c.fillStyle='#f0c88a';c.fillRect(px+dt/2-2,py+dt/2-2,4,4);
-        // 幾何学ライン
-        c.fillStyle='#e4b07a';
-        c.fillRect(px+10,py+dt/2-1,dt-20,2);
-        c.fillRect(px+dt/2-1,py+14,2,dt-28);
-        // フリンジ
-        c.fillStyle='#b48050';
-        for(let f=0;f<5;f++){c.fillRect(px+8+f*8,py+10,2,2);c.fillRect(px+8+f*8,py+dt-12,2,2);}
-      }
-      else if(type==='plant_big'){
-        // 影
-        c.fillStyle='rgba(0,0,0,0.12)';
-        c.beginPath();c.ellipse(px+dt/2,py+dt-2,14,3,0,0,Math.PI*2);c.fill();
-        // 大きな鉢（装飾的）
-        c.fillStyle='#7a5a3a';c.fillRect(px+dt/2-12,py+dt-18,24,16);
-        c.fillStyle='#8a6a4a';c.fillRect(px+dt/2-10,py+dt-18,20,14);
-        c.fillStyle='#9a7a5a';c.fillRect(px+dt/2-13,py+dt-18,26,4);
-        c.fillStyle='#a08a60';c.fillRect(px+dt/2-12,py+dt-18,24,2);
-        // 鉢の模様
-        c.fillStyle='#6a4a2a';c.fillRect(px+dt/2-9,py+dt-12,18,1);
-        c.fillRect(px+dt/2-8,py+dt-10,16,1);
-        // 鉢のベベル
-        c.fillStyle='#a08a60';c.fillRect(px+dt/2-10,py+dt-16,2,12);
-        c.fillStyle='#6a4a2a';c.fillRect(px+dt/2+8,py+dt-16,2,12);
-        // 土
-        c.fillStyle='#5a3a20';c.fillRect(px+dt/2-9,py+dt-18,18,3);
-        // 幹（太めの枝分かれ）
-        c.fillStyle='#5a4028';c.fillRect(px+dt/2-3,py+dt-32,6,16);
-        c.fillStyle='#6a5038';c.fillRect(px+dt/2-2,py+dt-32,4,16);
-        c.fillStyle='#7a6048';c.fillRect(px+dt/2-1,py+dt-32,2,16);
-        // 左枝
-        c.fillStyle='#5a4028';c.fillRect(px+dt/2-10,py+dt-34,10,3);
-        c.fillStyle='#6a5038';c.fillRect(px+dt/2-9,py+dt-34,8,2);
-        // 右枝
-        c.fillStyle='#5a4028';c.fillRect(px+dt/2+2,py+dt-36,10,3);
-        c.fillStyle='#6a5038';c.fillRect(px+dt/2+3,py+dt-36,8,2);
-        // 葉群（大きく豊か）
-        const plx=px+dt/2,ply=py+12;
-        c.fillStyle='#2a7a22';fillCirc(c,plx-12,ply+8,10);fillCirc(c,plx+12,ply+8,10);fillCirc(c,plx,ply+10,10);
-        c.fillStyle='#3a8a30';fillCirc(c,plx-8,ply,12);fillCirc(c,plx+8,ply,12);fillCirc(c,plx,ply+2,12);
-        c.fillStyle='#4aa840';fillCirc(c,plx-5,ply-6,9);fillCirc(c,plx+6,ply-5,8);fillCirc(c,plx,ply-4,10);
-        c.fillStyle='#5ac050';fillCirc(c,plx-3,ply-12,6);fillCirc(c,plx+4,ply-10,6);fillCirc(c,plx,ply-14,5);
-        // ハイライト
-        c.fillStyle='#6ad860';fillCirc(c,plx-5,ply-8,4);fillCirc(c,plx+3,ply-6,3);
-        // 葉脈ドット
-        c.fillStyle='#2a7a22';
-        for(let i=0;i<8;i++){const ax=plx+Math.cos(i*0.79)*13,ay=ply+Math.sin(i*0.79)*10;c.fillRect(ax,ay,2,2);}
-        // 垂れ葉
-        c.fillStyle='#3a9a30';c.fillRect(plx-16,ply+12,5,3);c.fillRect(plx+12,ply+10,5,3);
-        c.fillStyle='#4aa840';c.fillRect(plx-15,ply+12,3,2);c.fillRect(plx+13,ply+10,3,2);
-      }
-      else if(type==='vending'){
-        // 影
-        c.fillStyle='rgba(0,0,0,0.1)';c.fillRect(px+8,py+5,dt-8,dt-4);
-        // 本体
-        c.fillStyle='#a0291b';c.fillRect(px+5,py+2,dt-10,dt-4);
-        c.fillStyle='#c0392b';c.fillRect(px+6,py+3,dt-12,dt-6);
-        // ハイライト（左面）
-        c.fillStyle='#d04938';c.fillRect(px+6,py+3,2,dt-6);
-        // 影（右面）
-        c.fillStyle='#901919';c.fillRect(px+dt-8,py+3,2,dt-6);
-        // 商品ディスプレイ窓
-        c.fillStyle='#222';c.fillRect(px+9,py+6,dt-18,dt-20);
-        c.fillStyle='#333';c.fillRect(px+10,py+7,dt-20,dt-22);
-        // 商品棚ライン
-        c.fillStyle='#444';c.fillRect(px+10,py+17,dt-20,1);c.fillRect(px+10,py+27,dt-20,1);
-        // 上段ドリンク
-        c.fillStyle='#4ae';c.fillRect(px+12,py+9,7,7);c.fillStyle='#5bf';c.fillRect(px+13,py+9,5,3);
-        c.fillStyle='#5cb85c';c.fillRect(px+21,py+9,7,7);c.fillStyle='#6cc96c';c.fillRect(px+22,py+9,5,3);
-        c.fillStyle='#f0ad4e';c.fillRect(px+30,py+9,7,7);c.fillStyle='#f8bd5e';c.fillRect(px+31,py+9,5,3);
-        // 中段ドリンク
-        c.fillStyle='#e74c3c';c.fillRect(px+12,py+19,7,7);c.fillStyle='#f75c4c';c.fillRect(px+13,py+19,5,3);
-        c.fillStyle='#9b59b6';c.fillRect(px+21,py+19,7,7);c.fillStyle='#ab69c6';c.fillRect(px+22,py+19,5,3);
-        c.fillStyle='#fff';c.fillRect(px+30,py+19,7,7);c.fillStyle='#eee';c.fillRect(px+31,py+19,5,3);
-        // 取り出し口
-        c.fillStyle='#1a1a1a';c.fillRect(px+10,py+dt-16,dt-20,8);
-        c.fillStyle='#111';c.fillRect(px+12,py+dt-14,dt-24,4);
-        // コイン投入口
-        c.fillStyle='#c0c0c0';c.fillRect(px+dt-14,py+dt-14,4,6);
-        c.fillStyle='#ddd';c.fillRect(px+dt-14,py+dt-14,4,2);
-        // ボタン
-        c.fillStyle='#ddd';fillCirc(c,px+dt-12,py+dt-20,2);
-        c.fillStyle='#fff';fillCirc(c,px+dt-12,py+dt-21,1);
-      }
-      else if(type==='poster'){
-        // 影
-        c.fillStyle='rgba(0,0,0,0.08)';c.fillRect(px+12,py+5,dt-20,dt-10);
-        // フレーム
-        c.fillStyle='#444';c.fillRect(px+9,py+2,dt-18,dt-8);
-        c.fillStyle='#555';c.fillRect(px+10,py+3,dt-20,dt-10);
-        // ポスター紙
-        c.fillStyle='#fff';c.fillRect(px+11,py+4,dt-22,dt-12);
-        c.fillStyle='#ffe8a0';c.fillRect(px+12,py+5,dt-24,dt-14);
-        // ポスターデザイン
-        c.fillStyle='#e94560';c.fillRect(px+14,py+8,dt-28,10);
-        c.fillStyle='#f05570';c.fillRect(px+15,py+8,dt-30,6);
-        // テキストライン
-        c.fillStyle='#555';c.fillRect(px+16,py+20,dt-32,2);
-        c.fillRect(px+20,py+24,dt-40,2);
-        // ピン
-        c.fillStyle='#e04040';fillCirc(c,px+dt/2,py+3,2);
-        c.fillStyle='#f05050';fillCirc(c,px+dt/2,py+2.5,1);
-      }
-      else if(type==='clock'){
-        // 影
-        c.fillStyle='rgba(0,0,0,0.08)';fillCirc(c,px+dt/2+2,py+dt/2+2,dt/2-4);
-        // 木製フレーム
-        c.fillStyle='#6a4a2a';fillCirc(c,px+dt/2,py+dt/2,dt/2-4);
-        c.fillStyle='#8a6a4a';fillCirc(c,px+dt/2,py+dt/2,dt/2-6);
-        // 文字盤
-        c.fillStyle='#f5f5f0';fillCirc(c,px+dt/2,py+dt/2,dt/2-9);
-        c.fillStyle='#fafaf5';fillCirc(c,px+dt/2,py+dt/2,dt/2-11);
-        // 時間マーク（12個）
-        c.fillStyle='#333';
-        for(let h=0;h<12;h++){
-          const a=h*Math.PI/6-Math.PI/2;
-          const mx=px+dt/2+Math.cos(a)*(dt/2-13);
-          const my=py+dt/2+Math.sin(a)*(dt/2-13);
-          c.fillRect(mx-0.5,my-0.5,2,2);
-        }
-        // 時針
-        c.fillStyle='#222';c.fillRect(px+dt/2-1,py+dt/2-10,3,11);
-        // 分針
-        c.fillStyle='#333';c.fillRect(px+dt/2,py+dt/2-1,12,2);
-        // 秒針
-        c.fillStyle='#d04040';c.fillRect(px+dt/2-1,py+dt/2-1,1,10);
-        // 中心
-        c.fillStyle='#222';fillCirc(c,px+dt/2,py+dt/2,2);
-        c.fillStyle='#d04040';fillCirc(c,px+dt/2,py+dt/2,1);
-        // ガラス反射
-        c.fillStyle='rgba(255,255,255,0.15)';fillCirc(c,px+dt/2-4,py+dt/2-4,8);
-      }
-      else if(type==='trophy'){
-        // 影
-        c.fillStyle='rgba(0,0,0,0.1)';c.fillRect(px+dt/2-9,py+36,20,4);
-        // 台座（大理石風）
-        c.fillStyle='#3a3a4a';c.fillRect(px+dt/2-12,py+35,24,6);
-        c.fillStyle='#4a4a5a';c.fillRect(px+dt/2-11,py+35,22,3);
-        c.fillStyle='#5a5a6a';c.fillRect(px+dt/2-10,py+35,20,1);
-        // 柱
-        c.fillStyle='#d0a020';c.fillRect(px+dt/2-4,py+26,8,10);
-        c.fillStyle='#e0b030';c.fillRect(px+dt/2-3,py+26,6,10);
-        // カップ
-        c.fillStyle='#e8b820';c.fillRect(px+dt/2-10,py+8,20,20);
-        c.fillStyle='#f0c830';c.fillRect(px+dt/2-8,py+10,16,16);
-        c.fillStyle='#f8d840';c.fillRect(px+dt/2-6,py+12,12,12);
-        // ハンドル
-        c.fillStyle='#d0a020';c.fillRect(px+dt/2-13,py+12,4,10);
-        c.fillRect(px+dt/2+9,py+12,4,10);
-        c.fillStyle='#e0b030';c.fillRect(px+dt/2-12,py+14,2,6);
-        c.fillRect(px+dt/2+10,py+14,2,6);
-        // 光沢
-        c.fillStyle='rgba(255,255,255,0.3)';c.fillRect(px+dt/2-5,py+12,4,10);
-        c.globalAlpha=1;
-        // 星
-        c.fillStyle='#fff';fillCirc(c,px+dt/2,py+18,3);
-        c.fillStyle='#f8e860';fillCirc(c,px+dt/2,py+18,2);
-      }
-      else if(type==='tv'){
-        // 影
-        c.fillStyle='rgba(0,0,0,0.1)';c.fillRect(px+8,py+8,dt-8,dt-8);
-        // 薄型TV本体
-        c.fillStyle='#1a1a1a';c.fillRect(px+4,py+4,dt-8,dt-12);
-        c.fillStyle='#222';c.fillRect(px+5,py+5,dt-10,dt-14);
-        // ベゼルハイライト
-        c.fillStyle='#333';c.fillRect(px+5,py+5,dt-10,1);c.fillRect(px+5,py+5,1,dt-14);
-        // スクリーン
-        c.fillStyle='#2a4a6a';c.fillRect(px+7,py+7,dt-14,dt-20);
-        // TV映像（風景）
-        c.fillStyle='#5a9ae0';c.fillRect(px+7,py+7,dt-14,dt/2-10);
-        c.fillStyle='#4a8ad0';c.fillRect(px+7,py+dt/2-3,dt-14,4);
-        c.fillStyle='#3a7a5a';c.fillRect(px+7,py+dt/2+1,dt-14,dt/2-14);
-        // 雲
-        c.fillStyle='rgba(255,255,255,0.4)';fillCirc(c,px+16,py+12,4);fillCirc(c,px+22,py+11,5);fillCirc(c,px+28,py+12,3);
-        // スタンド
-        c.fillStyle='#333';c.fillRect(px+dt/2-8,py+dt-10,16,4);
-        c.fillStyle='#444';c.fillRect(px+dt/2-7,py+dt-10,14,2);
-        c.fillRect(px+dt/2-2,py+dt-14,4,6);
-        c.fillStyle='#555';c.fillRect(px+dt/2-1,py+dt-14,2,6);
-        // ブランドロゴ
-        c.fillStyle='#555';c.fillRect(px+dt/2-3,py+dt-14,6,1);
-      }
-      else if(type==='aquarium'){
-        // 影
-        c.fillStyle='rgba(0,0,0,0.1)';c.fillRect(px+5,py+10,dt-4,dt-8);
-        // スタンド/台
-        c.fillStyle='#5a5a5a';c.fillRect(px+6,py+dt-8,dt-12,8);
-        c.fillStyle='#6a6a6a';c.fillRect(px+7,py+dt-8,dt-14,4);
-        // タンクフレーム
-        c.fillStyle='#3a7a8a';c.fillRect(px+3,py+6,dt-6,dt-14);
-        // ガラス
-        c.fillStyle='#4ab0c8';c.fillRect(px+5,py+8,dt-10,dt-18);
-        c.fillStyle='#5ac0d8';c.fillRect(px+6,py+9,dt-12,dt-20);
-        // 水面
-        c.fillStyle='rgba(255,255,255,0.15)';c.fillRect(px+6,py+9,dt-12,2);
-        // 砂底
-        c.fillStyle='#c8b888';c.fillRect(px+6,py+dt-14,dt-12,4);
-        c.fillStyle='#d8c898';c.fillRect(px+8,py+dt-13,dt-16,2);
-        // 魚（赤い熱帯魚）
-        c.fillStyle='#ff5a5a';c.fillRect(px+14,py+18,8,4);
-        c.fillStyle='#ff7a7a';c.fillRect(px+15,py+19,6,2);
-        c.fillStyle='#ff4a4a';c.fillRect(px+12,py+19,3,2); // 尾
-        c.fillStyle='#111';c.fillRect(px+20,py+19,1,1); // 目
-        // 魚（オレンジの金魚）
-        c.fillStyle='#ffa040';c.fillRect(px+28,py+24,7,4);
-        c.fillStyle='#ffb060';c.fillRect(px+29,py+25,5,2);
-        c.fillStyle='#ff9030';c.fillRect(px+34,py+25,3,2); // 尾
-        c.fillStyle='#111';c.fillRect(px+29,py+25,1,1);
-        // 水草
-        c.fillStyle='#3a9a40';c.fillRect(px+10,py+dt-18,3,10);c.fillRect(px+12,py+dt-20,2,12);
-        c.fillStyle='#4aaa50';c.fillRect(px+11,py+dt-18,1,8);
-        c.fillStyle='#3a9a40';c.fillRect(px+dt-16,py+dt-20,3,12);c.fillRect(px+dt-18,py+dt-18,2,10);
-        c.fillStyle='#4aaa50';c.fillRect(px+dt-15,py+dt-20,1,10);
-        // 泡
-        c.fillStyle='rgba(255,255,255,0.4)';
-        fillCirc(c,px+20,py+14,1.5);fillCirc(c,px+24,py+12,1);fillCirc(c,px+36,py+16,1.5);
+      const sprite = FURN_SPRITES[type];
+      if (!sprite) return;
+      const s = dt / 64; // スケーリング係数（データはdt=64基準）
+      for (const layer of sprite.layers) {
+        c.fillStyle = layer.c;
+        if (layer.r) for (const [x,y,w,h] of layer.r) c.fillRect(px+x*s, py+y*s, w*s, h*s);
+        if (layer.ci) for (const [cx,cy,r] of layer.ci) { c.beginPath(); c.arc(px+cx*s, py+cy*s, r*s, 0, Math.PI*2); c.fill(); }
+        if (layer.el) for (const [cx,cy,rx,ry] of layer.el) { c.beginPath(); c.ellipse(px+cx*s, py+cy*s, rx*s, ry*s, 0, 0, Math.PI*2); c.fill(); }
       }
     }
 
-    // ===== キャラクター描画（高品質ピクセルアート） =====
+    // ===== キャラクター描画（24x32 高解像度ピクセルアート） =====
     // direction: 'down','up','left','right'  walkFrame: 0,1,2 (0=stand, 1=step-left, 2=step-right)
     function drawCharacter(c, px, py, dir, avatar, walkFrame, scale) {
-      const S = scale; // 倍率
-      const hair = HAIR_COLORS[avatar.hair] || HAIR_COLORS[0];
-      const body = BODY_COLORS[avatar.body] || BODY_COLORS[0];
-      const pants = PANTS_COLORS[avatar.pants] || PANTS_COLORS[0];
-      const dBody = darken(body, 25);
-      const dHair = darken(hair, 20);
-      const lHair = lighten(hair, 25);
-      const dPants = darken(pants, 20);
-      const OL = '#181020';
-      const dSkin = darken(SKIN.replace('#','#'), 20);
-      const frame = walkFrame; // 0=center, 1=left, 2=right
+      const S = scale;
+      const hairColor = HAIR_COLORS[avatar.hairColor ?? avatar.hair ?? 0] || HAIR_COLORS[0];
+      const bodyColor = BODY_COLORS[avatar.bodyColor ?? avatar.body ?? 0] || BODY_COLORS[0];
+      const pantsColor = PANTS_COLORS[avatar.pantsColor ?? avatar.pants ?? 0] || PANTS_COLORS[0];
+      const skinColor = SKIN_COLORS[avatar.skinColor ?? 0] || SKIN_COLORS[0];
+      const bodyTypeIdx = avatar.bodyType ?? 0;
+      const bt = BODY_TYPES[bodyTypeIdx] || BODY_TYPES[0];
+      const hairShapeIdx = avatar.hairShape ?? 0;
 
-      // キャラサイズ: 16x24 論理ピクセル * scale
-      const w = 16 * S, h = 24 * S;
+      const dBody = darken(bodyColor, 25);
+      const dHair = darken(hairColor, 20);
+      const lHair = lighten(hairColor, 25);
+      const dPants = darken(pantsColor, 20);
+      const dSkin = darken(skinColor, 20);
+      const skinLight = lighten(skinColor, 15);
+      const OL = '#181020';
+      const frame = walkFrame;
+
+      // キャラサイズ: 24x32 論理ピクセル * scale
+      const w = 24 * S, h = 32 * S;
       const p = S; // 1論理ピクセル
 
       // 影
       c.fillStyle = 'rgba(0,0,0,0.18)';
-      c.beginPath(); c.ellipse(px + w/2, py + h - p, w*0.38, p*2.5, 0, 0, Math.PI*2); c.fill();
+      c.beginPath(); c.ellipse(px + w/2, py + h - p, w*0.36, p*2.5, 0, 0, Math.PI*2); c.fill();
+
+      // 体型パラメータ（論理px）
+      const sW = bt.shoulderW, tH = bt.torsoH, aW = bt.armW, hW = bt.hipW;
+      const bodyX = Math.floor((24 - sW) / 2);
+      const hipX = Math.floor((24 - hW) / 2);
 
       if (dir === 'down' || dir === 'up') {
-        // === 正面/背面 ===
         const isFront = dir === 'down';
 
         // 足 (歩行アニメーション)
         c.fillStyle = OL;
         if (frame === 0) {
-          // 両足揃え
-          c.fillRect(px+4*p, py+21*p, 3*p, 3*p); // 左足
-          c.fillRect(px+9*p, py+21*p, 3*p, 3*p); // 右足
-          c.fillStyle = '#7a5a3a'; // 靴
-          c.fillRect(px+4*p, py+21*p, 3*p, 2*p);
-          c.fillRect(px+9*p, py+21*p, 3*p, 2*p);
+          c.fillRect(px+6*p, py+28*p, 4*p, 4*p);
+          c.fillRect(px+14*p, py+28*p, 4*p, 4*p);
+          c.fillStyle = '#7a5a3a';
+          c.fillRect(px+6*p, py+28*p, 4*p, 3*p);
+          c.fillRect(px+14*p, py+28*p, 4*p, 3*p);
           c.fillStyle = '#9a7a5a';
-          c.fillRect(px+4*p, py+21*p, 3*p, p);
-          c.fillRect(px+9*p, py+21*p, 3*p, p);
+          c.fillRect(px+6*p, py+28*p, 4*p, p);
+          c.fillRect(px+14*p, py+28*p, 4*p, p);
         } else if (frame === 1) {
-          // 左足前
-          c.fillRect(px+3*p, py+20*p, 3*p, 4*p);
-          c.fillRect(px+10*p, py+21*p, 3*p, 3*p);
+          c.fillRect(px+4*p, py+27*p, 4*p, 5*p);
+          c.fillRect(px+15*p, py+28*p, 4*p, 4*p);
           c.fillStyle = '#7a5a3a';
-          c.fillRect(px+3*p, py+21*p, 3*p, 2*p);
-          c.fillRect(px+10*p, py+21*p, 3*p, 2*p);
+          c.fillRect(px+4*p, py+28*p, 4*p, 3*p);
+          c.fillRect(px+15*p, py+28*p, 4*p, 3*p);
           c.fillStyle = '#9a7a5a';
-          c.fillRect(px+3*p, py+21*p, 3*p, p);
-          c.fillRect(px+10*p, py+22*p, 3*p, p);
+          c.fillRect(px+4*p, py+28*p, 4*p, p);
+          c.fillRect(px+15*p, py+30*p, 4*p, p);
         } else {
-          // 右足前
-          c.fillRect(px+4*p, py+21*p, 3*p, 3*p);
-          c.fillRect(px+9*p, py+20*p, 3*p, 4*p);
+          c.fillRect(px+6*p, py+28*p, 4*p, 4*p);
+          c.fillRect(px+14*p, py+27*p, 4*p, 5*p);
           c.fillStyle = '#7a5a3a';
-          c.fillRect(px+4*p, py+21*p, 3*p, 2*p);
-          c.fillRect(px+9*p, py+21*p, 3*p, 2*p);
+          c.fillRect(px+6*p, py+28*p, 4*p, 3*p);
+          c.fillRect(px+14*p, py+28*p, 4*p, 3*p);
           c.fillStyle = '#9a7a5a';
-          c.fillRect(px+4*p, py+22*p, 3*p, p);
-          c.fillRect(px+9*p, py+21*p, 3*p, p);
+          c.fillRect(px+6*p, py+30*p, 4*p, p);
+          c.fillRect(px+14*p, py+28*p, 4*p, p);
         }
 
         // ズボン
         c.fillStyle = OL;
-        c.fillRect(px+3*p, py+17*p, 10*p, 5*p);
-        c.fillStyle = pants;
-        c.fillRect(px+3*p, py+17*p, 10*p, 4*p);
+        c.fillRect(px+hipX*p, py+22*p, hW*p, 7*p);
+        c.fillStyle = pantsColor;
+        c.fillRect(px+hipX*p, py+22*p, hW*p, 6*p);
         c.fillStyle = dPants;
-        c.fillRect(px+3*p, py+20*p, 10*p, p);
-        // ズボンの中心線
-        c.fillStyle = darken(pants, 10);
-        c.fillRect(px+8*p-Math.floor(p/2), py+17*p, p, 4*p);
+        c.fillRect(px+hipX*p, py+27*p, hW*p, p);
+        c.fillStyle = darken(pantsColor, 10);
+        c.fillRect(px+12*p-Math.floor(p/2), py+22*p, p, 6*p);
 
         // 体（上半身）
         c.fillStyle = OL;
-        c.fillRect(px+2*p, py+10*p, 12*p, 8*p);
-        c.fillStyle = body;
-        c.fillRect(px+3*p, py+10*p, 10*p, 7*p);
-        // 襟・ディテール
+        c.fillRect(px+bodyX*p, py+12*p, sW*p, tH*p);
+        c.fillStyle = bodyColor;
+        c.fillRect(px+(bodyX+1)*p, py+12*p, (sW-2)*p, (tH-1)*p);
         c.fillStyle = dBody;
-        c.fillRect(px+3*p, py+16*p, 10*p, p);
+        c.fillRect(px+(bodyX+1)*p, py+(12+tH-1)*p, (sW-2)*p, p);
         if (isFront) {
-          c.fillStyle = lighten(body, 20);
-          c.fillRect(px+7*p, py+10*p, 2*p, 3*p); // 襟の開き
+          c.fillStyle = lighten(bodyColor, 20);
+          c.fillRect(px+10*p, py+12*p, 4*p, 4*p);
         }
         // ベルト
         c.fillStyle = '#4a3a2a';
-        c.fillRect(px+3*p, py+17*p, 10*p, p);
+        c.fillRect(px+hipX*p, py+22*p, hW*p, p);
         c.fillStyle = '#ffd700';
-        c.fillRect(px+7*p, py+17*p, 2*p, p);
+        c.fillRect(px+10*p, py+22*p, 4*p, p);
 
         // 腕
         const armSwing = frame === 1 ? -p : frame === 2 ? p : 0;
         c.fillStyle = OL;
-        c.fillRect(px+p, py+11*p+armSwing, 2*p, 7*p);
-        c.fillRect(px+13*p, py+11*p-armSwing, 2*p, 7*p);
-        c.fillStyle = body;
-        c.fillRect(px+p, py+11*p+armSwing, 2*p, 5*p);
-        c.fillRect(px+13*p, py+11*p-armSwing, 2*p, 5*p);
-        // 手
-        c.fillStyle = SKIN;
-        c.fillRect(px+p, py+16*p+armSwing, 2*p, 2*p);
-        c.fillRect(px+13*p, py+16*p-armSwing, 2*p, 2*p);
+        c.fillRect(px+(bodyX-aW)*p, py+13*p+armSwing, aW*p, 9*p);
+        c.fillRect(px+(bodyX+sW)*p, py+13*p-armSwing, aW*p, 9*p);
+        c.fillStyle = bodyColor;
+        c.fillRect(px+(bodyX-aW)*p, py+13*p+armSwing, aW*p, 7*p);
+        c.fillRect(px+(bodyX+sW)*p, py+13*p-armSwing, aW*p, 7*p);
+        c.fillStyle = skinColor;
+        c.fillRect(px+(bodyX-aW)*p, py+20*p+armSwing, aW*p, 2*p);
+        c.fillRect(px+(bodyX+sW)*p, py+20*p-armSwing, aW*p, 2*p);
 
         // 頭
         c.fillStyle = OL;
-        c.fillRect(px+2*p, py+2*p, 12*p, 9*p);
-        c.fillStyle = SKIN;
-        c.fillRect(px+3*p, py+3*p, 10*p, 7*p);
+        c.fillRect(px+3*p, py+3*p, 18*p, 12*p);
+        c.fillStyle = skinColor;
+        c.fillRect(px+4*p, py+4*p, 16*p, 10*p);
         // 耳
         c.fillStyle = OL;
-        c.fillRect(px+p, py+5*p, 2*p, 3*p);
-        c.fillRect(px+13*p, py+5*p, 2*p, 3*p);
-        c.fillStyle = SKIN;
-        c.fillRect(px+p+Math.ceil(p/2), py+5*p+Math.ceil(p/2), p, 2*p);
-        c.fillRect(px+13*p, py+5*p+Math.ceil(p/2), p, 2*p);
+        c.fillRect(px+p, py+7*p, 3*p, 4*p);
+        c.fillRect(px+20*p, py+7*p, 3*p, 4*p);
+        c.fillStyle = skinColor;
+        c.fillRect(px+2*p, py+8*p, 2*p, 2*p);
+        c.fillRect(px+20*p, py+8*p, 2*p, 2*p);
         // 頬
         if (isFront) {
           c.fillStyle = '#ffa8a0';
-          c.fillRect(px+3*p, py+8*p, 2*p, p);
-          c.fillRect(px+11*p, py+8*p, 2*p, p);
+          c.fillRect(px+4*p, py+11*p, 3*p, p);
+          c.fillRect(px+17*p, py+11*p, 3*p, p);
         }
 
-        // 髪
-        c.fillStyle = OL;
-        c.fillRect(px+p, py, 14*p, 4*p);
-        c.fillStyle = hair;
-        c.fillRect(px+2*p, py+Math.ceil(p/2), 12*p, 3*p);
-        // 横髪
-        c.fillStyle = OL;
-        c.fillRect(px+p, py+2*p, 2*p, 6*p);
-        c.fillRect(px+13*p, py+2*p, 2*p, 6*p);
-        c.fillStyle = hair;
-        c.fillRect(px+2*p, py+2*p, p, 5*p);
-        c.fillRect(px+13*p, py+2*p, p, 5*p);
-        // とんがり髪
-        c.fillStyle = OL;
-        c.fillRect(px+4*p, py-2*p, 3*p, 3*p);
-        c.fillRect(px+7*p, py-3*p, 3*p, 4*p);
-        c.fillRect(px+10*p, py-p, 3*p, 2*p);
-        c.fillStyle = hair;
-        c.fillRect(px+5*p, py-p, 2*p, 2*p);
-        c.fillRect(px+7*p, py-2*p, 2*p, 3*p);
-        c.fillRect(px+10*p, py, 2*p, p);
-        // 前髪
-        c.fillStyle = hair;
-        c.fillRect(px+3*p, py+3*p, 10*p, 2*p);
-        c.fillStyle = dHair;
-        c.fillRect(px+3*p, py+4*p, 10*p, p);
+        // 髪（データ駆動型）
+        const hairShape = HAIR_SHAPES[hairShapeIdx] || HAIR_SHAPES[0];
+        const hairLayers = isFront ? hairShape.front : hairShape.back;
+        const colorMap = { OL, hair:hairColor, dHair, lHair, skinLight };
+        for (const layer of hairLayers) {
+          c.fillStyle = colorMap[layer.c] || layer.c;
+          if (layer.r) for (const [lx,ly,lw,lh] of layer.r) c.fillRect(px+lx*p, py+ly*p, lw*p, lh*p);
+        }
 
         // 目
         if (isFront) {
-          // 白目
           c.fillStyle = '#fff';
-          c.fillRect(px+4*p, py+5*p, 3*p, 3*p);
-          c.fillRect(px+9*p, py+5*p, 3*p, 3*p);
-          // 瞳
+          c.fillRect(px+6*p, py+7*p, 4*p, 4*p);
+          c.fillRect(px+14*p, py+7*p, 4*p, 4*p);
           c.fillStyle = '#1a1040';
-          c.fillRect(px+5*p, py+6*p, 2*p, 2*p);
-          c.fillRect(px+10*p, py+6*p, 2*p, 2*p);
-          // ハイライト
+          c.fillRect(px+7*p, py+8*p, 3*p, 3*p);
+          c.fillRect(px+15*p, py+8*p, 3*p, 3*p);
           c.fillStyle = '#fff';
-          c.fillRect(px+5*p, py+6*p, p, p);
-          c.fillRect(px+10*p, py+6*p, p, p);
+          c.fillRect(px+7*p, py+8*p, p, p);
+          c.fillRect(px+15*p, py+8*p, p, p);
           // 口
           c.fillStyle = '#d08070';
-          c.fillRect(px+7*p, py+9*p, 2*p, p);
+          c.fillRect(px+10*p, py+13*p, 4*p, p);
         } else {
-          // 背面: 髪で目を隠す
-          c.fillStyle = hair;
-          c.fillRect(px+3*p, py+4*p, 10*p, 5*p);
-          c.fillStyle = dHair;
-          c.fillRect(px+5*p, py+7*p, 6*p, p);
+          // 背面は髪レイヤーで既にカバー済み
         }
 
       } else {
@@ -3091,75 +2879,72 @@
         const flip = isLeft ? -1 : 1;
         const ox = isLeft ? px + w : px;
 
-        // 足
         c.save();
         c.translate(ox, 0);
         c.scale(flip, 1);
 
+        // 足
         c.fillStyle = OL;
         if (frame === 0) {
-          c.fillRect(5*p, py+21*p, 3*p, 3*p);
-          c.fillRect(8*p, py+21*p, 3*p, 3*p);
+          c.fillRect(7*p, py+28*p, 4*p, 4*p);
+          c.fillRect(13*p, py+28*p, 4*p, 4*p);
           c.fillStyle = '#7a5a3a';
-          c.fillRect(5*p, py+21*p, 3*p, 2*p);
-          c.fillRect(8*p, py+21*p, 3*p, 2*p);
+          c.fillRect(7*p, py+28*p, 4*p, 3*p);
+          c.fillRect(13*p, py+28*p, 4*p, 3*p);
         } else if (frame === 1) {
-          c.fillRect(3*p, py+20*p, 3*p, 4*p);
-          c.fillRect(9*p, py+21*p, 3*p, 3*p);
+          c.fillRect(5*p, py+27*p, 4*p, 5*p);
+          c.fillRect(14*p, py+28*p, 4*p, 4*p);
           c.fillStyle = '#7a5a3a';
-          c.fillRect(3*p, py+21*p, 3*p, 2*p);
-          c.fillRect(9*p, py+21*p, 3*p, 2*p);
+          c.fillRect(5*p, py+28*p, 4*p, 3*p);
+          c.fillRect(14*p, py+28*p, 4*p, 3*p);
         } else {
-          c.fillRect(5*p, py+21*p, 3*p, 3*p);
-          c.fillRect(10*p, py+20*p, 3*p, 4*p);
+          c.fillRect(7*p, py+28*p, 4*p, 4*p);
+          c.fillRect(15*p, py+27*p, 4*p, 5*p);
           c.fillStyle = '#7a5a3a';
-          c.fillRect(5*p, py+21*p, 3*p, 2*p);
-          c.fillRect(10*p, py+21*p, 3*p, 2*p);
+          c.fillRect(7*p, py+28*p, 4*p, 3*p);
+          c.fillRect(15*p, py+28*p, 4*p, 3*p);
         }
 
         // ズボン
-        c.fillStyle = OL; c.fillRect(4*p, py+17*p, 9*p, 5*p);
-        c.fillStyle = pants; c.fillRect(4*p, py+17*p, 9*p, 4*p);
-        c.fillStyle = dPants; c.fillRect(4*p, py+20*p, 9*p, p);
+        c.fillStyle = OL; c.fillRect(6*p, py+22*p, 12*p, 7*p);
+        c.fillStyle = pantsColor; c.fillRect(6*p, py+22*p, 12*p, 6*p);
+        c.fillStyle = dPants; c.fillRect(6*p, py+27*p, 12*p, p);
 
         // 体
-        c.fillStyle = OL; c.fillRect(3*p, py+10*p, 11*p, 8*p);
-        c.fillStyle = body; c.fillRect(4*p, py+10*p, 9*p, 7*p);
-        c.fillStyle = dBody; c.fillRect(4*p, py+16*p, 9*p, p);
-        c.fillStyle = '#4a3a2a'; c.fillRect(4*p, py+17*p, 9*p, p);
-        c.fillStyle = '#ffd700'; c.fillRect(8*p, py+17*p, 2*p, p);
+        c.fillStyle = OL; c.fillRect(4*p, py+12*p, 16*p, tH*p);
+        c.fillStyle = bodyColor; c.fillRect(5*p, py+12*p, 14*p, (tH-1)*p);
+        c.fillStyle = dBody; c.fillRect(5*p, py+(12+tH-1)*p, 14*p, p);
+        c.fillStyle = '#4a3a2a'; c.fillRect(6*p, py+22*p, 12*p, p);
+        c.fillStyle = '#ffd700'; c.fillRect(11*p, py+22*p, 3*p, p);
 
         // 腕(前)
         const armY = frame === 1 ? -p : frame === 2 ? p : 0;
-        c.fillStyle = OL; c.fillRect(2*p, py+11*p+armY, 3*p, 7*p);
-        c.fillStyle = body; c.fillRect(2*p, py+11*p+armY, 2*p, 5*p);
-        c.fillStyle = SKIN; c.fillRect(2*p, py+16*p+armY, 2*p, 2*p);
+        c.fillStyle = OL; c.fillRect(2*p, py+13*p+armY, aW*p, 9*p);
+        c.fillStyle = bodyColor; c.fillRect(2*p, py+13*p+armY, (aW-1)*p, 7*p);
+        c.fillStyle = skinColor; c.fillRect(2*p, py+20*p+armY, (aW-1)*p, 2*p);
 
         // 頭
-        c.fillStyle = OL; c.fillRect(3*p, py+2*p, 11*p, 9*p);
-        c.fillStyle = SKIN; c.fillRect(4*p, py+3*p, 9*p, 7*p);
+        c.fillStyle = OL; c.fillRect(4*p, py+3*p, 16*p, 12*p);
+        c.fillStyle = skinColor; c.fillRect(5*p, py+4*p, 14*p, 10*p);
         // 耳
-        c.fillStyle = OL; c.fillRect(13*p, py+5*p, 2*p, 3*p);
-        c.fillStyle = SKIN; c.fillRect(13*p, py+5*p+Math.ceil(p/2), p, 2*p);
+        c.fillStyle = OL; c.fillRect(19*p, py+7*p, 3*p, 4*p);
+        c.fillStyle = skinColor; c.fillRect(19*p, py+8*p, 2*p, 2*p);
         // 頬
-        c.fillStyle = '#ffa8a0'; c.fillRect(11*p, py+8*p, 2*p, p);
+        c.fillStyle = '#ffa8a0'; c.fillRect(16*p, py+11*p, 3*p, p);
 
-        // 髪
-        c.fillStyle = OL; c.fillRect(2*p, py, 12*p, 4*p);
-        c.fillStyle = hair; c.fillRect(3*p, py+Math.ceil(p/2), 10*p, 3*p);
-        c.fillStyle = OL; c.fillRect(2*p, py+2*p, 2*p, 6*p);
-        c.fillStyle = hair; c.fillRect(3*p, py+2*p, p, 5*p);
-        // とんがり
-        c.fillStyle = OL; c.fillRect(5*p, py-2*p, 3*p, 3*p); c.fillRect(8*p, py-3*p, 3*p, 4*p);
-        c.fillStyle = hair; c.fillRect(5*p, py-p, 2*p, 2*p); c.fillRect(8*p, py-2*p, 2*p, 3*p);
-        // 前髪
-        c.fillStyle = hair; c.fillRect(4*p, py+3*p, 9*p, 2*p);
-        c.fillStyle = dHair; c.fillRect(4*p, py+4*p, 9*p, p);
+        // 髪（データ駆動型）
+        const hairShape2 = HAIR_SHAPES[hairShapeIdx] || HAIR_SHAPES[0];
+        const sideLayers = hairShape2.side;
+        const colorMap2 = { OL, hair:hairColor, dHair, lHair, skinLight };
+        for (const layer of sideLayers) {
+          c.fillStyle = colorMap2[layer.c] || layer.c;
+          if (layer.r) for (const [lx,ly,lw,lh] of layer.r) c.fillRect(lx*p, py+ly*p, lw*p, lh*p);
+        }
 
         // 目（横向き - 片目）
-        c.fillStyle = '#fff'; c.fillRect(10*p, py+5*p, 3*p, 3*p);
-        c.fillStyle = '#1a1040'; c.fillRect(11*p, py+6*p, 2*p, 2*p);
-        c.fillStyle = '#fff'; c.fillRect(11*p, py+6*p, p, p);
+        c.fillStyle = '#fff'; c.fillRect(14*p, py+7*p, 4*p, 4*p);
+        c.fillStyle = '#1a1040'; c.fillRect(15*p, py+8*p, 3*p, 3*p);
+        c.fillStyle = '#fff'; c.fillRect(15*p, py+8*p, p, p);
 
         c.restore();
       }
@@ -3171,48 +2956,127 @@
     function drawAccessory(c, px, py, dir, accId, p, w) {
       if (accId === 0) { // 帽子
         c.fillStyle = '#181020';
-        c.fillRect(px+p, py-p, w-2*p, 3*p);
+        c.fillRect(px+p, py-p, w-2*p, 4*p);
         c.fillStyle = '#e94560';
-        c.fillRect(px+2*p, py-3*p, w-4*p, 4*p);
-        c.fillRect(px+3*p, py-5*p, w-6*p, 3*p);
+        c.fillRect(px+2*p, py-4*p, w-4*p, 5*p);
+        c.fillRect(px+4*p, py-7*p, w-8*p, 4*p);
         c.fillStyle = '#fff';
-        fillCirc(c, px+w/2, py-p, p*1.5);
+        fillCirc(c, px+w/2, py-p, p*2);
       } else if (accId === 1) { // メガネ
         if (dir === 'down') {
           c.fillStyle = '#c0c0c0';
-          c.fillRect(px+3*p, py+5*p, 4*p, 3*p);
-          c.fillRect(px+9*p, py+5*p, 4*p, 3*p);
-          c.fillRect(px+7*p, py+6*p, 2*p, p);
+          c.fillRect(px+4*p, py+7*p, 6*p, 4*p);
+          c.fillRect(px+14*p, py+7*p, 6*p, 4*p);
+          c.fillRect(px+10*p, py+8*p, 4*p, p);
           c.fillStyle = '#aaddff';
-          c.fillRect(px+4*p, py+6*p, 2*p, p);
-          c.fillRect(px+10*p, py+6*p, 2*p, p);
+          c.fillRect(px+5*p, py+8*p, 4*p, 2*p);
+          c.fillRect(px+15*p, py+8*p, 4*p, 2*p);
         }
       } else if (accId === 2) { // リボン
         c.fillStyle = '#ff69b4';
-        c.fillRect(px+10*p, py-2*p, 3*p, 3*p);
-        c.fillRect(px+8*p, py-p, 2*p, 2*p);
-        c.fillRect(px+13*p, py-p, 2*p, 2*p);
+        c.fillRect(px+15*p, py-2*p, 4*p, 4*p);
+        c.fillRect(px+12*p, py-p, 3*p, 2*p);
+        c.fillRect(px+19*p, py-p, 3*p, 2*p);
         c.fillStyle = '#ff1493';
-        c.fillRect(px+11*p, py, p, p);
+        c.fillRect(px+16*p, py, p, p);
       } else if (accId === 3) { // ヘッドホン
         c.fillStyle = '#181020';
-        c.fillRect(px+2*p, py, w-4*p, 2*p);
+        c.fillRect(px+3*p, py, w-6*p, 3*p);
         c.fillStyle = '#555';
-        c.fillRect(px, py+2*p, 3*p, 4*p);
-        c.fillRect(px+w-3*p, py+2*p, 3*p, 4*p);
+        c.fillRect(px, py+3*p, 4*p, 5*p);
+        c.fillRect(px+w-4*p, py+3*p, 4*p, 5*p);
         c.fillStyle = '#888';
-        c.fillRect(px+p, py+3*p, 2*p, 2*p);
-        c.fillRect(px+w-3*p, py+3*p, 2*p, 2*p);
+        c.fillRect(px+p, py+4*p, 3*p, 3*p);
+        c.fillRect(px+w-4*p, py+4*p, 3*p, 3*p);
       } else if (accId === 4) { // 王冠
         c.fillStyle = '#181020';
-        c.fillRect(px+3*p, py-2*p, w-6*p, 3*p);
+        c.fillRect(px+4*p, py-2*p, w-8*p, 4*p);
         c.fillStyle = '#ffd700';
-        c.fillRect(px+3*p, py-p, w-6*p, 2*p);
-        c.fillRect(px+4*p, py-4*p, 2*p, 3*p);
-        c.fillRect(px+7*p, py-5*p, 2*p, 4*p);
-        c.fillRect(px+10*p, py-4*p, 2*p, 3*p);
+        c.fillRect(px+4*p, py-p, w-8*p, 3*p);
+        c.fillRect(px+6*p, py-5*p, 3*p, 4*p);
+        c.fillRect(px+10*p, py-7*p, 4*p, 6*p);
+        c.fillRect(px+15*p, py-5*p, 3*p, 4*p);
         c.fillStyle = '#e94560';
-        c.fillRect(px+7*p, py-p, p, p);
+        c.fillRect(px+11*p, py-p, 2*p, p);
+      } else if (accId === 5) { // サングラス
+        if (dir === 'down') {
+          c.fillStyle = '#222';
+          c.fillRect(px+4*p, py+7*p, 6*p, 4*p);
+          c.fillRect(px+14*p, py+7*p, 6*p, 4*p);
+          c.fillRect(px+10*p, py+8*p, 4*p, p);
+          c.fillStyle = '#111';
+          c.fillRect(px+5*p, py+8*p, 4*p, 2*p);
+          c.fillRect(px+15*p, py+8*p, 4*p, 2*p);
+        }
+      } else if (accId === 6) { // マスク
+        if (dir === 'down') {
+          c.fillStyle = '#f0f0f0';
+          c.fillRect(px+4*p, py+10*p, 16*p, 5*p);
+          c.fillStyle = '#ddd';
+          c.fillRect(px+6*p, py+11*p, 12*p, 3*p);
+          c.fillStyle = '#ccc';
+          c.fillRect(px+4*p, py+10*p, 16*p, p);
+        }
+      } else if (accId === 7) { // ティアラ
+        c.fillStyle = '#c0c0ff';
+        c.fillRect(px+4*p, py-2*p, w-8*p, 3*p);
+        c.fillStyle = '#e0e0ff';
+        c.fillRect(px+6*p, py-4*p, 3*p, 3*p);
+        c.fillRect(px+10*p, py-5*p, 4*p, 4*p);
+        c.fillRect(px+15*p, py-4*p, 3*p, 3*p);
+        c.fillStyle = '#fff';
+        fillCirc(c, px+12*p, py-4*p, p);
+      } else if (accId === 8) { // ネクタイ
+        if (dir === 'down') {
+          c.fillStyle = '#4a90d9';
+          c.fillRect(px+10*p, py+12*p, 4*p, 3*p);
+          c.fillRect(px+11*p, py+15*p, 2*p, 6*p);
+          c.fillStyle = '#3a80c9';
+          c.fillRect(px+10*p, py+21*p, 4*p, 2*p);
+        }
+      } else if (accId === 9) { // 蝶ネクタイ
+        if (dir === 'down') {
+          c.fillStyle = '#e94560';
+          c.fillRect(px+8*p, py+12*p, 4*p, 3*p);
+          c.fillRect(px+12*p, py+12*p, 4*p, 3*p);
+          c.fillStyle = '#d93550';
+          c.fillRect(px+11*p, py+12*p, 2*p, 3*p);
+        }
+      } else if (accId === 10) { // イヤリング
+        c.fillStyle = '#ffd700';
+        fillCirc(c, px+2*p, py+11*p, p*1.5);
+        fillCirc(c, px+w-2*p, py+11*p, p*1.5);
+      } else if (accId === 11) { // ベレー帽
+        c.fillStyle = '#181020';
+        c.fillRect(px+2*p, py, w-4*p, 2*p);
+        c.fillStyle = '#8a3030';
+        c.fillRect(px+p, py-3*p, w-2*p, 5*p);
+        c.fillStyle = '#a04040';
+        c.fillRect(px+2*p, py-2*p, w-4*p, 3*p);
+      } else if (accId === 12) { // キャップ
+        c.fillStyle = '#2a4a8a';
+        c.fillRect(px+2*p, py-2*p, w-4*p, 5*p);
+        c.fillStyle = '#3a5a9a';
+        c.fillRect(px+4*p, py-p, w-8*p, 3*p);
+        if (dir === 'down' || dir === 'right') {
+          c.fillStyle = '#2a4a8a';
+          c.fillRect(px+w-4*p, py+2*p, 6*p, 2*p);
+        } else {
+          c.fillStyle = '#2a4a8a';
+          c.fillRect(px-2*p, py+2*p, 6*p, 2*p);
+        }
+      } else if (accId === 13) { // 猫耳
+        c.fillStyle = '#fce4c8';
+        c.fillRect(px+2*p, py-4*p, 5*p, 5*p);
+        c.fillRect(px+17*p, py-4*p, 5*p, 5*p);
+        c.fillStyle = '#ffa8a0';
+        c.fillRect(px+3*p, py-3*p, 3*p, 3*p);
+        c.fillRect(px+18*p, py-3*p, 3*p, 3*p);
+      } else if (accId === 14) { // 天使の輪
+        c.fillStyle = '#fff8a0';
+        c.fillRect(px+4*p, py-4*p, w-8*p, 2*p);
+        c.fillStyle = '#ffe860';
+        c.fillRect(px+6*p, py-3*p, w-12*p, p);
       }
     }
 
@@ -3234,7 +3098,7 @@
         idleBob = Math.sin(ds.idleTimer * 0.06) * SCALE * 0.8;
       }
 
-      const avatar = player.avatar || { hair:0, body:0, pants:0, acc:-1 };
+      const avatar = player.avatar || { hairShape:0, hairColor:0, bodyType:0, bodyColor:0, pantsColor:0, skinColor:0, acc:-1 };
       drawCharacter(ctx, charPx, charPy + idleBob, ds.direction, avatar, ds.walkFrame, SCALE);
 
       // ステータスドット
@@ -3244,6 +3108,16 @@
       ctx.fillStyle = stColor;
       fillCirc(ctx, charPx + CHAR_DW - 2*SCALE, charPy + 4*SCALE + idleBob, 3.5*SCALE);
 
+      // 称号（タイトル）
+      if (player.title) {
+        ctx.font = `${Math.round(SCALE*5)}px 'DotGothic16',monospace`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+        ctx.strokeStyle = '#181020'; ctx.lineWidth = 2;
+        ctx.strokeText(player.title, dpx + DRAW_TILE/2, charPy - 16 + idleBob);
+        ctx.fillStyle = '#ffd700';
+        ctx.fillText(player.title, dpx + DRAW_TILE/2, charPy - 16 + idleBob);
+      }
+
       // 名前
       ctx.font = `bold ${Math.round(SCALE*6)}px 'DotGothic16',monospace`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
@@ -3251,6 +3125,44 @@
       ctx.strokeText(player.name, dpx + DRAW_TILE/2, charPy - 6 + idleBob);
       ctx.fillStyle = '#fff';
       ctx.fillText(player.name, dpx + DRAW_TILE/2, charPy - 6 + idleBob);
+
+      // エフェクトパーティクル
+      if (player.effect) drawPlayerEffect(ctx, charPx, charPy + idleBob, CHAR_DW, CHAR_DH, player.effect);
+    }
+
+    // ===== パーティクルエフェクト =====
+    const effectTimers = {};
+    function drawPlayerEffect(c, px, py, w, h, effectType) {
+      const t = (Date.now() % 3000) / 3000;
+      const cx = px + w/2, cy = py + h/2;
+      for (let i = 0; i < 6; i++) {
+        const angle = (t * Math.PI * 2) + (i * Math.PI * 2 / 6);
+        const r = 20 + Math.sin(t * Math.PI * 2 + i) * 8;
+        const ex = cx + Math.cos(angle) * r;
+        const ey = cy + Math.sin(angle) * r * 0.6 - 10;
+        const sz = 2 + Math.sin(t * Math.PI * 4 + i * 2) * 1;
+        if (effectType === 'sparkle') {
+          c.fillStyle = `rgba(255,255,100,${0.4+Math.sin(t*6+i)*0.3})`;
+          c.fillRect(ex-sz, ey, sz*2, 1); c.fillRect(ex, ey-sz, 1, sz*2);
+        } else if (effectType === 'fire') {
+          c.fillStyle = `rgba(255,${80+i*20},0,${0.4+Math.sin(t*6+i)*0.3})`;
+          fillCirc(c, ex, ey - Math.abs(Math.sin(t*4+i))*10, sz);
+        } else if (effectType === 'snow') {
+          c.fillStyle = `rgba(200,220,255,${0.5+Math.sin(t*4+i)*0.3})`;
+          fillCirc(c, ex, ey + Math.sin(t*3+i)*5, sz*0.8);
+        } else if (effectType === 'sakura') {
+          c.fillStyle = `rgba(255,180,200,${0.5+Math.sin(t*4+i)*0.3})`;
+          c.fillRect(ex-sz, ey-sz*0.5, sz*2, sz);
+        } else if (effectType === 'thunder') {
+          if (Math.random() > 0.85) { c.fillStyle = `rgba(100,180,255,0.6)`; c.fillRect(ex, ey, 1, 8); }
+          c.fillStyle = `rgba(150,200,255,${0.3+Math.sin(t*8+i)*0.3})`;
+          fillCirc(c, ex, ey, sz*0.7);
+        } else if (effectType === 'heart') {
+          c.fillStyle = `rgba(255,100,150,${0.5+Math.sin(t*4+i)*0.3})`;
+          fillCirc(c, ex-sz*0.5, ey, sz*0.7); fillCirc(c, ex+sz*0.5, ey, sz*0.7);
+          c.fillRect(ex-sz, ey, sz*2, sz*1.2);
+        }
+      }
     }
 
     // ===== 表示状態管理 =====
@@ -3391,7 +3303,20 @@
       if (typeof myRole !== 'undefined') { myRole = data.role || 'user'; isGuest = false; }
       socket.auth = { token: data.token };
       socket.emit('setName', myName);
-      if (data.avatar) { myAvatar = data.avatar; socket.emit('updateAvatar', myAvatar); }
+      if (data.avatar) {
+        const a = data.avatar;
+        // 旧→新フォーマット変換
+        myAvatar = {
+          hairShape: a.hairShape ?? 0,
+          hairColor: a.hairColor ?? a.hair ?? 0,
+          bodyType: a.bodyType ?? 0,
+          bodyColor: a.bodyColor ?? a.body ?? 0,
+          pantsColor: a.pantsColor ?? a.pants ?? 0,
+          skinColor: a.skinColor ?? 0,
+          acc: a.acc ?? -1,
+        };
+        socket.emit('updateAvatar', myAvatar);
+      }
       nameModal.classList.add('hidden');
       if (typeof updateAdminBtn === 'function') updateAdminBtn();
       if (data.token) localStorage.setItem('gohou_token', data.token);
@@ -3558,41 +3483,86 @@
     });
 
     // ===== 着せ替え =====
+    function emitAvatar() { socket.emit('updateAvatar', myAvatar); }
     function buildAvatarOpts() {
+      // 髪型シェイプ
+      const hs = document.getElementById('hair-shape-options');
+      HAIR_SHAPES.forEach((shape,i) => {
+        const o=document.createElement('div');o.className=`c-opt${i===myAvatar.hairShape?' selected':''}`;
+        o.style.background='#2e2e42';o.style.color='#fff';o.style.fontSize='9px';o.textContent=shape.name;
+        o.addEventListener('click',()=>{myAvatar.hairShape=i;updAvSel();emitAvatar();});
+        hs.appendChild(o);
+      });
+      // ヘアカラー
       const hc = document.getElementById('hair-options');
-      HAIR_COLORS.forEach((c,i) => { const o=document.createElement('div');o.className=`c-opt${i===myAvatar.hair?' selected':''}`;o.style.background=c;o.addEventListener('click',()=>{myAvatar.hair=i;updAvSel();socket.emit('updateAvatar',myAvatar);});hc.appendChild(o); });
+      HAIR_COLORS.forEach((c,i) => { const o=document.createElement('div');o.className=`c-opt${i===myAvatar.hairColor?' selected':''}`;o.style.background=c;o.addEventListener('click',()=>{myAvatar.hairColor=i;updAvSel();emitAvatar();});hc.appendChild(o); });
+      // スキンカラー
+      const sc = document.getElementById('skin-options');
+      SKIN_COLORS.forEach((c,i) => { const o=document.createElement('div');o.className=`c-opt${i===myAvatar.skinColor?' selected':''}`;o.style.background=c;o.addEventListener('click',()=>{myAvatar.skinColor=i;updAvSel();emitAvatar();});sc.appendChild(o); });
+      // 体型
+      const bt = document.getElementById('body-type-options');
+      BODY_TYPES.forEach((t,i) => {
+        const o=document.createElement('div');o.className=`c-opt${i===myAvatar.bodyType?' selected':''}`;
+        o.style.background='#2e2e42';o.style.color='#fff';o.style.fontSize='9px';o.textContent=t.name;
+        o.addEventListener('click',()=>{myAvatar.bodyType=i;updAvSel();emitAvatar();});
+        bt.appendChild(o);
+      });
+      // ふく（うえ）
       const bc = document.getElementById('body-options');
-      BODY_COLORS.forEach((c,i) => { const o=document.createElement('div');o.className=`c-opt${i===myAvatar.body?' selected':''}`;o.style.background=c;o.addEventListener('click',()=>{myAvatar.body=i;updAvSel();socket.emit('updateAvatar',myAvatar);});bc.appendChild(o); });
+      BODY_COLORS.forEach((c,i) => { const o=document.createElement('div');o.className=`c-opt${i===myAvatar.bodyColor?' selected':''}`;o.style.background=c;o.addEventListener('click',()=>{myAvatar.bodyColor=i;updAvSel();emitAvatar();});bc.appendChild(o); });
+      // ふく（した）
       const pc = document.getElementById('pants-options');
-      PANTS_COLORS.forEach((c,i) => { const o=document.createElement('div');o.className=`c-opt${i===myAvatar.pants?' selected':''}`;o.style.background=c;o.addEventListener('click',()=>{myAvatar.pants=i;updAvSel();socket.emit('updateAvatar',myAvatar);});pc.appendChild(o); });
+      PANTS_COLORS.forEach((c,i) => { const o=document.createElement('div');o.className=`c-opt${i===myAvatar.pantsColor?' selected':''}`;o.style.background=c;o.addEventListener('click',()=>{myAvatar.pantsColor=i;updAvSel();emitAvatar();});pc.appendChild(o); });
+      // アクセサリー
       const ac = document.getElementById('acc-options');
-      ACC_TYPES.forEach(a => { const o=document.createElement('div');o.className=`c-opt${a.id===myAvatar.acc?' selected':''}`;o.style.background=a.color||'#2e2e42';o.style.color='#fff';o.style.fontSize='9px';o.textContent=a.label;o.addEventListener('click',()=>{myAvatar.acc=a.id;updAvSel();socket.emit('updateAvatar',myAvatar);});ac.appendChild(o); });
+      ACC_TYPES.forEach(a => { const o=document.createElement('div');o.className=`c-opt${a.id===myAvatar.acc?' selected':''}`;o.style.background=a.color||'#2e2e42';o.style.color='#fff';o.style.fontSize='9px';o.textContent=a.label;o.addEventListener('click',()=>{myAvatar.acc=a.id;updAvSel();emitAvatar();});ac.appendChild(o); });
     }
     function updAvSel() {
-      document.querySelectorAll('#hair-options .c-opt').forEach((e,i)=>e.classList.toggle('selected',i===myAvatar.hair));
-      document.querySelectorAll('#body-options .c-opt').forEach((e,i)=>e.classList.toggle('selected',i===myAvatar.body));
-      document.querySelectorAll('#pants-options .c-opt').forEach((e,i)=>e.classList.toggle('selected',i===myAvatar.pants));
+      document.querySelectorAll('#hair-shape-options .c-opt').forEach((e,i)=>e.classList.toggle('selected',i===myAvatar.hairShape));
+      document.querySelectorAll('#hair-options .c-opt').forEach((e,i)=>e.classList.toggle('selected',i===myAvatar.hairColor));
+      document.querySelectorAll('#skin-options .c-opt').forEach((e,i)=>e.classList.toggle('selected',i===myAvatar.skinColor));
+      document.querySelectorAll('#body-type-options .c-opt').forEach((e,i)=>e.classList.toggle('selected',i===myAvatar.bodyType));
+      document.querySelectorAll('#body-options .c-opt').forEach((e,i)=>e.classList.toggle('selected',i===myAvatar.bodyColor));
+      document.querySelectorAll('#pants-options .c-opt').forEach((e,i)=>e.classList.toggle('selected',i===myAvatar.pantsColor));
       document.querySelectorAll('#acc-options .c-opt').forEach((e,i)=>e.classList.toggle('selected',ACC_TYPES[i].id===myAvatar.acc));
       drawPrev();
       socket.emit('saveAvatar');
     }
     function drawPrev() {
       const pc=document.getElementById('preview-canvas'),p=pc.getContext('2d');
-      p.clearRect(0,0,96,112); p.fillStyle='#1e1e2e'; p.fillRect(0,0,96,112);
-      drawCharacter(p, 16, 20, 'down', myAvatar, 0, 3.5);
+      p.clearRect(0,0,120,140); p.fillStyle='#1e1e2e'; p.fillRect(0,0,120,140);
+      drawCharacter(p, 12, 16, 'down', myAvatar, 0, 3.5);
     }
     buildAvatarOpts(); drawPrev();
 
     // ===== 家具パレット =====
+    let furnCatFilter = 'all';
     function buildFurnPalette() {
+      const tabs = document.getElementById('furn-cat-tabs');
       const grid = document.getElementById('furniture-palette');
-      for (const [type,def] of Object.entries(FURNITURE_DEFS)) {
+      // カテゴリタブ生成
+      tabs.innerHTML = '';
+      const allTab = document.createElement('div'); allTab.className = 'furn-cat-tab active'; allTab.textContent = '全て'; allTab.dataset.cat = 'all';
+      allTab.addEventListener('click', () => { furnCatFilter='all'; updateFurnGrid(); document.querySelectorAll('.furn-cat-tab').forEach(t=>t.classList.toggle('active',t.dataset.cat==='all')); });
+      tabs.appendChild(allTab);
+      for (const cat of FURN_CATEGORIES) {
+        const tab = document.createElement('div'); tab.className = 'furn-cat-tab'; tab.textContent = cat.icon+' '+cat.name; tab.dataset.cat = cat.id;
+        tab.addEventListener('click', () => { furnCatFilter=cat.id; updateFurnGrid(); document.querySelectorAll('.furn-cat-tab').forEach(t=>t.classList.toggle('active',t.dataset.cat===cat.id)); });
+        tabs.appendChild(tab);
+      }
+      updateFurnGrid();
+    }
+    function updateFurnGrid() {
+      const grid = document.getElementById('furniture-palette');
+      grid.innerHTML = '';
+      for (const [type,sprite] of Object.entries(FURN_SPRITES)) {
+        if (furnCatFilter !== 'all' && sprite.category !== furnCatFilter) continue;
         const item = document.createElement('div'); item.className = `f-item${type===selectedFurniture?' selected':''}`;
         const cvs = document.createElement('canvas'); cvs.width=40; cvs.height=40;
         const fc = cvs.getContext('2d'); fc.fillStyle='#1e1e2e'; fc.fillRect(0,0,40,40);
         drawFurniture(fc, type, 4, 4, 32);
         item.appendChild(cvs);
-        const lbl = document.createElement('span'); lbl.textContent = def.name; item.appendChild(lbl);
+        const lbl = document.createElement('span'); lbl.textContent = sprite.name; item.appendChild(lbl);
         item.addEventListener('click', () => { selectedFurniture=type; document.querySelectorAll('.f-item').forEach(i=>i.classList.remove('selected'));item.classList.add('selected');editAction='place';updFBtns(); });
         grid.appendChild(item);
       }
@@ -3661,15 +3631,32 @@
     }
 
 
-    // ===== コインシステム =====
+    // ===== コイン & XP/レベルシステム =====
     let myCoins = 0, myTotalEarned = 0, myPurchasedItems = [], myWorkMinutes = 0;
+    let myXp = 0, myLevel = 1, myXpNext = 100, myTotalXp = 0;
     let shopItems = [];
 
     socket.on('coinInit', (data) => {
       myCoins = data.coins; myTotalEarned = data.totalEarned;
       myPurchasedItems = data.purchasedItems || []; myWorkMinutes = data.workMinutes || 0;
+      myXp = data.xp || 0; myLevel = data.level || 1; myXpNext = data.xpNext || 100; myTotalXp = data.totalXp || 0;
       window._coinData = data;
-      updateCoinDisplay();
+      updateCoinDisplay(); updateXpDisplay();
+    });
+    socket.on('xpUpdate', (data) => {
+      myXp = data.xp; myLevel = data.level; myXpNext = data.xpNext; myTotalXp = data.totalXp;
+      myCoins = data.coins;
+      updateCoinDisplay(); updateXpDisplay();
+    });
+    socket.on('levelUp', (data) => {
+      myLevel = data.level; myXp = data.xp; myXpNext = data.xpNext;
+      updateXpDisplay();
+      // レベルアップポップアップ
+      const popup = document.getElementById('levelup-popup');
+      popup.querySelector('.lvl-text').textContent = `LEVEL ${data.level}!`;
+      popup.querySelector('.lvl-reward').textContent = `+${data.coinReward} コイン獲得！`;
+      popup.style.display = 'block';
+      setTimeout(() => { popup.style.display = 'none'; }, 3500);
     });
     socket.on('coinUpdate', (data) => {
       myCoins = data.coins; updateCoinDisplay();
@@ -3679,14 +3666,25 @@
     socket.on('shopItems', (items) => { shopItems = items; });
     socket.on('shopBought', (data) => {
       myCoins = data.coins; myPurchasedItems.push(data.itemId);
+      // 称号・エフェクト自動装備
+      if (data.item.type === 'title') { socket.emit('setTitle', data.item.value); }
+      if (data.item.type === 'effect') { socket.emit('setEffect', data.item.value); }
       updateCoinDisplay(); updateShopUI();
       showCoinNotif(`${data.item.name} を購入しました！`);
     });
+    socket.on('playerTitleChanged', (data) => { if (players[data.id]) players[data.id].title = data.title; });
+    socket.on('playerEffectChanged', (data) => { if (players[data.id]) players[data.id].effect = data.effect; });
     socket.on('shopError', (msg) => { showCoinNotif(msg); });
 
     function updateCoinDisplay() {
       document.getElementById('coin-count').textContent = myCoins;
       document.getElementById('shop-coins').textContent = myCoins;
+    }
+    function updateXpDisplay() {
+      document.getElementById('level-badge').textContent = 'Lv.' + myLevel;
+      const pct = myXpNext > 0 ? Math.min(100, (myXp / myXpNext) * 100) : 0;
+      document.getElementById('xp-bar').style.width = pct + '%';
+      document.getElementById('xp-text').textContent = myXp + ' / ' + myXpNext + ' XP';
     }
 
     let coinNotifTimer = null;
@@ -3697,11 +3695,34 @@
       coinNotifTimer = setTimeout(() => { el.style.display = 'none'; }, 3000);
     }
 
+    const SHOP_CAT_LABELS = [
+      {id:'all',name:'全て',icon:'🛒'},{id:'hair',name:'かみがた',icon:'💇'},{id:'hair_color',name:'ヘアカラー',icon:'🎨'},
+      {id:'body',name:'ふく（うえ）',icon:'👔'},{id:'pants',name:'ふく（した）',icon:'👖'},
+      {id:'acc',name:'アクセサリー',icon:'👑'},{id:'skin',name:'スキン',icon:'🧑'},
+      {id:'emote',name:'エモート',icon:'💃'},{id:'pet',name:'ペット',icon:'🐾'},
+      {id:'title',name:'称号',icon:'🏷️'},{id:'effect',name:'エフェクト',icon:'✨'},
+    ];
+    const SHOP_TYPE_LABEL = {hair_shape:'かみがた',hair_color:'ヘアカラー',body_color:'ふく（うえ）',pants_color:'ふく（した）',acc:'アクセサリー',skin:'スキン',emote:'エモート',pet:'ペット',title:'称号',effect:'エフェクト'};
+    let shopCatFilter = 'all';
+    function buildShopCatTabs() {
+      const tabs = document.getElementById('shop-cat-tabs');
+      tabs.innerHTML = '';
+      for (const cat of SHOP_CAT_LABELS) {
+        const tab = document.createElement('div');
+        tab.className = 'furn-cat-tab' + (cat.id === shopCatFilter ? ' active' : '');
+        tab.textContent = cat.icon + ' ' + cat.name;
+        tab.dataset.cat = cat.id;
+        tab.addEventListener('click', () => { shopCatFilter = cat.id; updateShopUI(); });
+        tabs.appendChild(tab);
+      }
+    }
     function updateShopUI() {
+      buildShopCatTabs();
       const list = document.getElementById('shop-list');
       list.innerHTML = '';
       document.getElementById('shop-coins').textContent = myCoins;
       for (const item of shopItems) {
+        if (shopCatFilter !== 'all' && item.category !== shopCatFilter) continue;
         const owned = myPurchasedItems.includes(item.id);
         const div = document.createElement('div');
         div.className = 'shop-item' + (owned ? ' owned' : '');
@@ -3709,7 +3730,7 @@
           <span class="shop-item-icon">${item.icon}</span>
           <span class="shop-item-info">
             <span class="shop-item-name">${item.name}</span>
-            <span class="shop-item-type">${item.type === 'hair' ? 'かみがた' : item.type === 'body' ? 'ふく（うえ）' : item.type === 'pants' ? 'ふく（した）' : item.type === 'acc' ? 'アクセサリー' : 'エモート'}</span>
+            <span class="shop-item-type">${SHOP_TYPE_LABEL[item.type] || item.type}</span>
           </span>
           <span class="shop-item-price">${owned ? '購入済' : item.price + ' コイン'}</span>
         `;
@@ -4229,12 +4250,15 @@
 
     socket.on('rtcExistingPeers', async (list) => {
       for (const { peerId, name } of list) {
+        if (peers[peerId]) continue;
         await createPeerConnection(peerId, name, true);
       }
     });
 
     socket.on('rtcPeerJoined', async ({ peerId, name }) => {
       if (peers[peerId]) return;
+      if (!proximityActive && !voiceJoined) return;
+      await createPeerConnection(peerId, name, true);
     });
 
     socket.on('rtcOffer', async ({ from, offer, type, name }) => {
@@ -4263,7 +4287,9 @@
         proximityActive = true;
         updateMediaButtons();
       }
-      await createPeerConnection(from, name, false);
+      if (!peers[from]) {
+        await createPeerConnection(from, name, false);
+      }
       const peer = peers[from];
       if (!peer) return;
       await peer.pc.setRemoteDescription(new RTCSessionDescription(offer));
@@ -4296,6 +4322,7 @@
     });
 
     async function createPeerConnection(peerId, name, isInitiator) {
+      if (peers[peerId]) return; // 重複防止
       const pc = new RTCPeerConnection(rtcConfig);
       const audioEl = document.createElement('audio');
       audioEl.autoplay = true;
@@ -5134,8 +5161,8 @@
         const hours = Math.floor((data.workMinutes || 0) / 60);
         const mins = (data.workMinutes || 0) % 60;
         document.getElementById('prof-stats').innerHTML = `
+          <div class="prof-stat"><div class="prof-stat-val" style="color:#7cffb2">Lv.${data.level || 1}</div><div class="prof-stat-label">レベル</div></div>
           <div class="prof-stat"><div class="prof-stat-val">${data.coins || 0}</div><div class="prof-stat-label">コイン</div></div>
-          <div class="prof-stat"><div class="prof-stat-val">${data.totalEarned || 0}</div><div class="prof-stat-label">累計獲得</div></div>
           <div class="prof-stat"><div class="prof-stat-val">${hours}h ${mins}m</div><div class="prof-stat-label">作業時間</div></div>
           <div class="prof-stat"><div class="prof-stat-val">${data.purchasedItems || 0}</div><div class="prof-stat-label">アイテム</div></div>
         `;
@@ -5175,6 +5202,250 @@
       });
     };
 
+
+    // ===== ミニゲーム クライアント =====
+    const gameSelectPanel = document.getElementById('game-select-panel');
+    const wordwolfPanel = document.getElementById('wordwolf-panel');
+    const quizPanel = document.getElementById('quiz-panel');
+    const wwBody = document.getElementById('ww-body');
+    const quizBody = document.getElementById('quiz-body');
+
+    document.getElementById('btn-game').addEventListener('click', () => {
+      gameSelectPanel.classList.toggle('show');
+      wordwolfPanel.classList.remove('show');
+      quizPanel.classList.remove('show');
+    });
+    document.getElementById('game-select-close').addEventListener('click', () => gameSelectPanel.classList.remove('show'));
+    document.getElementById('ww-close').addEventListener('click', () => wordwolfPanel.classList.remove('show'));
+    document.getElementById('quiz-close').addEventListener('click', () => quizPanel.classList.remove('show'));
+
+    document.getElementById('game-card-ww').addEventListener('click', () => {
+      gameSelectPanel.classList.remove('show');
+      wordwolfPanel.classList.add('show');
+    });
+    document.getElementById('game-card-quiz').addEventListener('click', () => {
+      gameSelectPanel.classList.remove('show');
+      quizPanel.classList.add('show');
+    });
+
+    // Keyboard shortcut
+    document.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.key === 'g' || e.key === 'G') {
+        gameSelectPanel.classList.toggle('show');
+        wordwolfPanel.classList.remove('show');
+        quizPanel.classList.remove('show');
+      }
+    });
+
+    // ===== ワードウルフ UI =====
+    let wwState = { active: false, phase: 'idle' };
+
+    function renderWW() {
+      const s = wwState;
+      if (!s.active || s.phase === 'idle') {
+        wwBody.innerHTML = `
+          <p style="margin-bottom:12px;">お題を2つ入力してゲームを開始しましょう。<br>1人だけ違うお題（ウルフ）が配られます。</p>
+          <label style="font-size:12px;color:#888;">多数派のお題</label>
+          <input type="text" id="ww-word1" placeholder="例: りんご">
+          <label style="font-size:12px;color:#888;">少数派（ウルフ）のお題</label>
+          <input type="text" id="ww-word2" placeholder="例: みかん">
+          <label style="font-size:12px;color:#888;">議論時間（分）</label>
+          <input type="number" id="ww-minutes" value="3" min="1" max="10" style="width:80px;">
+          <div style="margin-top:12px;">
+            <button class="game-btn game-btn-primary" id="ww-start-btn">🐺 ゲーム開始</button>
+          </div>`;
+        document.getElementById('ww-start-btn').addEventListener('click', () => {
+          const w1 = document.getElementById('ww-word1').value.trim();
+          const w2 = document.getElementById('ww-word2').value.trim();
+          const mins = parseInt(document.getElementById('ww-minutes').value) || 3;
+          if (!w1 || !w2) return;
+          socket.emit('wordWolfStart', { majorityWord: w1, wolfWord: w2, minutes: mins });
+        });
+        return;
+      }
+
+      if (s.phase === 'waiting') {
+        const pList = Object.entries(s.players || {}).map(([id, p]) => `<li>${p.name}</li>`).join('');
+        const isAdmin = s.adminId === socket.id;
+        wwBody.innerHTML = `
+          <p>参加者を待っています...</p>
+          <ul class="game-player-list">${pList}</ul>
+          ${!s.players?.[socket.id] ? `<button class="game-btn game-btn-primary" id="ww-join-btn">参加する</button>` : ''}
+          ${isAdmin ? `<button class="game-btn game-btn-success" id="ww-begin-btn" ${Object.keys(s.players||{}).length<3?'disabled':''}>ラウンド開始 (${Object.keys(s.players||{}).length}人)</button>` : ''}
+          ${isAdmin ? `<button class="game-btn game-btn-danger" id="ww-end-btn" style="margin-left:8px;">終了</button>` : ''}`;
+        document.getElementById('ww-join-btn')?.addEventListener('click', () => socket.emit('wordWolfJoin'));
+        document.getElementById('ww-begin-btn')?.addEventListener('click', () => socket.emit('wordWolfBeginRound'));
+        document.getElementById('ww-end-btn')?.addEventListener('click', () => socket.emit('wordWolfEnd'));
+        return;
+      }
+
+      if (s.phase === 'discuss') {
+        const remaining = s.timerEnd ? Math.max(0, Math.floor((s.timerEnd - Date.now()) / 1000)) : 0;
+        const min = Math.floor(remaining / 60);
+        const sec = remaining % 60;
+        wwBody.innerHTML = `
+          <div class="game-word-card"><div class="label">あなたのお題</div><div class="word">${s.myWord || '???'}</div></div>
+          <div class="game-timer">${min}:${String(sec).padStart(2,'0')}</div>
+          <p style="text-align:center;color:#888;">お題について話し合いましょう！ウルフは誰？</p>
+          <ul class="game-player-list">${Object.entries(s.players||{}).map(([id,p])=>`<li>${p.name}</li>`).join('')}</ul>`;
+        return;
+      }
+
+      if (s.phase === 'vote') {
+        const pEntries = Object.entries(s.players || {});
+        const myVote = s.players?.[socket.id]?.votedFor;
+        wwBody.innerHTML = `
+          <p style="text-align:center;font-weight:bold;margin-bottom:12px;">🗳️ ウルフだと思う人に投票！</p>
+          <ul class="game-player-list">${pEntries.map(([id, p]) => {
+            if (id === socket.id) return `<li>${p.name} <span style="color:#888;">(あなた)</span></li>`;
+            const voted = myVote === id;
+            return `<li>${p.name} <button class="game-btn ${voted?'game-btn-success':'game-btn-secondary'} ww-vote-btn" data-id="${id}" ${myVote?'disabled':''}>${voted?'✓ 投票済':'投票'}</button></li>`;
+          }).join('')}</ul>`;
+        document.querySelectorAll('.ww-vote-btn').forEach(btn => {
+          btn.addEventListener('click', () => socket.emit('wordWolfVote', { targetId: btn.dataset.id }));
+        });
+        return;
+      }
+
+      if (s.phase === 'reveal') {
+        const pEntries = Object.entries(s.players || {});
+        const wolfEntry = pEntries.find(([,p]) => p.isWolf);
+        const wolfCaught = s.result?.mostVotedId === wolfEntry?.[0];
+        wwBody.innerHTML = `
+          <div style="text-align:center;margin-bottom:12px;">
+            <div style="font-size:28px;">${wolfCaught ? '🎉' : '🐺'}</div>
+            <div style="font-size:18px;font-weight:bold;color:#fff;">${wolfCaught ? '村人の勝利！' : 'ウルフの勝ち！'}</div>
+          </div>
+          <div style="display:flex;gap:12px;justify-content:center;margin:12px 0;">
+            <div class="game-word-card" style="flex:1;"><div class="label">多数派</div><div class="word" style="font-size:20px;">${s.majorityWord}</div></div>
+            <div class="game-word-card" style="flex:1;border-color:#e53935;"><div class="label">ウルフ</div><div class="word" style="font-size:20px;color:#ff5252;">${s.wolfWord}</div></div>
+          </div>
+          <ul class="game-player-list">${pEntries.map(([id,p]) => {
+            const isWolf = p.isWolf;
+            const votes = s.result?.voteCounts?.[id] || 0;
+            return `<li style="${isWolf?'border:1px solid #e53935;':''}">${isWolf?'🐺':'👤'} ${p.name} <span style="color:#888;">${votes}票</span> ${isWolf?'<span style="color:#e53935;font-weight:bold;">ウルフ</span>':''}</li>`;
+          }).join('')}</ul>
+          ${s.adminId===socket.id?`<button class="game-btn game-btn-danger" id="ww-end-btn2">ゲーム終了</button>`:''}`;
+        document.getElementById('ww-end-btn2')?.addEventListener('click', () => socket.emit('wordWolfEnd'));
+        return;
+      }
+    }
+
+    socket.on('wordWolfUpdate', (state) => { wwState = state; renderWW(); if (!wordwolfPanel.classList.contains('show')) wordwolfPanel.classList.add('show'); });
+    socket.on('wordWolfStatus', (status) => {
+      if (!status.active) { wwState = { active: false, phase: 'idle' }; renderWW(); }
+    });
+
+    // Timer update for discuss phase
+    setInterval(() => { if (wwState.active && wwState.phase === 'discuss') renderWW(); }, 1000);
+
+    // ===== 早押しクイズ UI =====
+    let quizState = { active: false, phase: 'idle' };
+
+    function renderQuiz() {
+      const s = quizState;
+      if (!s.active || s.phase === 'idle') {
+        quizBody.innerHTML = `
+          <p style="margin-bottom:12px;">問題を入力してクイズを開始しましょう。<br>1行に「問題|答え」の形式で入力してください。</p>
+          <textarea id="quiz-questions" placeholder="日本の首都は？|東京\n世界一高い山は？|エベレスト\n1+1=？|2"></textarea>
+          <button class="game-btn game-btn-primary" id="quiz-start-btn">⚡ クイズ開始</button>`;
+        document.getElementById('quiz-start-btn').addEventListener('click', () => {
+          const text = document.getElementById('quiz-questions').value.trim();
+          if (!text) return;
+          const questions = text.split('\n').map(l => {
+            const [q, a] = l.split('|').map(s => s.trim());
+            return q && a ? { q, a } : null;
+          }).filter(Boolean);
+          if (questions.length === 0) return;
+          socket.emit('quizStart', { questions });
+        });
+        return;
+      }
+
+      if (s.phase === 'waiting') {
+        const pList = Object.entries(s.scores || {}).map(([id, p]) => `<li>${p.name}</li>`).join('');
+        const isAdmin = s.adminId === socket.id;
+        quizBody.innerHTML = `
+          <p>参加者: ${Object.keys(s.scores||{}).length}人</p>
+          <ul class="game-player-list">${pList}</ul>
+          ${!s.scores?.[socket.id] ? `<button class="game-btn game-btn-primary" id="quiz-join-btn">参加する</button>` : ''}
+          ${isAdmin ? `<button class="game-btn game-btn-success" id="quiz-next-btn">第1問へ →</button> <button class="game-btn game-btn-danger" id="quiz-end-btn" style="margin-left:8px;">終了</button>` : ''}`;
+        document.getElementById('quiz-join-btn')?.addEventListener('click', () => socket.emit('quizJoin'));
+        document.getElementById('quiz-next-btn')?.addEventListener('click', () => socket.emit('quizNext'));
+        document.getElementById('quiz-end-btn')?.addEventListener('click', () => socket.emit('quizEnd'));
+        return;
+      }
+
+      if (s.phase === 'question') {
+        const canBuzz = s.scores?.[socket.id] !== undefined;
+        quizBody.innerHTML = `
+          <div style="text-align:center;color:#888;margin-bottom:4px;">第${s.currentQ+1}問 / ${s.totalQ}</div>
+          <div style="text-align:center;font-size:18px;font-weight:bold;color:#fff;margin:12px 0;padding:16px;background:#1a1a3a;border-radius:10px;">${s.question}</div>
+          <button class="quiz-buzz-btn" id="quiz-buzz-btn" ${canBuzz?'':'disabled'}>早押し!</button>`;
+        document.getElementById('quiz-buzz-btn')?.addEventListener('click', () => socket.emit('quizBuzz'));
+        return;
+      }
+
+      if (s.phase === 'buzzed') {
+        const isBuzzer = s.buzzedBy === socket.id;
+        const isAdmin = s.adminId === socket.id;
+        quizBody.innerHTML = `
+          <div style="text-align:center;color:#888;margin-bottom:4px;">第${s.currentQ+1}問 / ${s.totalQ}</div>
+          <div style="text-align:center;font-size:18px;font-weight:bold;color:#fff;margin:12px 0;padding:16px;background:#1a1a3a;border-radius:10px;">${s.question}</div>
+          <div style="text-align:center;font-size:16px;color:#ff9800;margin:8px 0;">🔔 ${s.buzzedName} が早押し！</div>
+          ${isBuzzer ? `<input type="text" id="quiz-answer-input" placeholder="答えを入力..."><button class="game-btn game-btn-primary" id="quiz-answer-btn">回答</button>` : ''}
+          ${s.submittedAnswer ? `<div style="text-align:center;margin:8px 0;padding:8px;background:#1a1a3a;border-radius:8px;">回答: <b>${s.submittedAnswer}</b></div>` : ''}
+          ${isAdmin && s.submittedAnswer ? `<div style="display:flex;gap:8px;justify-content:center;margin:8px 0;"><button class="game-btn game-btn-success" id="quiz-correct">⭕ 正解</button><button class="game-btn game-btn-danger" id="quiz-wrong">❌ 不正解</button></div>` : ''}`;
+        document.getElementById('quiz-answer-btn')?.addEventListener('click', () => {
+          const ans = document.getElementById('quiz-answer-input')?.value.trim();
+          if (ans) socket.emit('quizAnswer', { answer: ans });
+        });
+        document.getElementById('quiz-answer-input')?.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') { const ans = e.target.value.trim(); if (ans) socket.emit('quizAnswer', { answer: ans }); }
+        });
+        document.getElementById('quiz-correct')?.addEventListener('click', () => socket.emit('quizJudge', { correct: true }));
+        document.getElementById('quiz-wrong')?.addEventListener('click', () => socket.emit('quizJudge', { correct: false }));
+        return;
+      }
+
+      if (s.phase === 'result') {
+        const isAdmin = s.adminId === socket.id;
+        const sorted = Object.entries(s.scores||{}).sort((a,b) => b[1].score - a[1].score);
+        quizBody.innerHTML = `
+          <div style="text-align:center;font-size:24px;margin:8px 0;">${s.lastCorrect ? '⭕' : '❌'}</div>
+          <div style="text-align:center;color:#888;">答え: <b style="color:#fff;">${s.answer || '???'}</b></div>
+          <div style="margin:12px 0;font-weight:bold;">スコアボード</div>
+          <ul class="game-player-list quiz-scoreboard">${sorted.map(([id,p],i) => `<li>${i===0?'👑':''} ${p.name} <span class="score">${p.score}pt</span></li>`).join('')}</ul>
+          ${isAdmin ? `<button class="game-btn game-btn-primary" id="quiz-next-btn2">${s.currentQ+1 < s.totalQ ? `第${s.currentQ+2}問へ →` : '結果発表'}</button> <button class="game-btn game-btn-danger" id="quiz-end-btn2" style="margin-left:8px;">終了</button>` : ''}`;
+        document.getElementById('quiz-next-btn2')?.addEventListener('click', () => socket.emit('quizNext'));
+        document.getElementById('quiz-end-btn2')?.addEventListener('click', () => socket.emit('quizEnd'));
+        return;
+      }
+
+      if (s.phase === 'finished') {
+        const sorted = Object.entries(s.scores||{}).sort((a,b) => b[1].score - a[1].score);
+        const isAdmin = s.adminId === socket.id;
+        quizBody.innerHTML = `
+          <div style="text-align:center;font-size:28px;margin:12px 0;">🏆</div>
+          <div style="text-align:center;font-size:18px;font-weight:bold;color:#fff;margin-bottom:12px;">クイズ終了！</div>
+          <ul class="game-player-list quiz-scoreboard">${sorted.map(([id,p],i) => `<li>${i===0?'👑':i===1?'🥈':i===2?'🥉':'  '} ${p.name} <span class="score">${p.score}pt</span></li>`).join('')}</ul>
+          ${isAdmin ? `<button class="game-btn game-btn-danger" id="quiz-end-btn3">閉じる</button>` : ''}`;
+        document.getElementById('quiz-end-btn3')?.addEventListener('click', () => socket.emit('quizEnd'));
+        return;
+      }
+    }
+
+    socket.on('speedQuizUpdate', (state) => { quizState = state; renderQuiz(); if (!quizPanel.classList.contains('show') && state.active) quizPanel.classList.add('show'); });
+    socket.on('gameError', (msg) => { if (typeof showToast === 'function') showToast(msg); else alert(msg); });
+
+    // Chat commands for games
+    const origSendChat = window._origSendChat;
+    // Hook into chat send (will be handled via server-side chat command or client-side check)
+
+    // Initial render
+    renderWW();
+    renderQuiz();
 
     // ===== 管理者パネル =====
     // ツールバーに管理者ボタン追加
@@ -5219,6 +5490,32 @@
     });
     document.getElementById('admin-panel').addEventListener('click', (e) => {
       if (e.target.id === 'admin-panel') document.getElementById('admin-panel').classList.remove('show');
+    });
+
+    // YouTube API Key 保存
+    document.getElementById('admin-yt-key-save').addEventListener('click', async () => {
+      const key = document.getElementById('admin-yt-key').value.trim();
+      if (!key) return;
+      const status = document.getElementById('admin-yt-key-status');
+      try {
+        const res = await fetch('/api/admin/youtube-key', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key, token: localStorage.getItem('gohou_token') })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          status.style.color = '#4caf50';
+          status.textContent = '保存しました';
+          document.getElementById('admin-yt-key').value = '';
+        } else {
+          status.style.color = '#f66';
+          status.textContent = data.error || '保存に失敗しました';
+        }
+      } catch (e) {
+        status.style.color = '#f66';
+        status.textContent = '通信エラー';
+      }
     });
 
     // アナウンス送信
@@ -5542,6 +5839,16 @@
       document.getElementById('status-msg-modal').classList.add('show');
       document.getElementById('status-msg-input').value = myStatusMsg;
       document.getElementById('status-msg-input').focus();
+    });
+
+    // ログアウト
+    document.getElementById('logout-btn').addEventListener('click', () => {
+      if (!confirm('ログアウトしますか？')) return;
+      if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+      for (const peerId of Object.keys(peers)) teardownPeer(peerId);
+      socket.disconnect();
+      localStorage.removeItem('gohou_token');
+      location.reload();
     });
 
     document.querySelectorAll('.status-emoji-opt').forEach(opt => {

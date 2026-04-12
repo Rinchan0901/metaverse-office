@@ -181,14 +181,14 @@ app.post('/api/login', authLimiter, async (req, res) => {
 });
 
 // ===== YouTube プレイリストAPI =====
-const YT_API_KEY = process.env.YOUTUBE_API_KEY || '';
+let ytApiKey = process.env.YOUTUBE_API_KEY || '';
 
 app.get('/api/youtube/playlist/:playlistId', async (req, res) => {
-  if (!YT_API_KEY) return res.status(500).json({ error: 'YouTube API Key が設定されていません' });
+  if (!ytApiKey) return res.status(500).json({ error: 'YouTube API Key が設定されていません。管理者パネルから設定してください。' });
   const playlistId = String(req.params.playlistId).slice(0, 64).replace(/[^a-zA-Z0-9_-]/g, '');
   const pageToken = req.query.pageToken ? String(req.query.pageToken).slice(0, 64) : '';
   try {
-    const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=25&playlistId=${playlistId}&key=${YT_API_KEY}${pageToken ? '&pageToken=' + pageToken : ''}`;
+    const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=25&playlistId=${playlistId}&key=${ytApiKey}${pageToken ? '&pageToken=' + pageToken : ''}`;
     const resp = await fetch(url);
     const data = await resp.json();
     if (data.error) return res.status(400).json({ error: data.error.message || 'プレイリストの取得に失敗しました' });
@@ -203,6 +203,25 @@ app.get('/api/youtube/playlist/:playlistId', async (req, res) => {
     console.error('YouTube API error:', e);
     res.status(500).json({ error: 'YouTube APIの取得に失敗しました' });
   }
+});
+
+// YouTube API Key 管理者設定
+app.post('/api/admin/youtube-key', (req, res) => {
+  const { key, token } = req.body;
+  if (!token || !sessions[token]) return res.status(401).json({ error: '認証が必要です' });
+  const username = sessions[token].username;
+  // isAdmin はこの下で定義されるため、ここではaccountsを直接チェック
+  const acc = accounts[username];
+  const adminNames = (process.env.ADMIN_USERS || '').split(',').filter(Boolean);
+  if (!adminNames.includes(username) && (!acc || acc.role !== 'admin')) {
+    return res.status(403).json({ error: '管理者権限が必要です' });
+  }
+  if (!key || typeof key !== 'string' || key.length > 64) {
+    return res.status(400).json({ error: '無効なAPIキーです' });
+  }
+  ytApiKey = key.trim();
+  console.log(`YouTube API Key set by ${username}`);
+  res.json({ ok: true });
 });
 
 // 管理者設定（最初に登録されたアカウントを管理者にする、または環境変数で指定）
@@ -229,6 +248,10 @@ app.get('/api/profile/:name', (req, res) => {
     totalEarned: coins?.totalEarned || 0,
     workMinutes: coins?.workMinutes || 0,
     purchasedItems: coins?.purchasedItems?.length || 0,
+    level: coins?.level || 1,
+    xp: coins?.xp || 0,
+    xpNext: xpForNextLevel(coins?.level || 1),
+    totalXp: coins?.totalXp || 0,
     isOnline,
     isAdmin: isAdmin(name),
   });
@@ -291,9 +314,42 @@ function saveCoins() {
 
 function getPlayerCoins(name) {
   if (!coinData[name]) {
-    coinData[name] = { coins: 10, totalEarned: 10, purchasedItems: [], workMinutes: 0 };
+    coinData[name] = { coins: 10, totalEarned: 10, purchasedItems: [], workMinutes: 0, xp: 0, level: 1, totalXp: 0 };
   }
-  return coinData[name];
+  // 既存データにXPフィールドがない場合の互換対応
+  const d = coinData[name];
+  if (d.level === undefined) { d.level = 1; d.xp = 0; d.totalXp = 0; }
+  return d;
+}
+
+// レベル計算: レベルL→L+1に必要なXP = L * 100
+function xpForNextLevel(level) { return level * 100; }
+
+// XPを加算し、レベルアップがあればコインを付与。戻り値: { leveled, newLevel, coinReward }
+function addXP(name, amount, socket) {
+  const data = getPlayerCoins(name);
+  data.xp += amount;
+  data.totalXp += amount;
+  let leveled = false;
+  let totalCoinReward = 0;
+  while (data.xp >= xpForNextLevel(data.level)) {
+    data.xp -= xpForNextLevel(data.level);
+    data.level++;
+    const coinReward = 10 + data.level * 5;
+    data.coins += coinReward;
+    data.totalEarned += coinReward;
+    totalCoinReward += coinReward;
+    leveled = true;
+    if (socket) {
+      socket.emit('levelUp', { level: data.level, coinReward, xp: data.xp, xpNext: xpForNextLevel(data.level) });
+      io.emit('chatMessage', { id: 'system', name: 'システム', message: `⬆️ ${name} がレベル ${data.level} に到達！ (+${coinReward}コイン)`, msgId: Date.now() + '_lvl' });
+    }
+  }
+  saveCoins();
+  if (socket) {
+    socket.emit('xpUpdate', { xp: data.xp, level: data.level, totalXp: data.totalXp, xpNext: xpForNextLevel(data.level), coins: data.coins });
+  }
+  return { leveled, newLevel: data.level, totalCoinReward };
 }
 
 function addCoins(name, amount, reason) {
@@ -318,8 +374,8 @@ function stopWorkTimer(socketId) {
   return elapsed;
 }
 
-// 毎分コイン付与チェック
-const COIN_PER_MINUTE = 2;
+// 毎分XP付与チェック
+const XP_PER_MINUTE = 2;
 setInterval(() => {
   const now = Date.now();
   for (const [socketId, timer] of Object.entries(workTimers)) {
@@ -328,48 +384,134 @@ setInterval(() => {
       const minutes = Math.floor(elapsed / 60000);
       timer.lastTick = now;
       const data = getPlayerCoins(timer.name);
-      data.coins += COIN_PER_MINUTE * minutes;
-      data.totalEarned += COIN_PER_MINUTE * minutes;
       data.workMinutes += minutes;
-      saveCoins();
-      // プレイヤーにコイン更新を通知
-      const socket = io.sockets.sockets.get(socketId);
-      if (socket) {
-        socket.emit('coinUpdate', {
-          coins: data.coins,
-          earned: COIN_PER_MINUTE * minutes,
-          reason: `作業 ${minutes}分`,
-        });
-      }
+      const sock = io.sockets.sockets.get(socketId);
+      addXP(timer.name, XP_PER_MINUTE * minutes, sock);
+      if (minutes % 10 === 0) checkAchievements(timer.name, sock);
     }
   }
 }, 10000); // 10秒ごとにチェック
 
 // ショップアイテム定義
 const SHOP_ITEMS = [
-  // プレミアム髪色
-  { id: 'hair_rainbow', name: '虹色ヘア', price: 50, type: 'hair', value: 8, icon: '🌈' },
-  { id: 'hair_silver', name: 'シルバーヘア', price: 30, type: 'hair', value: 9, icon: '🤍' },
-  // プレミアム服
-  { id: 'body_gold', name: 'ゴールドスーツ', price: 80, type: 'body', value: 8, icon: '✨' },
-  { id: 'body_galaxy', name: 'ギャラクシー服', price: 100, type: 'body', value: 9, icon: '🌌' },
-  // プレミアムズボン
-  { id: 'pants_white', name: 'ホワイトパンツ', price: 40, type: 'pants', value: 8, icon: '👖' },
-  { id: 'pants_stripe', name: 'ストライプ', price: 60, type: 'pants', value: 9, icon: '📏' },
-  // プレミアムアクセサリー
-  { id: 'acc_halo', name: '天使の輪', price: 120, type: 'acc', value: 5, icon: '😇' },
-  { id: 'acc_star', name: 'スターバッジ', price: 70, type: 'acc', value: 6, icon: '⭐' },
-  { id: 'acc_cat_ears', name: 'ネコ耳', price: 90, type: 'acc', value: 7, icon: '🐱' },
-  // エモート
-  { id: 'emote_dance', name: 'ダンスエモート', price: 50, type: 'emote', value: 'dance', icon: '💃' },
-  { id: 'emote_sparkle', name: 'キラキラ', price: 30, type: 'emote', value: 'sparkle', icon: '✨' },
-  { id: 'emote_heart', name: 'ハートエモート', price: 40, type: 'emote', value: 'heart', icon: '❤️' },
-  { id: 'emote_fire', name: 'ファイヤー', price: 45, type: 'emote', value: 'fire', icon: '🔥' },
-  // ペット
-  { id: 'pet_cat', name: 'ネコ', price: 150, type: 'pet', value: 'cat', icon: '🐱' },
-  { id: 'pet_dog', name: 'イヌ', price: 150, type: 'pet', value: 'dog', icon: '🐶' },
-  { id: 'pet_bird', name: 'トリ', price: 100, type: 'pet', value: 'bird', icon: '🐦' },
-  { id: 'pet_slime', name: 'スライム', price: 200, type: 'pet', value: 'slime', icon: '🟢' },
+  // ===== 髪型 (10) =====
+  { id: 'hs_short', name: 'ショートヘア', price: 30, type: 'hair_shape', value: 1, icon: '💇', category: 'hair' },
+  { id: 'hs_medium', name: 'ミディアムヘア', price: 40, type: 'hair_shape', value: 2, icon: '💇', category: 'hair' },
+  { id: 'hs_long', name: 'ロングヘア', price: 50, type: 'hair_shape', value: 3, icon: '💇', category: 'hair' },
+  { id: 'hs_ponytail', name: 'ポニーテール', price: 40, type: 'hair_shape', value: 4, icon: '🎀', category: 'hair' },
+  { id: 'hs_twintail', name: 'ツインテール', price: 50, type: 'hair_shape', value: 5, icon: '🎀', category: 'hair' },
+  { id: 'hs_bob', name: 'ボブヘア', price: 40, type: 'hair_shape', value: 6, icon: '💇', category: 'hair' },
+  { id: 'hs_mohawk', name: 'モヒカン', price: 60, type: 'hair_shape', value: 7, icon: '🔥', category: 'hair' },
+  { id: 'hs_afro', name: 'アフロヘア', price: 60, type: 'hair_shape', value: 8, icon: '🌀', category: 'hair' },
+  { id: 'hs_sidetail', name: 'サイドテール', price: 45, type: 'hair_shape', value: 10, icon: '💇', category: 'hair' },
+  { id: 'hs_braid', name: '三つ編み', price: 55, type: 'hair_shape', value: 11, icon: '🎀', category: 'hair' },
+  // ===== ヘアカラー (10) =====
+  { id: 'hc_purple', name: 'パープルヘア', price: 30, type: 'hair_color', value: 8, icon: '💜', category: 'hair_color' },
+  { id: 'hc_hotpink', name: 'ホットピンク', price: 35, type: 'hair_color', value: 9, icon: '💗', category: 'hair_color' },
+  { id: 'hc_teal', name: 'ティールヘア', price: 35, type: 'hair_color', value: 10, icon: '🩵', category: 'hair_color' },
+  { id: 'hc_lime', name: 'ライムグリーン', price: 40, type: 'hair_color', value: 11, icon: '💚', category: 'hair_color' },
+  { id: 'hc_gold', name: 'ゴールドヘア', price: 50, type: 'hair_color', value: 12, icon: '🌟', category: 'hair_color' },
+  { id: 'hc_tomato', name: 'トマトレッド', price: 35, type: 'hair_color', value: 13, icon: '❤️', category: 'hair_color' },
+  { id: 'hc_lavender', name: 'ラベンダー', price: 40, type: 'hair_color', value: 14, icon: '💜', category: 'hair_color' },
+  { id: 'hc_crimson', name: 'クリムゾン', price: 45, type: 'hair_color', value: 15, icon: '🔴', category: 'hair_color' },
+  { id: 'hair_rainbow', name: '虹色ヘア', price: 50, type: 'hair_color', value: 8, icon: '🌈', category: 'hair_color' },
+  { id: 'hair_silver', name: 'シルバーヘア', price: 30, type: 'hair_color', value: 4, icon: '🤍', category: 'hair_color' },
+  // ===== ふく・うえ (15) =====
+  { id: 'body_gold', name: 'ゴールドスーツ', price: 80, type: 'body_color', value: 8, icon: '✨', category: 'body' },
+  { id: 'body_galaxy', name: 'ギャラクシー服', price: 100, type: 'body_color', value: 9, icon: '🌌', category: 'body' },
+  { id: 'bc_wine', name: 'ワインレッド', price: 60, type: 'body_color', value: 10, icon: '🍷', category: 'body' },
+  { id: 'bc_sunset', name: 'サンセット', price: 70, type: 'body_color', value: 11, icon: '🌅', category: 'body' },
+  { id: 'bc_lavender', name: 'ラベンダーシャツ', price: 55, type: 'body_color', value: 12, icon: '💜', category: 'body' },
+  { id: 'bc_forest', name: 'フォレストグリーン', price: 50, type: 'body_color', value: 13, icon: '🌲', category: 'body' },
+  { id: 'bc_cherry', name: 'チェリーレッド', price: 65, type: 'body_color', value: 14, icon: '🍒', category: 'body' },
+  { id: 'bc_ocean', name: 'オーシャンブルー', price: 55, type: 'body_color', value: 15, icon: '🌊', category: 'body' },
+  { id: 'bc_rust', name: 'ラストオレンジ', price: 60, type: 'body_color', value: 8, icon: '🧡', category: 'body' },
+  { id: 'bc_mint', name: 'ミントグリーン', price: 50, type: 'body_color', value: 9, icon: '🌿', category: 'body' },
+  { id: 'bc_coral', name: 'コーラルピンク', price: 55, type: 'body_color', value: 10, icon: '🪸', category: 'body' },
+  { id: 'bc_storm', name: 'ストームグレー', price: 45, type: 'body_color', value: 11, icon: '🌩️', category: 'body' },
+  { id: 'bc_honey', name: 'ハニーイエロー', price: 50, type: 'body_color', value: 12, icon: '🍯', category: 'body' },
+  { id: 'bc_blush', name: 'ブラッシュ', price: 65, type: 'body_color', value: 13, icon: '🌸', category: 'body' },
+  { id: 'bc_titanium', name: 'チタンシルバー', price: 90, type: 'body_color', value: 15, icon: '⚙️', category: 'body' },
+  // ===== ふく・した (10) =====
+  { id: 'pants_white', name: 'ホワイトパンツ', price: 40, type: 'pants_color', value: 8, icon: '👖', category: 'pants' },
+  { id: 'pants_stripe', name: 'ストライプ', price: 60, type: 'pants_color', value: 9, icon: '📏', category: 'pants' },
+  { id: 'pc_navy', name: 'ネイビーパンツ', price: 50, type: 'pants_color', value: 10, icon: '👖', category: 'pants' },
+  { id: 'pc_burgundy', name: 'バーガンディ', price: 55, type: 'pants_color', value: 11, icon: '🟤', category: 'pants' },
+  { id: 'pc_olive', name: 'オリーブ', price: 45, type: 'pants_color', value: 12, icon: '🫒', category: 'pants' },
+  { id: 'pc_charcoal', name: 'チャコール', price: 40, type: 'pants_color', value: 13, icon: '⬛', category: 'pants' },
+  { id: 'pc_sand', name: 'サンドベージュ', price: 50, type: 'pants_color', value: 14, icon: '🏖️', category: 'pants' },
+  { id: 'pc_ink', name: 'インクブラック', price: 55, type: 'pants_color', value: 8, icon: '🖊️', category: 'pants' },
+  { id: 'pc_denim', name: 'デニムブルー', price: 45, type: 'pants_color', value: 9, icon: '👖', category: 'pants' },
+  { id: 'pc_khaki', name: 'カーキ', price: 40, type: 'pants_color', value: 15, icon: '🟫', category: 'pants' },
+  // ===== アクセサリー (15) =====
+  { id: 'acc_sunglasses', name: 'サングラス', price: 50, type: 'acc', value: 5, icon: '🕶️', category: 'acc' },
+  { id: 'acc_mask', name: 'マスク', price: 30, type: 'acc', value: 6, icon: '😷', category: 'acc' },
+  { id: 'acc_tiara', name: 'ティアラ', price: 100, type: 'acc', value: 7, icon: '👸', category: 'acc' },
+  { id: 'acc_necktie', name: 'ネクタイ', price: 40, type: 'acc', value: 8, icon: '👔', category: 'acc' },
+  { id: 'acc_bowtie', name: '蝶ネクタイ', price: 50, type: 'acc', value: 9, icon: '🎀', category: 'acc' },
+  { id: 'acc_earring', name: 'イヤリング', price: 60, type: 'acc', value: 10, icon: '💎', category: 'acc' },
+  { id: 'acc_beret', name: 'ベレー帽', price: 70, type: 'acc', value: 11, icon: '🎨', category: 'acc' },
+  { id: 'acc_cap', name: 'キャップ', price: 50, type: 'acc', value: 12, icon: '🧢', category: 'acc' },
+  { id: 'acc_cat_ears', name: 'ネコ耳', price: 90, type: 'acc', value: 13, icon: '🐱', category: 'acc' },
+  { id: 'acc_halo', name: '天使の輪', price: 120, type: 'acc', value: 14, icon: '😇', category: 'acc' },
+  { id: 'acc_flower', name: 'お花', price: 40, type: 'acc', value: 2, icon: '🌸', category: 'acc' },
+  { id: 'acc_bandana', name: 'バンダナ', price: 45, type: 'acc', value: 0, icon: '🏴‍☠️', category: 'acc' },
+  { id: 'acc_monocle', name: 'モノクル', price: 80, type: 'acc', value: 1, icon: '🧐', category: 'acc' },
+  { id: 'acc_crown_gold', name: '黄金の王冠', price: 200, type: 'acc', value: 4, icon: '👑', category: 'acc' },
+  { id: 'acc_headband', name: 'ヘアバンド', price: 35, type: 'acc', value: 3, icon: '🎽', category: 'acc' },
+  // ===== スキン (5) =====
+  { id: 'skin_tan', name: '小麦肌', price: 40, type: 'skin', value: 2, icon: '🧑', category: 'skin' },
+  { id: 'skin_mocha', name: 'モカ', price: 40, type: 'skin', value: 3, icon: '🧑', category: 'skin' },
+  { id: 'skin_caramel', name: 'キャラメル', price: 40, type: 'skin', value: 4, icon: '🧑', category: 'skin' },
+  { id: 'skin_cocoa', name: 'ココア', price: 40, type: 'skin', value: 5, icon: '🧑', category: 'skin' },
+  { id: 'skin_espresso', name: 'エスプレッソ', price: 40, type: 'skin', value: 6, icon: '🧑', category: 'skin' },
+  // ===== エモート (15) =====
+  { id: 'emote_dance', name: 'ダンスエモート', price: 50, type: 'emote', value: 'dance', icon: '💃', category: 'emote' },
+  { id: 'emote_sparkle', name: 'キラキラ', price: 30, type: 'emote', value: 'sparkle', icon: '✨', category: 'emote' },
+  { id: 'emote_heart', name: 'ハートエモート', price: 40, type: 'emote', value: 'heart', icon: '❤️', category: 'emote' },
+  { id: 'emote_fire', name: 'ファイヤー', price: 45, type: 'emote', value: 'fire', icon: '🔥', category: 'emote' },
+  { id: 'emote_clap', name: '拍手', price: 30, type: 'emote', value: 'clap', icon: '👏', category: 'emote' },
+  { id: 'emote_wave', name: '手を振る', price: 25, type: 'emote', value: 'wave', icon: '👋', category: 'emote' },
+  { id: 'emote_laugh', name: '大笑い', price: 35, type: 'emote', value: 'laugh', icon: '😂', category: 'emote' },
+  { id: 'emote_cry', name: '泣く', price: 35, type: 'emote', value: 'cry', icon: '😢', category: 'emote' },
+  { id: 'emote_angry', name: '怒り', price: 30, type: 'emote', value: 'angry', icon: '😡', category: 'emote' },
+  { id: 'emote_sleep', name: '居眠り', price: 40, type: 'emote', value: 'sleep', icon: '😴', category: 'emote' },
+  { id: 'emote_music', name: '音楽', price: 35, type: 'emote', value: 'music', icon: '🎵', category: 'emote' },
+  { id: 'emote_confetti', name: '紙吹雪', price: 60, type: 'emote', value: 'confetti', icon: '🎊', category: 'emote' },
+  { id: 'emote_shock', name: 'びっくり', price: 30, type: 'emote', value: 'shock', icon: '😱', category: 'emote' },
+  { id: 'emote_think', name: '考え中', price: 30, type: 'emote', value: 'think', icon: '🤔', category: 'emote' },
+  { id: 'emote_rainbow', name: 'レインボー', price: 80, type: 'emote', value: 'rainbow', icon: '🌈', category: 'emote' },
+  // ===== ペット (12) =====
+  { id: 'pet_cat', name: 'ネコ', price: 150, type: 'pet', value: 'cat', icon: '🐱', category: 'pet' },
+  { id: 'pet_dog', name: 'イヌ', price: 150, type: 'pet', value: 'dog', icon: '🐶', category: 'pet' },
+  { id: 'pet_bird', name: 'トリ', price: 100, type: 'pet', value: 'bird', icon: '🐦', category: 'pet' },
+  { id: 'pet_slime', name: 'スライム', price: 200, type: 'pet', value: 'slime', icon: '🟢', category: 'pet' },
+  { id: 'pet_rabbit', name: 'ウサギ', price: 120, type: 'pet', value: 'rabbit', icon: '🐰', category: 'pet' },
+  { id: 'pet_hamster', name: 'ハムスター', price: 130, type: 'pet', value: 'hamster', icon: '🐹', category: 'pet' },
+  { id: 'pet_turtle', name: 'カメ', price: 100, type: 'pet', value: 'turtle', icon: '🐢', category: 'pet' },
+  { id: 'pet_dragon', name: 'ドラゴン', price: 500, type: 'pet', value: 'dragon', icon: '🐉', category: 'pet' },
+  { id: 'pet_robot', name: 'ロボット', price: 300, type: 'pet', value: 'robot', icon: '🤖', category: 'pet' },
+  { id: 'pet_fairy', name: '妖精', price: 250, type: 'pet', value: 'fairy', icon: '🧚', category: 'pet' },
+  { id: 'pet_ghost', name: 'おばけ', price: 180, type: 'pet', value: 'ghost', icon: '👻', category: 'pet' },
+  { id: 'pet_fox', name: 'キツネ', price: 200, type: 'pet', value: 'fox', icon: '🦊', category: 'pet' },
+  // ===== 称号 (10) =====
+  { id: 'title_newbie', name: '新人さん', price: 100, type: 'title', value: '🔰 新人さん', icon: '🔰', category: 'title' },
+  { id: 'title_pro', name: 'プロフェッショナル', price: 200, type: 'title', value: '💼 プロ', icon: '💼', category: 'title' },
+  { id: 'title_legend', name: '伝説のプレイヤー', price: 500, type: 'title', value: '🏆 伝説', icon: '🏆', category: 'title' },
+  { id: 'title_ninja', name: '忍者', price: 150, type: 'title', value: '🥷 忍者', icon: '🥷', category: 'title' },
+  { id: 'title_star', name: 'スター', price: 250, type: 'title', value: '⭐ スター', icon: '⭐', category: 'title' },
+  { id: 'title_wizard', name: '魔法使い', price: 200, type: 'title', value: '🧙 魔法使い', icon: '🧙', category: 'title' },
+  { id: 'title_king', name: '王様', price: 400, type: 'title', value: '👑 王様', icon: '👑', category: 'title' },
+  { id: 'title_angel', name: '天使', price: 300, type: 'title', value: '😇 天使', icon: '😇', category: 'title' },
+  { id: 'title_hero', name: 'ヒーロー', price: 350, type: 'title', value: '🦸 ヒーロー', icon: '🦸', category: 'title' },
+  { id: 'title_artist', name: 'アーティスト', price: 180, type: 'title', value: '🎨 芸術家', icon: '🎨', category: 'title' },
+  // ===== エフェクト (6) =====
+  { id: 'effect_sparkle', name: 'キラキラオーラ', price: 300, type: 'effect', value: 'sparkle', icon: '✨', category: 'effect' },
+  { id: 'effect_fire', name: '炎オーラ', price: 400, type: 'effect', value: 'fire', icon: '🔥', category: 'effect' },
+  { id: 'effect_snow', name: '雪オーラ', price: 350, type: 'effect', value: 'snow', icon: '❄️', category: 'effect' },
+  { id: 'effect_sakura', name: '桜オーラ', price: 350, type: 'effect', value: 'sakura', icon: '🌸', category: 'effect' },
+  { id: 'effect_thunder', name: '雷オーラ', price: 500, type: 'effect', value: 'thunder', icon: '⚡', category: 'effect' },
+  { id: 'effect_heart', name: 'ハートオーラ', price: 300, type: 'effect', value: 'heart', icon: '💖', category: 'effect' },
 ];
 
 // ===== 実績システム =====
@@ -384,6 +526,9 @@ const ACHIEVEMENTS = [
   { id: 'items_10', name: 'ショッピング王', desc: '10個アイテム購入', icon: '👜', condition: (d) => d.purchasedItems.length >= 10 },
   { id: 'chat_50', name: 'おしゃべり', desc: '50回チャット', icon: '💬', condition: (d) => (d.chatCount || 0) >= 50 },
   { id: 'pet_owner', name: 'ペットオーナー', desc: 'ペットを購入', icon: '🐾', condition: (d) => d.purchasedItems.some(i => i.startsWith('pet_')) },
+  { id: 'level_5', name: 'レベル5', desc: 'レベル5に到達', icon: '⭐', condition: (d) => (d.level || 1) >= 5 },
+  { id: 'level_10', name: 'レベル10', desc: 'レベル10に到達', icon: '🌟', condition: (d) => (d.level || 1) >= 10 },
+  { id: 'level_25', name: 'ベテラン', desc: 'レベル25に到達', icon: '💫', condition: (d) => (d.level || 1) >= 25 },
 ];
 
 function checkAchievements(name, socket) {
@@ -410,6 +555,56 @@ function saveRoomThemes() { dataSet('roomThemes', roomThemes); }
 // ===== カスタム部屋 =====
 let customRooms = {};
 function saveCustomRooms() { dataSet('customRooms', customRooms); }
+
+// ===== ミニゲーム =====
+let wordWolfGame = { active: false, phase: 'idle', players: {} };
+let speedQuizGame = { active: false, phase: 'idle', scores: {} };
+
+function broadcastWordWolf() {
+  const ids = Object.keys(wordWolfGame.players);
+  for (const id of ids) {
+    const sock = io.sockets.sockets.get(id);
+    if (!sock) continue;
+    const myPlayer = wordWolfGame.players[id];
+    const state = {
+      active: wordWolfGame.active, phase: wordWolfGame.phase,
+      adminId: wordWolfGame.adminId, timerEnd: wordWolfGame.timerEnd,
+      discussionMinutes: wordWolfGame.discussionMinutes,
+      myWord: myPlayer?.word || null, players: {},
+    };
+    for (const [pid, p] of Object.entries(wordWolfGame.players)) {
+      state.players[pid] = {
+        name: p.name,
+        votedFor: wordWolfGame.phase === 'reveal' ? p.votedFor : (pid === id ? p.votedFor : null),
+        isWolf: wordWolfGame.phase === 'reveal' ? p.isWolf : undefined,
+        word: wordWolfGame.phase === 'reveal' ? p.word : undefined,
+      };
+    }
+    if (wordWolfGame.result && wordWolfGame.phase === 'reveal') {
+      state.result = wordWolfGame.result;
+      state.majorityWord = wordWolfGame.majorityWord;
+      state.wolfWord = wordWolfGame.wolfWord;
+    }
+    sock.emit('wordWolfUpdate', state);
+  }
+  io.emit('wordWolfStatus', { active: wordWolfGame.active, phase: wordWolfGame.phase, playerCount: ids.length });
+}
+
+function broadcastQuiz() {
+  const q = speedQuizGame;
+  const currentQuestion = q.currentQ >= 0 && q.currentQ < q.questions.length ? q.questions[q.currentQ] : null;
+  const state = {
+    active: q.active, phase: q.phase, adminId: q.adminId,
+    currentQ: q.currentQ, totalQ: q.questions?.length || 0,
+    question: currentQuestion ? currentQuestion.q : null,
+    answer: (q.phase === 'result' || q.phase === 'finished') && currentQuestion ? currentQuestion.a : null,
+    buzzedBy: q.buzzedBy,
+    buzzedName: q.buzzedBy && q.scores[q.buzzedBy] ? q.scores[q.buzzedBy].name : null,
+    submittedAnswer: q.submittedAnswer || null,
+    lastCorrect: q.lastCorrect, timerEnd: q.timerEnd, scores: q.scores,
+  };
+  io.emit('speedQuizUpdate', state);
+}
 
 // ===== ホワイトボード =====
 let whiteboardStrokes = []; // [{tool,color,size,points:[{x,y}]}]
@@ -441,11 +636,33 @@ function broadcastMeeting() {
   io.emit('meetingUpdate', getMeetingState());
 }
 
-// 家具の種類定義
-const VALID_FURNITURE = [
-  'sofa','table','lamp','bookshelf','rug_small','plant_big',
-  'vending','poster','clock','trophy','tv','aquarium',
-];
+// 家具の種類定義（112種）
+const VALID_FURNITURE_SET = new Set([
+  // 座席
+  'sofa','office_chair','armchair','bench','stool','beanbag','rocking_chair','barstool','zaisu','hammock','swing_chair','throne',
+  // デスク
+  'table','desk_l','standing_desk','coffee_table','round_table','kotatsu','workbench','counter_table','bar_counter',
+  // 収納
+  'bookshelf','cabinet','locker','shelf_wall','drawer','shoe_rack','wardrobe','filing_cabinet','crate','treasure_chest',
+  // 照明
+  'lamp','chandelier','desk_lamp','lantern','neon_sign','candle','lava_lamp','spotlight',
+  // 植物
+  'plant_big','plant_small','cactus','bonsai','flower_pot','bamboo','ivy_wall','sakura_tree','sunflower','mushroom',
+  // 壁飾り
+  'poster','clock','painting','mirror','banner','calendar','map_world','photo_frame','dart_board','flag',
+  // 電子機器
+  'tv','monitor','arcade_machine','jukebox','radio','projector','speaker','computer','console_game','drone_display',
+  // キッチン
+  'vending','fridge','microwave','coffee_machine','water_cooler','toaster','rice_cooker','sushi_bar',
+  // 床
+  'rug_small','rug_large','rug_circle','tatami_mat','yoga_mat','welcome_mat','carpet_red','stone_tile',
+  // お楽しみ
+  'trophy','aquarium','piano','guitar','pool_table','ping_pong','punching_bag','telescope','globe','slot_machine',
+  // 季節
+  'christmas_tree','snowman','jack_o_lantern','tanabata','kadomatsu','fireworks_box','campfire','fountain',
+  // アウトドア
+  'tent','bbq_grill','picnic_basket','mailbox','park_bench','street_lamp','signpost','bicycle',
+]);
 
 // ===== Discord Webhook連携 =====
 const DISCORD_WEBHOOK_LOG = process.env.DISCORD_WEBHOOK_LOG || '';   // 入退室ログ用
@@ -634,7 +851,9 @@ io.on('connection', (socket) => {
       updateDiscordStatus();
       // コインデータ送信
       const data = getPlayerCoins(sanitized);
-      socket.emit('coinInit', { coins: data.coins, totalEarned: data.totalEarned, purchasedItems: data.purchasedItems, workMinutes: data.workMinutes, achievements: data.achievements || [] });
+      socket.emit('coinInit', { coins: data.coins, totalEarned: data.totalEarned, purchasedItems: data.purchasedItems, workMinutes: data.workMinutes, achievements: data.achievements || [], xp: data.xp, level: data.level, totalXp: data.totalXp, xpNext: xpForNextLevel(data.level) });
+      // ログインXPボーナス
+      addXP(sanitized, 10, socket);
       // 実績チェック
       checkAchievements(sanitized, socket);
       // ペット復元
@@ -688,6 +907,18 @@ io.on('connection', (socket) => {
     }
   });
 
+  // 称号・エフェクト設定
+  socket.on('setTitle', (title) => {
+    if (!players[socket.id]) return;
+    players[socket.id].title = String(title || '').slice(0, 20);
+    io.emit('playerTitleChanged', { id: socket.id, title: players[socket.id].title });
+  });
+  socket.on('setEffect', (effect) => {
+    if (!players[socket.id]) return;
+    players[socket.id].effect = String(effect || '').slice(0, 20);
+    io.emit('playerEffectChanged', { id: socket.id, effect: players[socket.id].effect });
+  });
+
   // カスタムステータスメッセージ
   socket.on('setStatusMsg', (msg) => {
     if (!players[socket.id]) return;
@@ -735,22 +966,25 @@ io.on('connection', (socket) => {
     const pomo = players[socket.id].pomodoro;
     players[socket.id].pomodoro = null;
     socket.emit('pomodoroUpdate', null);
-    // 作業完了ボーナス
+    // 作業完了XPボーナス
     if (pomo && pomo.type === 'work' && Date.now() >= pomo.endTime) {
-      const bonus = 5;
-      const newBal = addCoins(players[socket.id].name, bonus, 'ポモドーロ完了');
-      socket.emit('coinUpdate', { coins: newBal, earned: bonus, reason: 'ポモドーロ完了ボーナス' });
+      addXP(players[socket.id].name, 25, socket);
+      checkAchievements(players[socket.id].name, socket);
     }
   });
 
   // アバター変更
   socket.on('updateAvatar', (avatar) => {
     if (players[socket.id]) {
+      // 新旧フォーマット両対応
       players[socket.id].avatar = {
-        hair: Number(avatar.hair) || 0,
-        body: Number(avatar.body) || 0,
-        pants: Number(avatar.pants) || 0,
-        acc: Number(avatar.acc) ?? -1,
+        hairShape: Number(avatar.hairShape) || 0,
+        hairColor: Number(avatar.hairColor) || Number(avatar.hair) || 0,
+        bodyType: Number(avatar.bodyType) || 0,
+        bodyColor: Number(avatar.bodyColor) || Number(avatar.body) || 0,
+        pantsColor: Number(avatar.pantsColor) || Number(avatar.pants) || 0,
+        skinColor: Number(avatar.skinColor) || 0,
+        acc: avatar.acc != null ? Number(avatar.acc) : -1,
       };
       io.emit('playerAvatarChanged', { id: socket.id, avatar: players[socket.id].avatar });
     }
@@ -784,9 +1018,9 @@ io.on('connection', (socket) => {
   socket.on('placeFurniture', (data) => {
     const { room, type, x, y } = data;
     if (!furniture[room]) return;
-    if (!VALID_FURNITURE.includes(type)) return;
+    if (!VALID_FURNITURE_SET.has(type)) return;
     if (typeof x !== 'number' || typeof y !== 'number') return;
-    if (furniture[room].length >= 30) return;
+    if (furniture[room].length >= 100) return;
 
     const item = { id: Date.now() + '_' + Math.random().toString(36).slice(2, 6), type, x, y };
     furniture[room].push(item);
@@ -830,12 +1064,11 @@ io.on('connection', (socket) => {
       // チャットカウントをcoinDataに保存
       const data = getPlayerCoins(players[socket.id].name);
       data.chatCount = (data.chatCount || 0) + 1;
-      if (chatCount % 10 === 0) {
-        const newBal = addCoins(players[socket.id].name, 1, 'チャット');
-        socket.emit('coinUpdate', { coins: newBal, earned: 1, reason: 'チャット報酬' });
+      if (data.chatCount % 10 === 0) {
+        addXP(players[socket.id].name, 5, socket);
       }
       // 実績チェック
-      if (chatCount % 10 === 0) checkAchievements(players[socket.id].name, socket);
+      if (data.chatCount % 10 === 0) checkAchievements(players[socket.id].name, socket);
       if (chatCount % 50 === 0) saveCoins();
     }
   });
@@ -1206,6 +1439,177 @@ io.on('connection', (socket) => {
     socket.emit('adminUserList', { users: list, stats });
   });
 
+  // ===== ミニゲーム: ワードウルフ =====
+  socket.on('wordWolfStart', (data) => {
+    if (wordWolfGame.active) return socket.emit('gameError', 'ワードウルフは既に進行中です');
+    const { majorityWord, wolfWord } = data;
+    if (!majorityWord || !wolfWord) return;
+    wordWolfGame = {
+      active: true, phase: 'waiting', adminId: socket.id,
+      majorityWord: majorityWord.trim(), wolfWord: wolfWord.trim(),
+      players: {}, timerEnd: null, discussionMinutes: data.minutes || 3
+    };
+    wordWolfGame.players[socket.id] = { name: players[socket.id]?.name || '???', word: null, isWolf: false, votedFor: null };
+    broadcastWordWolf();
+    io.emit('chatMessage', { id: 'system', name: 'システム', message: `🐺 ワードウルフが開始されました！参加するには「🎮 ゲーム」から参加してください`, msgId: Date.now() + '_ww' });
+  });
+
+  socket.on('wordWolfJoin', () => {
+    if (!wordWolfGame.active || wordWolfGame.phase !== 'waiting') return;
+    if (wordWolfGame.players[socket.id]) return;
+    wordWolfGame.players[socket.id] = { name: players[socket.id]?.name || '???', word: null, isWolf: false, votedFor: null };
+    broadcastWordWolf();
+  });
+
+  socket.on('wordWolfBeginRound', () => {
+    if (!wordWolfGame.active || socket.id !== wordWolfGame.adminId) return;
+    const ids = Object.keys(wordWolfGame.players);
+    if (ids.length < 3) return socket.emit('gameError', '3人以上必要です');
+    // Pick random wolf
+    const wolfIdx = Math.floor(Math.random() * ids.length);
+    ids.forEach((id, i) => {
+      const p = wordWolfGame.players[id];
+      p.isWolf = (i === wolfIdx);
+      p.word = p.isWolf ? wordWolfGame.wolfWord : wordWolfGame.majorityWord;
+      p.votedFor = null;
+    });
+    wordWolfGame.phase = 'discuss';
+    wordWolfGame.timerEnd = Date.now() + wordWolfGame.discussionMinutes * 60000;
+    broadcastWordWolf();
+    // Auto-transition to vote after timer
+    setTimeout(() => {
+      if (wordWolfGame.active && wordWolfGame.phase === 'discuss') {
+        wordWolfGame.phase = 'vote';
+        broadcastWordWolf();
+      }
+    }, wordWolfGame.discussionMinutes * 60000);
+  });
+
+  socket.on('wordWolfVote', (data) => {
+    if (!wordWolfGame.active || wordWolfGame.phase !== 'vote') return;
+    if (!wordWolfGame.players[socket.id]) return;
+    if (!wordWolfGame.players[data.targetId]) return;
+    if (data.targetId === socket.id) return; // can't vote self
+    wordWolfGame.players[socket.id].votedFor = data.targetId;
+    broadcastWordWolf();
+    // Check if all voted
+    const allVoted = Object.values(wordWolfGame.players).every(p => p.votedFor !== null);
+    if (allVoted) {
+      wordWolfGame.phase = 'reveal';
+      // Calculate votes
+      const voteCounts = {};
+      Object.values(wordWolfGame.players).forEach(p => {
+        voteCounts[p.votedFor] = (voteCounts[p.votedFor] || 0) + 1;
+      });
+      // Find most voted
+      let maxVotes = 0, mostVotedId = null;
+      for (const [id, count] of Object.entries(voteCounts)) {
+        if (count > maxVotes) { maxVotes = count; mostVotedId = id; }
+      }
+      wordWolfGame.result = { mostVotedId, voteCounts };
+      // XP rewards
+      const wolf = Object.entries(wordWolfGame.players).find(([, p]) => p.isWolf);
+      if (wolf) {
+        const wolfCaught = mostVotedId === wolf[0];
+        if (wolfCaught) {
+          // Villagers win
+          Object.entries(wordWolfGame.players).forEach(([id, p]) => {
+            if (!p.isWolf && players[id]?.name) addXP(players[id].name, 30, io.sockets.sockets.get(id));
+          });
+        } else {
+          // Wolf wins
+          if (players[wolf[0]]?.name) addXP(players[wolf[0]].name, 50, io.sockets.sockets.get(wolf[0]));
+        }
+      }
+      broadcastWordWolf();
+    }
+  });
+
+  socket.on('wordWolfEnd', () => {
+    if (!wordWolfGame.active) return;
+    if (socket.id !== wordWolfGame.adminId) return;
+    wordWolfGame = { active: false, phase: 'idle', players: {} };
+    io.emit('wordWolfUpdate', { active: false, phase: 'idle' });
+  });
+
+  // ===== ミニゲーム: 早押しクイズ =====
+  socket.on('quizStart', (data) => {
+    if (speedQuizGame.active) return socket.emit('gameError', '早押しクイズは既に進行中です');
+    const questions = (data.questions || []).filter(q => q.q && q.a);
+    if (questions.length === 0) return socket.emit('gameError', '問題が必要です');
+    speedQuizGame = {
+      active: true, phase: 'waiting', adminId: socket.id,
+      questions, currentQ: -1, buzzedBy: null,
+      scores: {}, timerEnd: null
+    };
+    speedQuizGame.scores[socket.id] = { name: players[socket.id]?.name || '???', score: 0 };
+    broadcastQuiz();
+    io.emit('chatMessage', { id: 'system', name: 'システム', message: `⚡ 早押しクイズが開始されました！参加するには「🎮 ゲーム」から参加してください`, msgId: Date.now() + '_quiz' });
+  });
+
+  socket.on('quizJoin', () => {
+    if (!speedQuizGame.active) return;
+    if (speedQuizGame.scores[socket.id]) return;
+    speedQuizGame.scores[socket.id] = { name: players[socket.id]?.name || '???', score: 0 };
+    broadcastQuiz();
+  });
+
+  socket.on('quizNext', () => {
+    if (!speedQuizGame.active || socket.id !== speedQuizGame.adminId) return;
+    speedQuizGame.currentQ++;
+    if (speedQuizGame.currentQ >= speedQuizGame.questions.length) {
+      // End - give XP
+      speedQuizGame.phase = 'finished';
+      const sorted = Object.entries(speedQuizGame.scores).sort((a, b) => b[1].score - a[1].score);
+      if (sorted.length > 0 && sorted[0][1].score > 0) {
+        const winnerId = sorted[0][0];
+        if (players[winnerId]?.name) addXP(players[winnerId].name, 50, io.sockets.sockets.get(winnerId));
+      }
+      Object.entries(speedQuizGame.scores).forEach(([id, s]) => {
+        if (s.score > 0 && players[id]?.name) addXP(players[id].name, 10, io.sockets.sockets.get(id));
+      });
+      broadcastQuiz();
+      return;
+    }
+    speedQuizGame.phase = 'question';
+    speedQuizGame.buzzedBy = null;
+    speedQuizGame.timerEnd = Date.now() + 15000;
+    broadcastQuiz();
+  });
+
+  socket.on('quizBuzz', () => {
+    if (!speedQuizGame.active || speedQuizGame.phase !== 'question') return;
+    if (speedQuizGame.buzzedBy) return; // already buzzed
+    if (!speedQuizGame.scores[socket.id]) return;
+    speedQuizGame.buzzedBy = socket.id;
+    speedQuizGame.phase = 'buzzed';
+    broadcastQuiz();
+  });
+
+  socket.on('quizAnswer', (data) => {
+    if (!speedQuizGame.active || speedQuizGame.phase !== 'buzzed') return;
+    if (socket.id !== speedQuizGame.buzzedBy) return;
+    speedQuizGame.submittedAnswer = data.answer || '';
+    broadcastQuiz();
+  });
+
+  socket.on('quizJudge', (data) => {
+    if (!speedQuizGame.active || socket.id !== speedQuizGame.adminId) return;
+    if (data.correct && speedQuizGame.buzzedBy) {
+      speedQuizGame.scores[speedQuizGame.buzzedBy].score++;
+    }
+    speedQuizGame.phase = 'result';
+    speedQuizGame.lastCorrect = data.correct;
+    broadcastQuiz();
+  });
+
+  socket.on('quizEnd', () => {
+    if (!speedQuizGame.active) return;
+    if (socket.id !== speedQuizGame.adminId) return;
+    speedQuizGame = { active: false, phase: 'idle', scores: {} };
+    io.emit('speedQuizUpdate', { active: false, phase: 'idle' });
+  });
+
   // 切断
   socket.on('disconnect', () => {
     console.log(`切断: ${socket.id}`);
@@ -1221,6 +1625,21 @@ io.on('connection', (socket) => {
     if (meeting.active) broadcastMeeting();
     // ホワイトボード描画中ストロークをクリーンアップ
     delete whiteboardActiveStrokes[socket.id];
+    // ミニゲーム離脱処理
+    if (wordWolfGame.active && wordWolfGame.players[socket.id]) {
+      delete wordWolfGame.players[socket.id];
+      if (socket.id === wordWolfGame.adminId) {
+        wordWolfGame = { active: false, phase: 'idle', players: {} };
+        io.emit('wordWolfUpdate', { active: false, phase: 'idle' });
+      } else { broadcastWordWolf(); }
+    }
+    if (speedQuizGame.active && speedQuizGame.scores[socket.id]) {
+      delete speedQuizGame.scores[socket.id];
+      if (socket.id === speedQuizGame.adminId) {
+        speedQuizGame = { active: false, phase: 'idle', scores: {} };
+        io.emit('speedQuizUpdate', { active: false, phase: 'idle' });
+      } else { broadcastQuiz(); }
+    }
     // WebRTC通知
     io.emit('rtcPeerLeft', { peerId: socket.id });
     delete players[socket.id];

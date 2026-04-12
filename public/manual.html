@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>五方よしOFFICE - 入室マニュアル</title>
+<title>metaOFFICE - ユーザーマニュアル</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap');
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -14,10 +14,12 @@
     max-width: 1000px;
     margin: 0 auto;
     padding: 20px;
+    line-height: 1.7;
   }
   @media print {
-    body { padding: 0; max-width: 100%; }
+    body { padding: 0; max-width: 100%; font-size: 11px; }
     .no-print { display: none; }
+    .section { break-inside: avoid; }
   }
 
   /* ヘッダー */
@@ -53,6 +55,30 @@
     word-break: break-all;
   }
 
+  /* 目次 */
+  .toc {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .toc h2 { font-size: 16px; font-weight: 900; margin-bottom: 10px; color: #1a1a2e; }
+  .toc-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 20px;
+  }
+  @media (max-width: 600px) { .toc-grid { grid-template-columns: 1fr; } }
+  .toc a {
+    color: #5a6aee;
+    text-decoration: none;
+    font-size: 13px;
+    padding: 3px 0;
+    display: block;
+  }
+  .toc a:hover { text-decoration: underline; }
+
   /* セクション */
   .section {
     background: #fff;
@@ -73,6 +99,21 @@
     gap: 8px;
   }
   .section h2 .emoji { font-size: 20px; }
+  .section h3 {
+    font-size: 14px;
+    font-weight: 700;
+    color: #3a3a6a;
+    margin: 14px 0 8px;
+  }
+  .section p, .section li {
+    font-size: 13px;
+    color: #444;
+  }
+  .section ul, .section ol {
+    padding-left: 20px;
+    margin: 6px 0;
+  }
+  .section li { margin-bottom: 4px; }
 
   /* 2カラム */
   .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
@@ -136,10 +177,11 @@
     font-size: 12px;
   }
   .shortcut-table td {
-    padding: 5px 8px;
+    padding: 6px 8px;
     border-bottom: 1px solid #f0f0f0;
   }
-  .shortcut-table td:first-child { width: 100px; text-align: center; }
+  .shortcut-table td:first-child { width: 120px; text-align: center; }
+  .shortcut-table tr:last-child td { border-bottom: none; }
 
   /* PWA */
   .pwa-steps {
@@ -158,15 +200,54 @@
   }
   .pwa-arrow { color: #7c8aff; font-weight: 900; }
 
-  /* フッター */
-  .footer {
-    text-align: center;
-    color: #999;
-    font-size: 11px;
-    padding: 12px 0;
+  /* インフォボックス */
+  .info-box {
+    background: #f0f4ff;
+    border-left: 3px solid #7c8aff;
+    border-radius: 0 8px 8px 0;
+    padding: 10px 14px;
+    font-size: 12px;
+    margin: 10px 0;
+    color: #3a3a6a;
+  }
+  .info-box.warn {
+    background: #fff8e8;
+    border-left-color: #ff9800;
+    color: #6a4a00;
+  }
+  .info-box.success {
+    background: #e8f5e9;
+    border-left-color: #4caf50;
+    color: #2e5a2e;
   }
 
-  /* iOS/Android */
+  /* 部屋カード */
+  .room-cards { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+  .room-card {
+    border-radius: 10px;
+    padding: 14px 20px;
+    text-align: center;
+    min-width: 140px;
+    flex: 1;
+  }
+  .room-card .room-icon { font-size: 28px; }
+  .room-card .room-name { font-weight: 700; font-size: 14px; margin-top: 4px; }
+  .room-card .room-desc { font-size: 11px; color: #666; margin-top: 2px; }
+
+  /* 管理者セクション */
+  .admin-tag {
+    display: inline-block;
+    background: #f44336;
+    color: #fff;
+    border-radius: 4px;
+    padding: 1px 8px;
+    font-size: 10px;
+    font-weight: 700;
+    vertical-align: middle;
+    margin-left: 4px;
+  }
+
+  /* デバイスバッジ */
   .device-badge {
     display: inline-block;
     background: #333;
@@ -179,6 +260,32 @@
   .device-badge.ios { background: #007aff; }
   .device-badge.android { background: #3ddc84; color: #000; }
   .device-badge.pc { background: #7c8aff; }
+
+  /* フッター */
+  .footer {
+    text-align: center;
+    color: #999;
+    font-size: 11px;
+    padding: 12px 0;
+  }
+
+  /* 詳細機能カード */
+  .feature-detail {
+    background: #fafafe;
+    border: 1px solid #e8e8f0;
+    border-radius: 10px;
+    padding: 16px;
+    margin: 10px 0;
+  }
+  .feature-detail h4 {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
 </style>
 </head>
 <body>
@@ -187,15 +294,39 @@
 <div class="header">
   <div class="header-icon">🏢</div>
   <div>
-    <h1>五方よしOFFICE</h1>
-    <p>バーチャルオフィスで仲間とつながろう！ - 入室マニュアル</p>
-    <div class="url-box">https://metaverse-office.onrender.com</div>
+    <h1>metaOFFICE</h1>
+    <p>2Dバーチャルオフィス ユーザーマニュアル</p>
+    <div class="url-box">https://your-office.onrender.com</div>
   </div>
 </div>
 
-<!-- 入室方法 -->
-<div class="section">
-  <h2><span class="emoji">🚪</span> 入室方法</h2>
+<!-- 目次 -->
+<div class="toc">
+  <h2>📖 目次</h2>
+  <div class="toc-grid">
+    <a href="#entry">1. 入室方法</a>
+    <a href="#controls">2. 操作方法・ショートカット</a>
+    <a href="#rooms">3. 部屋マップ</a>
+    <a href="#features">4. 機能一覧</a>
+    <a href="#chat">5. チャット・DM・リアクション</a>
+    <a href="#video">6. ビデオ/音声通話・画面共有</a>
+    <a href="#meeting">7. 会議システム・ホワイトボード</a>
+    <a href="#pomo">8. ポモドーロタイマー</a>
+    <a href="#avatar">9. アバター・エモート・ペット</a>
+    <a href="#furniture">10. もようがえ（家具配置）</a>
+    <a href="#shop">11. 経験値・レベル・ショップ</a>
+    <a href="#bgm">12. BGM</a>
+    <a href="#env">13. 天気・時間帯演出</a>
+    <a href="#floormap">14. フロアマップ</a>
+    <a href="#pwa">15. スマホアプリ化（PWA）</a>
+    <a href="#admin">16. 管理者ガイド</a>
+    <a href="#faq">17. よくある質問</a>
+  </div>
+</div>
+
+<!-- ===== 1. 入室方法 ===== -->
+<div class="section" id="entry">
+  <h2><span class="emoji">🚪</span> 1. 入室方法</h2>
   <div class="steps">
     <div class="step">
       <div class="step-num">1</div>
@@ -216,47 +347,79 @@
     <div class="step">
       <div class="step-num">3</div>
       <div class="step-title">オフィスへ！</div>
-      <div class="step-desc">ロビーに入室！<br>矢印キーで移動、ドアの前でスペースで部屋に入れます</div>
+      <div class="step-desc">ロビーに入室！<br>矢印キーで移動しましょう</div>
+    </div>
+  </div>
+  <div class="info-box" style="margin-top: 12px;">
+    💡 <strong>ゲストログイン</strong>は登録不要ですぐ入れますが、データはブラウザに紐づきます。継続利用にはアカウント登録がおすすめです。
+  </div>
+</div>
+
+<!-- ===== 2. 操作方法 ===== -->
+<div class="section" id="controls">
+  <h2><span class="emoji">🎮</span> 2. 操作方法・ショートカット</h2>
+  <div class="cols">
+    <div>
+      <h3>💻 PC操作</h3>
+      <table class="shortcut-table">
+        <tr><td><span class="key">← → ↑ ↓</span></td><td>キャラクター移動</td></tr>
+        <tr><td><span class="key">スペース</span></td><td>ドアから部屋に入る</td></tr>
+        <tr><td><span class="key">ESC</span></td><td>ロビーに戻る</td></tr>
+        <tr><td><span class="key">Enter</span></td><td>チャット入力にフォーカス</td></tr>
+        <tr><td><span class="key">F</span></td><td>家具配置モード ON/OFF</td></tr>
+        <tr><td><span class="key">M</span></td><td>会議パネル（会議室のみ）</td></tr>
+        <tr><td><span class="key">W</span></td><td>ホワイトボード（会議室のみ）</td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>📱 スマホ操作</h3>
+      <table class="shortcut-table">
+        <tr><td>十字キー</td><td>画面上の方向ボタンで移動</td></tr>
+        <tr><td>「入室」ボタン</td><td>ドアの前で表示されるボタン</td></tr>
+        <tr><td>ツールバー</td><td>画面下部のアイコンで各機能へ</td></tr>
+        <tr><td>チャット</td><td>右パネルの入力欄から送信</td></tr>
+      </table>
+      <div class="info-box" style="margin-top: 10px;">
+        📱 スマホでも全機能利用可能。横画面がおすすめです。
+      </div>
     </div>
   </div>
 </div>
 
-<!-- スマホアプリ化 + 操作方法 -->
-<div class="cols">
-  <div class="section">
-    <h2><span class="emoji">📱</span> スマホアプリとして使う</h2>
-    <p style="font-size:12px; color:#666; margin-bottom:10px;">ホーム画面に追加するとアプリのように起動できます</p>
-    <p style="font-size:12px; margin-bottom:6px;"><span class="device-badge ios">iOS Safari</span></p>
-    <div class="pwa-steps">
-      <span class="pwa-step">□↑ 共有</span>
-      <span class="pwa-arrow">→</span>
-      <span class="pwa-step">ホーム画面に追加</span>
-      <span class="pwa-arrow">→</span>
-      <span class="pwa-step">追加</span>
+<!-- ===== 3. 部屋マップ ===== -->
+<div class="section" id="rooms">
+  <h2><span class="emoji">🗺️</span> 3. 部屋マップ</h2>
+  <div class="room-cards">
+    <div class="room-card" style="background:#f0f0ff;">
+      <div class="room-icon">🏢</div>
+      <div class="room-name">ロビー</div>
+      <div class="room-desc">集合場所・雑談<br>全ての部屋への入口</div>
     </div>
-    <p style="font-size:12px; margin-top:10px; margin-bottom:6px;"><span class="device-badge android">Android Chrome</span></p>
-    <div class="pwa-steps">
-      <span class="pwa-step">⋮ メニュー</span>
-      <span class="pwa-arrow">→</span>
-      <span class="pwa-step">ホーム画面に追加</span>
+    <div class="room-card" style="background:#fff8e0;">
+      <div class="room-icon">💻</div>
+      <div class="room-name">作業部屋</div>
+      <div class="room-desc">集中作業・ポモドーロ<br>静かに作業したい時に</div>
+    </div>
+    <div class="room-card" style="background:#e8f5e9;">
+      <div class="room-icon">📋</div>
+      <div class="room-name">会議室</div>
+      <div class="room-desc">会議・投票・ホワイトボード<br>通話・画面共有</div>
+    </div>
+    <div class="room-card" style="background:#f5efe0;">
+      <div class="room-icon">🏯</div>
+      <div class="room-name">和室</div>
+      <div class="room-desc">畳・障子・床の間<br>リラックス空間</div>
     </div>
   </div>
-  <div class="section">
-    <h2><span class="emoji">🎮</span> 操作方法</h2>
-    <table class="shortcut-table">
-      <tr><td><span class="key">← → ↑ ↓</span></td><td>キャラクター移動</td></tr>
-      <tr><td><span class="key">スペース</span></td><td>ドアから部屋に入る</td></tr>
-      <tr><td><span class="key">ESC</span></td><td>ロビーに戻る</td></tr>
-      <tr><td><span class="key">F</span></td><td>家具の配置モード</td></tr>
-      <tr><td><span class="key">Enter</span></td><td>チャット送信</td></tr>
-    </table>
-    <p style="font-size:11px; color:#888; margin-top:8px;">📱 スマホ: 画面の十字キーで移動、「入室」ボタンでドアに入れます</p>
+  <div class="info-box" style="margin-top: 12px;">
+    🚪 <strong>部屋の移動方法</strong>: ドアタイル（色付きの出入口）の上に立って <span class="key">スペース</span> キーを押すと別の部屋に移動できます。ロビーから各部屋へ、各部屋からロビーへ双方向に行き来できます。
   </div>
+  <p style="text-align:center; font-size:12px; color:#888; margin-top:10px;">＋ 管理者は「カスタム部屋」も追加作成できます（最大3部屋）</p>
 </div>
 
-<!-- 機能一覧 -->
-<div class="section">
-  <h2><span class="emoji">✨</span> 機能一覧</h2>
+<!-- ===== 4. 機能一覧 ===== -->
+<div class="section" id="features">
+  <h2><span class="emoji">✨</span> 4. 機能一覧</h2>
   <div class="feat-grid">
     <div class="feat">
       <div class="feat-icon">💬</div>
@@ -264,95 +427,453 @@
     </div>
     <div class="feat">
       <div class="feat-icon">📩</div>
-      <div><div class="feat-name">DM（ダイレクトメッセージ）</div><div class="feat-desc">特定の人にプライベートメッセージを送信</div></div>
+      <div><div class="feat-name">DM</div><div class="feat-desc">特定の人にプライベートメッセージを送信</div></div>
     </div>
     <div class="feat">
       <div class="feat-icon">📷</div>
-      <div><div class="feat-name">ビデオ/音声通話</div><div class="feat-desc">3タイル以内に近づくと自動接続。距離で音量が変化</div></div>
+      <div><div class="feat-name">ビデオ/音声通話</div><div class="feat-desc">近くにいる人と自動接続。距離で音量変化</div></div>
     </div>
     <div class="feat">
       <div class="feat-icon">🖥️</div>
-      <div><div class="feat-name">画面共有</div><div class="feat-desc">ツールバーからワンクリックで画面を共有</div></div>
+      <div><div class="feat-name">画面共有</div><div class="feat-desc">ワンクリックで共有。セルフプレビュー付き</div></div>
     </div>
     <div class="feat">
       <div class="feat-icon">📋</div>
-      <div><div class="feat-name">会議システム</div><div class="feat-desc">会議室でトピック設定、投票、挙手、タイマー機能</div></div>
+      <div><div class="feat-name">会議システム</div><div class="feat-desc">トピック設定、投票、挙手、タイマー</div></div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">🖊️</div>
+      <div><div class="feat-name">ホワイトボード</div><div class="feat-desc">リアルタイム共有のお絵かきボード</div></div>
     </div>
     <div class="feat">
       <div class="feat-icon">🍅</div>
-      <div><div class="feat-name">ポモドーロタイマー</div><div class="feat-desc">25分作業 + 5分休憩。作業中はコインが貯まる</div></div>
+      <div><div class="feat-name">ポモドーロタイマー</div><div class="feat-desc">25分作業 + 5分休憩。経験値も貯まる</div></div>
     </div>
     <div class="feat">
       <div class="feat-icon">🎵</div>
-      <div><div class="feat-name">BGM</div><div class="feat-desc">部屋ごとにYouTubeのBGMを設定して共有</div></div>
-    </div>
-    <div class="feat">
-      <div class="feat-icon">😄</div>
-      <div><div class="feat-name">エモート</div><div class="feat-desc">ダンス、キラキラ、ハート、炎などのアニメーション</div></div>
+      <div><div class="feat-name">BGM</div><div class="feat-desc">部屋ごとにYouTube BGMを設定・共有</div></div>
     </div>
     <div class="feat">
       <div class="feat-icon">👔</div>
-      <div><div class="feat-name">アバターカスタマイズ</div><div class="feat-desc">髪型、服装、パンツ、アクセサリーを自由に変更</div></div>
+      <div><div class="feat-name">アバター</div><div class="feat-desc">髪型、服装、パンツ、アクセを自由に変更</div></div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">😄</div>
+      <div><div class="feat-name">エモート</div><div class="feat-desc">ダンス、キラキラ、ハートなどのアニメ</div></div>
     </div>
     <div class="feat">
       <div class="feat-icon">🐾</div>
-      <div><div class="feat-name">ペット</div><div class="feat-desc">ネコ、イヌ、トリ、スライムを連れて歩こう</div></div>
+      <div><div class="feat-name">ペット</div><div class="feat-desc">ネコ・イヌ・トリ・スライムを連れ歩き</div></div>
     </div>
     <div class="feat">
       <div class="feat-icon">🪑</div>
-      <div><div class="feat-name">もようがえ</div><div class="feat-desc">ソファ、テーブル、ランプなど家具を自由に配置</div></div>
+      <div><div class="feat-name">もようがえ</div><div class="feat-desc">家具を自由に配置してオフィスを装飾</div></div>
     </div>
     <div class="feat">
       <div class="feat-icon">🏠</div>
-      <div><div class="feat-name">カスタム部屋</div><div class="feat-desc">自分だけのオリジナル部屋を作成（最大3部屋）</div></div>
+      <div><div class="feat-name">カスタム部屋</div><div class="feat-desc">自分だけの部屋を作成（最大3部屋）</div></div>
     </div>
     <div class="feat">
       <div class="feat-icon">🏆</div>
-      <div><div class="feat-name">実績 / バッジ</div><div class="feat-desc">ログイン、作業時間、チャットなどで実績解除&コイン獲得</div></div>
+      <div><div class="feat-name">実績・バッジ</div><div class="feat-desc">各種アクションで実績解除＆バッジ獲得</div></div>
     </div>
     <div class="feat">
       <div class="feat-icon">🛒</div>
-      <div><div class="feat-name">ショップ</div><div class="feat-desc">コインで衣装、エモート、ペットなどを購入</div></div>
+      <div><div class="feat-name">ショップ</div><div class="feat-desc">コインで衣装、エモート、ペットを購入</div></div>
     </div>
     <div class="feat">
       <div class="feat-icon">🌤️</div>
-      <div><div class="feat-name">天気 / 時間帯</div><div class="feat-desc">窓の景色がリアルタイムの時間帯と天気で変化</div></div>
+      <div><div class="feat-name">天気・時間帯</div><div class="feat-desc">窓の景色がリアルタイムで変化</div></div>
     </div>
     <div class="feat">
       <div class="feat-icon">🎨</div>
-      <div><div class="feat-name">部屋テーマ</div><div class="feat-desc">管理者が部屋の壁・床の色を変更可能</div></div>
+      <div><div class="feat-name">部屋テーマ</div><div class="feat-desc">管理者が壁・床の色を変更可能</div></div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">🗺️</div>
+      <div><div class="feat-name">フロアマップ</div><div class="feat-desc">全室を一覧表示。クリックで移動</div></div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">🔔</div>
+      <div><div class="feat-name">通知音カスタマイズ</div><div class="feat-desc">チャット・入退室・DMなどの通知音を個別設定</div></div>
     </div>
   </div>
 </div>
 
-<!-- 部屋マップ -->
-<div class="section">
-  <h2><span class="emoji">🗺️</span> 部屋マップ</h2>
-  <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center;">
-    <div style="background:#f0f0ff; border-radius:10px; padding:14px 20px; text-align:center; min-width:140px;">
-      <div style="font-size:28px;">🏢</div>
-      <div style="font-weight:700; font-size:14px; margin-top:4px;">ロビー</div>
-      <div style="font-size:11px; color:#666;">集合場所・雑談</div>
-    </div>
-    <div style="font-size:24px; display:flex; align-items:center; color:#7c8aff;">→</div>
-    <div style="background:#fff8e0; border-radius:10px; padding:14px 20px; text-align:center; min-width:140px;">
-      <div style="font-size:28px;">💻</div>
-      <div style="font-weight:700; font-size:14px; margin-top:4px;">作業部屋</div>
-      <div style="font-size:11px; color:#666;">集中作業・ポモドーロ</div>
-    </div>
-    <div style="font-size:24px; display:flex; align-items:center; color:#7c8aff;">←</div>
-    <div style="background:#e8f5e9; border-radius:10px; padding:14px 20px; text-align:center; min-width:140px;">
-      <div style="font-size:28px;">📋</div>
-      <div style="font-weight:700; font-size:14px; margin-top:4px;">会議室</div>
-      <div style="font-size:11px; color:#666;">会議・投票・通話</div>
+<!-- ===== 5. チャット ===== -->
+<div class="section" id="chat">
+  <h2><span class="emoji">💬</span> 5. チャット・DM・リアクション</h2>
+
+  <div class="feature-detail">
+    <h4>💬 チャット</h4>
+    <p>画面右のチャット欄からメッセージを送信します。全員に表示されます。</p>
+    <ul>
+      <li><span class="key">Enter</span> でチャット入力欄にフォーカス → 入力 → <span class="key">Enter</span> で送信</li>
+      <li>10回チャットするごとに ⭐ 5XPを獲得</li>
+    </ul>
+  </div>
+
+  <div class="feature-detail">
+    <h4>😀 リアクション</h4>
+    <p>チャットメッセージにカーソルを合わせると 😀 ボタンが表示されます。クリックして絵文字リアクションを付けられます。</p>
+    <p style="font-size:12px; color:#888; margin-top:4px;">利用可能: 👍 ❤️ 😂 😮 😢 🔥 👏 🎉</p>
+  </div>
+
+  <div class="feature-detail">
+    <h4>📩 ダイレクトメッセージ（DM）</h4>
+    <p>ツールバーの「📩 DM」ボタンからDMパネルを開きます。</p>
+    <ul>
+      <li>左のメンバーリストから送信相手の名前をクリック</li>
+      <li>メンバーリストでユーザー名をクリックしてもDMを開始できます</li>
+      <li>未読メッセージがあるとバッジに数字が表示されます</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ===== 6. ビデオ/音声通話 ===== -->
+<div class="section" id="video">
+  <h2><span class="emoji">📷</span> 6. ビデオ/音声通話・画面共有</h2>
+
+  <div class="feature-detail">
+    <h4>📷 近接自動接続</h4>
+    <p>他のユーザーに <strong>3タイル以内</strong> に近づくと、自動でビデオ/音声通話が接続されます。離れると自動で切断されます。</p>
+    <ul>
+      <li>距離に応じて音量が自動調整（近いほど大きく、遠いほど小さく）</li>
+      <li>カメラが使用できない場合は音声のみで接続</li>
+      <li>同時接続は最大4人まで</li>
+    </ul>
+  </div>
+
+  <div class="feature-detail">
+    <h4>🎤 カメラ・マイクのON/OFF</h4>
+    <p>通話中はツールバーに 📷 と 🎤 ボタンが表示されます。クリックでON/OFFを切り替えられます。</p>
+  </div>
+
+  <div class="feature-detail">
+    <h4>🖥️ 画面共有</h4>
+    <p>ツールバーの「🖥️ 共有」ボタンをクリックすると画面共有を開始します。</p>
+    <ul>
+      <li>共有中は画面右下に <strong>セルフプレビュー</strong> が表示され、自分が何を共有しているか確認できます</li>
+      <li>近くにいるユーザー全員に共有されます</li>
+      <li>もう一度ボタンを押すか、ブラウザの「共有を停止」で終了</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ===== 7. 会議 ===== -->
+<div class="section" id="meeting">
+  <h2><span class="emoji">📋</span> 7. 会議システム・ホワイトボード</h2>
+  <div class="info-box">
+    📋 会議機能は <strong>会議室</strong> に入ると使えるようになります。ツールバーに「📋 会議」「🖊️ ボード」ボタンが表示されます。
+  </div>
+
+  <div class="feature-detail">
+    <h4>📋 会議パネル</h4>
+    <ul>
+      <li><strong>トピック設定</strong>: 今話し合うテーマを設定してメンバーに共有</li>
+      <li><strong>投票</strong>: トピックに対して賛成/反対の投票を実施。結果はチャットに自動通知</li>
+      <li><strong>挙手</strong> ✋: ボタンひとつで発言希望を表示</li>
+      <li><strong>タイマー</strong>: 会議の時間管理用タイマー</li>
+    </ul>
+  </div>
+
+  <div class="feature-detail">
+    <h4>🖊️ ホワイトボード</h4>
+    <p>リアルタイムに共有されるお絵かきボードです。会議室にいる全員が同時に描き込めます。</p>
+    <ul>
+      <li>マウスドラッグで自由に描画</li>
+      <li>色の変更が可能</li>
+      <li>「クリア」で全消去</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ===== 8. ポモドーロ ===== -->
+<div class="section" id="pomo">
+  <h2><span class="emoji">🍅</span> 8. ポモドーロタイマー</h2>
+  <p>ツールバーの「🍅 集中」ボタンで開始します。</p>
+
+  <div class="feature-detail">
+    <h4>🍅 使い方</h4>
+    <ul>
+      <li><strong>作業時間</strong>: 25分（キャラクターの上に残り時間が表示されます）</li>
+      <li><strong>休憩時間</strong>: 5分</li>
+      <li>作業完了すると ⭐ 25XPを獲得</li>
+      <li>作業中はステータスが自動で「集中中」に変わります</li>
+      <li>途中で停止することも可能</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ===== 9. アバター ===== -->
+<div class="section" id="avatar">
+  <h2><span class="emoji">👔</span> 9. アバター・エモート・ペット</h2>
+
+  <div class="feature-detail">
+    <h4>👔 アバターカスタマイズ</h4>
+    <p>画面右パネルの「カスタマイズ」タブから変更できます。</p>
+    <ul>
+      <li><strong>髪型</strong>: 複数のヘアスタイルから選択</li>
+      <li><strong>服装</strong>: トップスの色を変更</li>
+      <li><strong>パンツ</strong>: ボトムスの色を変更</li>
+      <li><strong>アクセサリー</strong>: メガネ、帽子など</li>
+    </ul>
+    <p style="font-size:11px; color:#888; margin-top:4px;">※ 一部アイテムはショップでの購入が必要です</p>
+  </div>
+
+  <div class="feature-detail">
+    <h4>😄 エモート</h4>
+    <p>ツールバーの 😄 ボタンからエモートアニメーションを再生できます。</p>
+    <ul>
+      <li>🆓 無料: 👋 手を振る、👏 拍手</li>
+      <li>🛒 ショップ: 💃 ダンス、✨ キラキラ、❤️ ハート、🔥 炎</li>
+    </ul>
+  </div>
+
+  <div class="feature-detail">
+    <h4>🐾 ペット</h4>
+    <p>ツールバーの 🐾 ボタンでペットを選択すると、キャラクターの後ろについてきます。</p>
+    <p style="font-size:12px; color:#888; margin-top:4px;">種類: 🐱 ネコ、🐶 イヌ、🐦 トリ、🟢 スライム</p>
+  </div>
+</div>
+
+<!-- ===== 10. 家具 ===== -->
+<div class="section" id="furniture">
+  <h2><span class="emoji">🪑</span> 10. もようがえ（家具配置）</h2>
+  <p>ツールバーの「🪑 家具」ボタン、または <span class="key">F</span> キーで家具配置モードに入ります。</p>
+
+  <div class="feature-detail">
+    <h4>配置方法</h4>
+    <ol>
+      <li>家具パネルから配置したいアイテムを選択</li>
+      <li>マップ上のタイルをクリックして配置</li>
+      <li>既に配置された家具をクリックすると撤去</li>
+    </ol>
+    <p style="font-size:12px; color:#888; margin-top:6px;">家具は部屋ごとに配置され、全員に共有されます。壁やドアの上には配置できません。</p>
+  </div>
+</div>
+
+<!-- ===== 11. ショップ ===== -->
+<div class="section" id="shop">
+  <h2><span class="emoji">🛒</span> 11. 経験値・レベル・ショップ</h2>
+
+  <div class="feature-detail">
+    <h4>⭐ 経験値（XP）とレベル</h4>
+    <p>さまざまなアクションで経験値（XP）が貯まり、一定量でレベルアップします。レベルアップするとコインが獲得できます。</p>
+    <table class="shortcut-table">
+      <tr><td>🔑 ログイン</td><td>+10 XP</td></tr>
+      <tr><td>⏱️ 作業時間</td><td>+2 XP / 分</td></tr>
+      <tr><td>🍅 ポモドーロ完了</td><td>+25 XP</td></tr>
+      <tr><td>💬 チャット</td><td>+5 XP（10回送信ごと）</td></tr>
+    </table>
+    <p style="margin-top:8px;">レベルアップに必要なXP = 現在のレベル × 100（例: Lv.1→2 は 100XP、Lv.5→6 は 500XP）</p>
+  </div>
+
+  <div class="feature-detail">
+    <h4>💰 コインの貯め方</h4>
+    <p>コインはレベルアップ時に自動で付与されます。レベルが上がるほど多くのコインを獲得できます。</p>
+    <table class="shortcut-table">
+      <tr><td>⬆️ レベルアップ報酬</td><td>10 + レベル × 5 コイン</td></tr>
+      <tr><td>🎁 管理者から</td><td>管理者がコインを付与する場合</td></tr>
+    </table>
+    <p style="font-size:12px; color:#888; margin-top:6px;">例: Lv.2到達で20コイン、Lv.5到達で35コイン、Lv.10到達で60コイン</p>
+  </div>
+
+  <div class="feature-detail">
+    <h4>🛒 ショップ</h4>
+    <p>右パネルの「ショップ」タブから、貯めたコインでアイテムを購入できます。</p>
+    <ul>
+      <li>エモート（ダンス、キラキラ、ハート、炎）</li>
+      <li>特別な髪型やアクセサリー</li>
+      <li>ペット</li>
+    </ul>
+  </div>
+
+  <div class="feature-detail">
+    <h4>🏆 実績</h4>
+    <p>ログイン回数、作業時間、チャット回数などの条件を満たすと実績が解除されます。プロフィールに表示されるバッジを集めましょう。</p>
+  </div>
+</div>
+
+<!-- ===== 12. BGM ===== -->
+<div class="section" id="bgm">
+  <h2><span class="emoji">🎵</span> 12. BGM</h2>
+  <p>ツールバーの「🎵 BGM」ボタンでBGMパネルを開きます。</p>
+
+  <div class="feature-detail">
+    <h4>🎵 使い方</h4>
+    <ul>
+      <li>YouTubeの動画URLまたはプレイリストURLを入力して設定</li>
+      <li>BGMは部屋ごとに設定され、その部屋にいる全員に共有</li>
+      <li>音量は各自で調整可能</li>
+      <li>部屋を移動するとその部屋のBGMに自動切り替え</li>
+    </ul>
+    <div class="info-box">
+      🔑 BGMプレイリスト機能を使うには、管理者がYouTube Data API v3のAPIキーを設定している必要があります。
     </div>
   </div>
-  <p style="text-align:center; font-size:11px; color:#888; margin-top:10px;">＋ 自分で「カスタム部屋」も作れます！</p>
+</div>
+
+<!-- ===== 13. 天気 ===== -->
+<div class="section" id="env">
+  <h2><span class="emoji">🌤️</span> 13. 天気・時間帯演出</h2>
+
+  <div class="feature-detail">
+    <h4>🕐 時間帯による変化</h4>
+    <p>窓の外の景色がリアルタイムの時間帯に合わせて変化します。</p>
+    <table class="shortcut-table">
+      <tr><td>🌅 朝 (5〜8時)</td><td>暖色の朝焼けの空</td></tr>
+      <tr><td>☀️ 昼 (8〜17時)</td><td>青空と白い雲</td></tr>
+      <tr><td>🌇 夕方 (17〜20時)</td><td>オレンジの夕焼け</td></tr>
+      <tr><td>🌙 夜 (20〜5時)</td><td>暗い空、星、月、ビルの灯り</td></tr>
+    </table>
+  </div>
+
+  <div class="feature-detail">
+    <h4>🌦️ 天気</h4>
+    <p>窓に天気のアニメーションが表示されます。</p>
+    <table class="shortcut-table">
+      <tr><td>☀️ sunny</td><td>晴れ（デフォルト）</td></tr>
+      <tr><td>🌧️ rain</td><td>雨（窓に雨粒が流れる）</td></tr>
+      <tr><td>❄️ snow</td><td>雪（窓に雪が舞う）</td></tr>
+      <tr><td>☁️ cloudy</td><td>曇り（灰色の空）</td></tr>
+    </table>
+    <p style="font-size:12px; color:#888; margin-top:6px;">天気は15分ごとにランダム変更されるか、管理者がコマンドで変更できます。</p>
+  </div>
+</div>
+
+<!-- ===== 14. フロアマップ ===== -->
+<div class="section" id="floormap">
+  <h2><span class="emoji">🗺️</span> 14. フロアマップ</h2>
+  <p>ツールバーの「🗺️ 全室」ボタンでフロアマップを開きます。</p>
+  <div class="feature-detail">
+    <h4>フロアマップでできること</h4>
+    <ul>
+      <li>全ての部屋をミニマップで一覧表示</li>
+      <li>各部屋にいるメンバーがドットで表示される（リアルタイム更新）</li>
+      <li>部屋をクリックするとその部屋に直接移動</li>
+      <li>各部屋の人数が表示される</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ===== 15. PWA ===== -->
+<div class="section" id="pwa">
+  <h2><span class="emoji">📱</span> 15. スマホアプリ化（PWA）</h2>
+  <p style="font-size:12px; color:#666; margin-bottom:10px;">ホーム画面に追加するとアプリのように起動できます。</p>
+
+  <div class="cols">
+    <div>
+      <p style="font-size:12px; margin-bottom:6px;"><span class="device-badge ios">iOS Safari</span></p>
+      <div class="pwa-steps">
+        <span class="pwa-step">□↑ 共有</span>
+        <span class="pwa-arrow">→</span>
+        <span class="pwa-step">ホーム画面に追加</span>
+        <span class="pwa-arrow">→</span>
+        <span class="pwa-step">追加</span>
+      </div>
+    </div>
+    <div>
+      <p style="font-size:12px; margin-bottom:6px;"><span class="device-badge android">Android Chrome</span></p>
+      <div class="pwa-steps">
+        <span class="pwa-step">⋮ メニュー</span>
+        <span class="pwa-arrow">→</span>
+        <span class="pwa-step">ホーム画面に追加</span>
+      </div>
+    </div>
+  </div>
+  <div class="cols" style="margin-top:10px;">
+    <div>
+      <p style="font-size:12px; margin-bottom:6px;"><span class="device-badge pc">PC Chrome / Edge</span></p>
+      <div class="pwa-steps">
+        <span class="pwa-step">アドレスバーの📥アイコン</span>
+        <span class="pwa-arrow">→</span>
+        <span class="pwa-step">インストール</span>
+      </div>
+    </div>
+    <div></div>
+  </div>
+</div>
+
+<!-- ===== 16. 管理者ガイド ===== -->
+<div class="section" id="admin">
+  <h2><span class="emoji">🛡️</span> 16. 管理者ガイド <span class="admin-tag">ADMIN</span></h2>
+  <div class="info-box warn">
+    ⚠️ このセクションは管理者向けの内容です。管理者権限は、最初に登録したアカウントに自動付与されます。
+  </div>
+
+  <div class="feature-detail">
+    <h4>🛡️ 管理者パネル</h4>
+    <p>ツールバーの「🛡️ 管理」ボタンで管理者パネルを開きます（管理者のみ表示）。</p>
+    <ul>
+      <li><strong>📢 アナウンス</strong>: 全ユーザーにシステムメッセージを一斉送信</li>
+      <li><strong>👥 ユーザー管理</strong>: オンラインユーザーの一覧表示、キック、コイン付与（+10💰）</li>
+      <li><strong>📊 統計</strong>: オンライン数、登録数、総コイン数、レベル分布を確認</li>
+      <li><strong>🎨 部屋テーマ</strong>: 壁と床の色を部屋ごとに変更</li>
+      <li><strong>🔄 アップデート</strong>: 新バージョンが利用可能な場合に通知表示</li>
+    </ul>
+  </div>
+
+  <div class="feature-detail">
+    <h4>⌨️ 管理者チャットコマンド</h4>
+    <p>チャット欄に以下のコマンドを入力して実行できます。</p>
+    <table class="shortcut-table">
+      <tr><td><code>/weather sunny</code></td><td>天気を晴れに変更</td></tr>
+      <tr><td><code>/weather rain</code></td><td>天気を雨に変更</td></tr>
+      <tr><td><code>/weather snow</code></td><td>天気を雪に変更</td></tr>
+      <tr><td><code>/weather cloudy</code></td><td>天気を曇りに変更</td></tr>
+    </table>
+  </div>
+
+  <div class="feature-detail">
+    <h4>🏠 カスタム部屋の作成</h4>
+    <p>ツールバーの「🏠 部屋」ボタンからオリジナルの部屋を作成できます。</p>
+    <ul>
+      <li>部屋名を入力して作成（最大3部屋）</li>
+      <li>ロビーにドアが自動追加され、行き来可能に</li>
+      <li>作成した部屋は管理者パネルから削除も可能</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ===== 17. FAQ ===== -->
+<div class="section" id="faq">
+  <h2><span class="emoji">❓</span> 17. よくある質問</h2>
+
+  <div class="feature-detail">
+    <h4>Q. 音声通話が繋がらない</h4>
+    <p>ブラウザのカメラ・マイクの許可がブロックされている可能性があります。アドレスバーの🔒アイコンから許可設定を確認してください。また、3タイル以内に近づく必要があります。</p>
+  </div>
+
+  <div class="feature-detail">
+    <h4>Q. スマホで動きがカクつく</h4>
+    <p>他のアプリを閉じてメモリを確保してみてください。横画面での利用もおすすめです。</p>
+  </div>
+
+  <div class="feature-detail">
+    <h4>Q. BGMが再生されない</h4>
+    <p>ブラウザの自動再生ポリシーにより、最初に画面をクリック/タップする必要がある場合があります。また、YouTube APIキーが設定されていない場合はプレイリスト機能が使えません。</p>
+  </div>
+
+  <div class="feature-detail">
+    <h4>Q. ゲストとアカウントの違いは？</h4>
+    <p>ゲストはすぐに入室できますが、データの保持はブラウザに依存します。アカウント登録すると、アバターやコイン、レベル、実績が永続的に保存されます。</p>
+  </div>
+
+  <div class="feature-detail">
+    <h4>Q. 部屋を移動するには？</h4>
+    <p>ドアタイル（色付きの出入口）の上に立って <span class="key">スペース</span> キーを押してください。スマホの場合はドアの前に立つと表示される「入室」ボタンをタップしてください。</p>
+  </div>
+
+  <div class="feature-detail">
+    <h4>Q. 推奨ブラウザは？</h4>
+    <p>Chrome、Edge、Safari（最新版）を推奨します。WebRTC対応ブラウザであれば基本的に動作します。</p>
+  </div>
 </div>
 
 <!-- フッター -->
 <div class="footer">
-  五方よしOFFICE マニュアル v1.0
+  metaOFFICE ユーザーマニュアル v1.1
 </div>
 
 </body>
