@@ -291,6 +291,8 @@ io.on('connection', (socket) => {
     room: 'lobby',
     avatar: { hair: 0, body: 0, pants: 0, acc: -1 },
     status: 'online',
+    statusMsg: '',
+    pomodoro: null, // { endTime, type: 'work'|'break' }
   };
 
   // 既存プレイヤー一覧を送信
@@ -347,7 +349,62 @@ io.on('connection', (socket) => {
     const valid = ['online', 'working', 'meeting', 'break', 'away'];
     if (players[socket.id] && valid.includes(status)) {
       players[socket.id].status = status;
-      io.emit('playerStatusChanged', { id: socket.id, status });
+      io.emit('playerStatusChanged', { id: socket.id, status, statusMsg: players[socket.id].statusMsg });
+    }
+  });
+
+  // カスタムステータスメッセージ
+  socket.on('setStatusMsg', (msg) => {
+    if (!players[socket.id]) return;
+    players[socket.id].statusMsg = String(msg || '').slice(0, 30).replace(/[<>&"']/g, '');
+    io.emit('playerStatusChanged', { id: socket.id, status: players[socket.id].status, statusMsg: players[socket.id].statusMsg });
+  });
+
+  // DM（ダイレクトメッセージ）
+  socket.on('dm', ({ to, message }) => {
+    if (!players[socket.id]) return;
+    const msg = String(message).slice(0, 200).replace(/[<>&"']/g, '');
+    if (!msg) return;
+    // toは相手のプレイヤー名
+    const fromName = players[socket.id].name;
+    // 送信先を探す
+    for (const [sid, p] of Object.entries(players)) {
+      if (p.name === to) {
+        const targetSocket = io.sockets.sockets.get(sid);
+        if (targetSocket) {
+          targetSocket.emit('dmReceived', { from: fromName, message: msg, timestamp: Date.now() });
+        }
+        break;
+      }
+    }
+    // 送信者にも確認
+    socket.emit('dmSent', { to, message: msg, timestamp: Date.now() });
+  });
+
+  // ポモドーロタイマー
+  socket.on('pomodoroStart', (type) => {
+    if (!players[socket.id]) return;
+    const t = type === 'break' ? 'break' : 'work';
+    const duration = t === 'work' ? 25 * 60000 : 5 * 60000;
+    players[socket.id].pomodoro = { endTime: Date.now() + duration, type: t };
+    socket.emit('pomodoroUpdate', players[socket.id].pomodoro);
+    // 作業開始なら自動ステータス変更
+    if (t === 'work') {
+      players[socket.id].status = 'working';
+      io.emit('playerStatusChanged', { id: socket.id, status: 'working', statusMsg: players[socket.id].statusMsg });
+    }
+  });
+
+  socket.on('pomodoroStop', () => {
+    if (!players[socket.id]) return;
+    const pomo = players[socket.id].pomodoro;
+    players[socket.id].pomodoro = null;
+    socket.emit('pomodoroUpdate', null);
+    // 作業完了ボーナス
+    if (pomo && pomo.type === 'work' && Date.now() >= pomo.endTime) {
+      const bonus = 5;
+      const newBal = addCoins(players[socket.id].name, bonus, 'ポモドーロ完了');
+      socket.emit('coinUpdate', { coins: newBal, earned: bonus, reason: 'ポモドーロ完了ボーナス' });
     }
   });
 
