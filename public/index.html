@@ -533,6 +533,29 @@
       font-family: 'DotGothic16', monospace;
     }
 
+    /* === アップデート通知バナー === */
+    #update-banner {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+      background: linear-gradient(135deg, #1a237e, #4a148c);
+      color: #fff; padding: 10px 16px; display: none; align-items: center;
+      justify-content: center; gap: 12px; font-size: 13px;
+      border-bottom: 2px solid #7c8aff; box-shadow: 0 2px 16px rgba(0,0,0,0.5);
+      animation: bannerSlideIn 0.4s ease-out;
+    }
+    @keyframes bannerSlideIn { from { transform: translateY(-100%); } to { transform: translateY(0); } }
+    #update-banner .update-msg { flex: 1; text-align: center; }
+    #update-banner .update-btn {
+      background: #4caf50; color: #fff; border: none; border-radius: 6px;
+      padding: 6px 16px; font-size: 12px; cursor: pointer; font-family: inherit;
+      white-space: nowrap;
+    }
+    #update-banner .update-btn:hover { background: #66bb6a; }
+    #update-banner .update-close {
+      background: none; border: none; color: rgba(255,255,255,0.6);
+      font-size: 18px; cursor: pointer; padding: 0 4px; line-height: 1;
+    }
+    #update-banner .update-close:hover { color: #fff; }
+
     /* === メディアコントロールバー === */
     #media-controls {
       position: fixed; bottom: 46px; left: 50%; transform: translateX(-50%);
@@ -965,6 +988,12 @@
   </style>
 </head>
 <body>
+  <!-- アップデート通知バナー -->
+  <div id="update-banner">
+    <span class="update-msg" id="update-banner-msg"></span>
+    <button class="update-btn" id="update-banner-btn" style="display:none;">管理画面でアップデート</button>
+    <button class="update-close" id="update-banner-close">&times;</button>
+  </div>
   <!-- ログイン/登録モーダル -->
   <div id="name-modal">
     <div id="name-form">
@@ -3298,6 +3327,25 @@
     socket.on('playerRoomChanged', (d) => { if(players[d.id]){players[d.id].room=d.room;if(d.id!==myId){const rn={lobby:'ロビー',work:'作業部屋',meeting:'会議室',japanese:'和室'};addSys(`${players[d.id].name} → ${rn[d.room]}`);}updatePeople();} });
     socket.on('playerAvatarChanged', (d) => { if(players[d.id]){players[d.id].avatar=d.avatar;updatePeople();} });
     socket.on('systemMessage', (msg) => { addSys(msg); });
+    socket.on('updateAvailable', (data) => {
+      const banner = document.getElementById('update-banner');
+      const msg = document.getElementById('update-banner-msg');
+      const btn = document.getElementById('update-banner-btn');
+      msg.textContent = `🔄 新バージョン v${data.version} が利用可能です！（現在: v${data.current}）`;
+      banner.style.display = 'flex';
+      addSys(`🔄 新バージョン v${data.version} が利用可能です！管理者はアップデートを実行してください。`);
+      // 管理者の場合はアップデートボタンを表示
+      if (localStorage.getItem('gohou_token')) {
+        btn.style.display = '';
+        btn.onclick = () => {
+          const adminPanel = document.getElementById('admin-panel');
+          if (adminPanel) { adminPanel.classList.add('show'); checkUpdateStatus(); }
+        };
+      }
+    });
+    document.getElementById('update-banner-close').addEventListener('click', () => {
+      document.getElementById('update-banner').style.display = 'none';
+    });
     // playerStatusChanged handled later with statusMsg support
     // chatMessage handled later with reactions support
     socket.on('furniturePlaced', (d) => { if(placedFurniture[d.room])placedFurniture[d.room].push(d.item); });

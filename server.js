@@ -37,8 +37,19 @@ async function checkForUpdates() {
     if (!res.ok) return;
     const data = await res.json();
     if (data.version !== LOCAL_VERSION) {
+      const isNew = !latestVersionInfo || latestVersionInfo.version !== data.version;
       latestVersionInfo = data;
       console.log(`[UPDATE] 新しいバージョン v${data.version} が利用可能です (現在: v${LOCAL_VERSION})`);
+      // 新バージョン検出時、全クライアントに即時通知
+      if (isNew && io) {
+        io.emit('updateAvailable', {
+          version: data.version,
+          current: LOCAL_VERSION,
+          changelog: data.changelog || [],
+          date: data.date || ''
+        });
+        console.log(`[UPDATE] 全クライアントにアップデート通知を送信しました`);
+      }
     } else {
       latestVersionInfo = null;
       console.log(`[VERSION] v${LOCAL_VERSION} は最新です`);
@@ -46,7 +57,7 @@ async function checkForUpdates() {
   } catch (e) { /* ネットワークエラーは無視 */ }
 }
 checkForUpdates();
-setInterval(checkForUpdates, 6 * 60 * 60 * 1000); // 6時間ごとにチェック
+setInterval(checkForUpdates, 30 * 60 * 1000); // 30分ごとにチェック
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
@@ -146,16 +157,21 @@ app.post('/api/register', authLimiter, async (req, res) => {
     if (String(password).length < 4) return res.status(400).json({ error: 'パスワードは4文字以上' });
     if (accounts[name]) return res.status(400).json({ error: 'この名前は既に使われています' });
     const hashed = await bcrypt.hash(String(password), BCRYPT_ROUNDS);
+    // 最初のアカウントを自動的にadminにする
+    const isFirstAccount = Object.keys(accounts).length === 0;
     accounts[name] = {
       password: hashed,
       avatar: { hair: 0, body: 0, pants: 0, acc: -1 },
       createdAt: Date.now(),
+      ...(isFirstAccount ? { role: 'admin' } : {}),
     };
+    if (isFirstAccount) console.log(`[ADMIN] 最初のアカウント "${name}" を管理者に設定しました`);
     saveAccounts();
     getPlayerCoins(name);
     const token = generateToken();
     sessions[token] = { username: name, createdAt: Date.now() };
-    res.json({ ok: true, username: name, token });
+    const role = accounts[name].role || 'user';
+    res.json({ ok: true, username: name, role, token });
   } catch (e) {
     console.error('Register error:', e);
     res.status(500).json({ error: 'サーバーエラー' });
@@ -889,6 +905,16 @@ io.use((socket, next) => {
 
 io.on('connection', (socket) => {
   console.log(`接続: ${socket.id}${socket.authUser ? ` (${socket.authUser})` : ''}`);
+
+  // 接続時にアップデートがあれば通知
+  if (latestVersionInfo) {
+    socket.emit('updateAvailable', {
+      version: latestVersionInfo.version,
+      current: LOCAL_VERSION,
+      changelog: latestVersionInfo.changelog || [],
+      date: latestVersionInfo.date || ''
+    });
+  }
 
   // 新規プレイヤー追加
   players[socket.id] = {
