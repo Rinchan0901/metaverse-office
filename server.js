@@ -109,6 +109,14 @@ app.post('/api/admin/give-coins', (req, res) => {
 const roomBgm = { lobby: null, work: null, meeting: null };
 // { videoId, title, setBy }
 
+// ===== 天気システム =====
+const WEATHER_TYPES = ['sunny', 'rain', 'snow', 'cloudy'];
+let currentWeather = 'sunny';
+setInterval(() => {
+  currentWeather = WEATHER_TYPES[Math.floor(Math.random() * WEATHER_TYPES.length)];
+  io.emit('weatherUpdate', currentWeather);
+}, 15 * 60 * 1000);
+
 // プレイヤー管理
 const players = {};
 
@@ -543,6 +551,14 @@ io.on('connection', (socket) => {
   let chatCount = 0;
   socket.on('chat', (message) => {
     if (players[socket.id]) {
+      // /weather コマンド
+      const weatherMatch = String(message).match(/^\/weather\s+(sunny|rain|snow|cloudy)$/);
+      if (weatherMatch && isAdmin(players[socket.id].name)) {
+        currentWeather = weatherMatch[1];
+        io.emit('weatherUpdate', currentWeather);
+        socket.emit('chatMessage', { id: 'system', name: 'System', message: `天気を ${currentWeather} に変更しました`, msgId: Date.now() + '_sys' });
+        return;
+      }
       const sanitized = String(message).slice(0, 200).replace(/[<>&"']/g, '');
       const msgId = Date.now() + '_' + Math.random().toString(36).slice(2, 6);
       io.emit('chatMessage', {
@@ -686,6 +702,16 @@ io.on('connection', (socket) => {
 
   socket.on('rtcIceCandidate', ({ to, candidate }) => {
     io.to(to).emit('rtcIceCandidate', { from: socket.id, candidate });
+  });
+
+  // ===== 天気システム =====
+  socket.on('getWeather', () => { socket.emit('weatherUpdate', currentWeather); });
+  socket.on('setWeather', (type) => {
+    if (!players[socket.id] || !isAdmin(players[socket.id].name)) return;
+    if (WEATHER_TYPES.includes(type)) {
+      currentWeather = type;
+      io.emit('weatherUpdate', currentWeather);
+    }
   });
 
   // ===== 会議システム =====

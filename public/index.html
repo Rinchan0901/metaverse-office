@@ -328,6 +328,25 @@
       cursor: pointer;
     }
 
+    /* === ビデオ通話 === */
+    #video-container {
+      position: absolute; bottom: 50px; right: 10px; z-index: 20;
+      display: flex; flex-direction: column; gap: 6px; pointer-events: none;
+    }
+    .video-thumb-wrapper {
+      position: relative; pointer-events: auto;
+      border-radius: 8px; overflow: hidden;
+      border: 2px solid #7c8aff; background: #000;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    }
+    .video-thumb {
+      width: 160px; height: 120px; object-fit: cover; display: block;
+    }
+    .video-thumb-label {
+      position: absolute; bottom: 2px; left: 4px; font-size: 10px;
+      color: #fff; background: rgba(0,0,0,0.6); padding: 1px 6px; border-radius: 4px;
+    }
+
     /* === モーダル === */
     #name-modal {
       position: fixed; top: 0; left: 0; right: 0; bottom: 0;
@@ -910,6 +929,8 @@
         <canvas id="game"></canvas>
         <div id="proximity-popup"></div>
         <div id="door-prompt"></div>
+        <!-- ビデオ通話コンテナ -->
+        <div id="video-container"></div>
         <!-- 画面共有ビュー -->
         <div id="screen-share-view">
           <video id="screen-share-video" autoplay playsinline></video>
@@ -950,6 +971,9 @@
         <div class="tool-btn" id="btn-pomo">🍅 ポモドーロ</div>
         <div class="tool-btn" id="btn-emote">😄 エモート</div>
         <div class="tool-btn" id="btn-dm" style="position:relative;">📩 DM<span id="dm-badge">0</span></div>
+        <div class="tool-btn" id="btn-cam-toggle" style="display:none;">📷 カメラ</div>
+        <div class="tool-btn" id="btn-mic-toggle" style="display:none;">🎤 マイク</div>
+        <div class="tool-btn" id="btn-screen-share">🖥️ 画面共有</div>
         <div id="toolbar-hint">矢印キー: 移動 / スペース: 入室 / ESC: ロビー</div>
       </div>
       <!-- YouTube Player (hidden) -->
@@ -1218,7 +1242,7 @@
         ctx.strokeStyle = adjustColor(base, -14); ctx.lineWidth = 1; ctx.strokeRect(px, py, dt, dt);
         return;
       }
-      // 窓 - 景色付き
+      // 窓 - 時間帯・天気対応
       if (type === T.WINDOW) {
         const wc = getThemeWallColor();
         const wb = wc || '#5a6578';
@@ -1226,24 +1250,102 @@
         // 窓枠（木製風）
         ctx.fillStyle = '#8a7a6a'; ctx.fillRect(px+6, py+3, dt-12, dt-10);
         ctx.fillStyle = '#9a8a7a'; ctx.fillRect(px+7, py+4, dt-14, dt-12);
-        // ガラス - 空のグラデーション
-        ctx.fillStyle = '#88c8e8'; ctx.fillRect(px+9, py+6, dt-18, dt-16);
-        ctx.fillStyle = '#a0d8f0'; ctx.fillRect(px+9, py+6, dt-18, (dt-16)/3);
-        ctx.fillStyle = '#78b8d8'; ctx.fillRect(px+9, py+6+(dt-16)*2/3, dt-18, (dt-16)/3);
-        // 雲
-        ctx.fillStyle = 'rgba(255,255,255,0.5)';
-        fillCirc(ctx, px+18, py+12, 5); fillCirc(ctx, px+24, py+11, 6); fillCirc(ctx, px+30, py+12, 4);
-        // 遠景の建物シルエット
-        ctx.fillStyle = 'rgba(100,140,180,0.3)';
-        ctx.fillRect(px+12, py+28, 8, 16); ctx.fillRect(px+24, py+24, 10, 20);
-        ctx.fillRect(px+38, py+30, 12, 14);
+        // ガラス領域
+        const gx = px+9, gy = py+6, gw = dt-18, gh = dt-16;
+        const wCol = window._windowColors || {};
+        const skyTop = wCol.skyTop || '#a0d8f0';
+        const skyMid = wCol.skyMid || '#88c8e8';
+        const skyBot = wCol.skyBot || '#78b8d8';
+        const tod = wCol.tod || 'day';
+        const weather = window._weather || 'sunny';
+        // 空グラデーション
+        ctx.fillStyle = skyTop; ctx.fillRect(gx, gy, gw, gh/3);
+        ctx.fillStyle = skyMid; ctx.fillRect(gx, gy+gh/3, gw, gh/3);
+        ctx.fillStyle = skyBot; ctx.fillRect(gx, gy+gh*2/3, gw, gh/3);
+        // 天気・時間帯の詳細描画
+        if (tod === 'night') {
+          // 星
+          ctx.fillStyle = 'rgba(255,255,220,0.8)';
+          const seed = x*31+y*17;
+          for (let i = 0; i < 6; i++) {
+            const sx = gx + 4 + ((seed+i*37)%((gw-8)|1));
+            const sy = gy + 2 + ((seed+i*23)%((gh/2)|1));
+            ctx.fillRect(sx, sy, 1, 1);
+          }
+          // 月
+          ctx.fillStyle = '#f0e8c0'; fillCirc(ctx, gx+gw-10, gy+8, 5);
+          ctx.fillStyle = skyTop; fillCirc(ctx, gx+gw-8, gy+7, 4);
+          // ビルの窓灯り
+          ctx.fillStyle = 'rgba(40,60,90,0.6)';
+          ctx.fillRect(gx+3, gy+gh-18, 8, 18); ctx.fillRect(gx+15, gy+gh-22, 10, 22);
+          ctx.fillRect(gx+29, gy+gh-16, 12, 16);
+          ctx.fillStyle = 'rgba(255,220,100,0.7)';
+          for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) {
+            if ((x+i+j*2)%3===0) ctx.fillRect(gx+16+i*3, gy+gh-20+j*5, 2, 2);
+          }
+          ctx.fillStyle = 'rgba(255,200,80,0.5)';
+          ctx.fillRect(gx+31, gy+gh-12, 2, 2); ctx.fillRect(gx+35, gy+gh-8, 2, 2);
+        } else if (tod === 'evening') {
+          // 夕焼け雲
+          ctx.fillStyle = 'rgba(255,180,100,0.4)';
+          fillCirc(ctx, gx+12, gy+10, 5); fillCirc(ctx, gx+18, gy+9, 6); fillCirc(ctx, gx+24, gy+10, 4);
+          // 太陽
+          ctx.fillStyle = 'rgba(255,200,50,0.6)'; fillCirc(ctx, gx+gw-8, gy+gh/2+4, 6);
+          // ビルシルエット（暗め）
+          ctx.fillStyle = 'rgba(60,40,40,0.5)';
+          ctx.fillRect(gx+3, gy+gh-16, 8, 16); ctx.fillRect(gx+15, gy+gh-20, 10, 20);
+          ctx.fillRect(gx+29, gy+gh-14, 12, 14);
+        } else if (tod === 'morning') {
+          // 朝の雲
+          ctx.fillStyle = 'rgba(255,240,220,0.5)';
+          fillCirc(ctx, gx+14, gy+10, 5); fillCirc(ctx, gx+20, gy+9, 6); fillCirc(ctx, gx+26, gy+10, 4);
+          // 朝日のグロウ
+          ctx.fillStyle = 'rgba(255,220,120,0.3)'; fillCirc(ctx, gx+6, gy+gh/2+2, 8);
+          // ビルシルエット
+          ctx.fillStyle = 'rgba(100,120,140,0.3)';
+          ctx.fillRect(gx+3, gy+gh-16, 8, 16); ctx.fillRect(gx+15, gy+gh-20, 10, 20);
+          ctx.fillRect(gx+29, gy+gh-14, 12, 14);
+        } else {
+          // 昼 - 雲
+          if (weather !== 'cloudy') {
+            ctx.fillStyle = 'rgba(255,255,255,0.5)';
+            fillCirc(ctx, gx+9, gy+6, 5); fillCirc(ctx, gx+15, gy+5, 6); fillCirc(ctx, gx+21, gy+6, 4);
+          }
+          // ビルシルエット
+          ctx.fillStyle = 'rgba(100,140,180,0.3)';
+          ctx.fillRect(gx+3, gy+gh-16, 8, 16); ctx.fillRect(gx+15, gy+gh-20, 10, 20);
+          ctx.fillRect(gx+29, gy+gh-14, 12, 14);
+        }
+        // 天気エフェクト（窓内）
+        if (weather === 'rain') {
+          ctx.fillStyle = 'rgba(150,180,220,0.5)';
+          const fc2 = frameCount || 0;
+          for (let i = 0; i < 5; i++) {
+            const rx = gx + 3 + ((x*13+i*11+fc2*3)%(gw-6));
+            const ry = gy + ((i*17+fc2*4+y*7)%gh);
+            ctx.fillRect(rx, ry, 1, 4);
+          }
+        } else if (weather === 'snow') {
+          ctx.fillStyle = 'rgba(255,255,255,0.7)';
+          const fc2 = frameCount || 0;
+          for (let i = 0; i < 4; i++) {
+            const sx2 = gx + 3 + ((x*11+i*13)%(gw-6)) + Math.sin(fc2*0.03+i*2)*3;
+            const sy2 = gy + ((i*19+fc2+y*11)%gh);
+            fillCirc(ctx, sx2, sy2, 1.5);
+          }
+        } else if (weather === 'cloudy') {
+          // 追加の重い雲
+          ctx.fillStyle = 'rgba(160,160,170,0.4)';
+          fillCirc(ctx, gx+8, gy+8, 7); fillCirc(ctx, gx+16, gy+7, 8); fillCirc(ctx, gx+24, gy+8, 6);
+          fillCirc(ctx, gx+10, gy+14, 6); fillCirc(ctx, gx+20, gy+13, 7);
+        }
         // 窓の十字フレーム
         ctx.fillStyle = '#8a7a6a';
-        ctx.fillRect(px+dt/2-1, py+6, 3, dt-16);
-        ctx.fillRect(px+9, py+dt/2-2, dt-18, 3);
+        ctx.fillRect(px+dt/2-1, py+6, 3, gh);
+        ctx.fillRect(gx, py+dt/2-2, gw, 3);
         // 光の反射
-        ctx.fillStyle = 'rgba(255,255,255,0.4)';
-        ctx.fillRect(px+11, py+8, 6, 4);
+        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        ctx.fillRect(gx+2, gy+2, 6, 4);
         // 巾木
         ctx.fillStyle = adjustColor(wb, -18); ctx.fillRect(px, py+dt-5, dt, 5);
         ctx.strokeStyle = adjustColor(wb, -14); ctx.lineWidth = 1; ctx.strokeRect(px, py, dt, dt);
@@ -1562,12 +1664,44 @@
       if (s===1) { ctx.fillRect(px+24,py+12,2,2); ctx.fillRect(px+12,py+44,2,2); }
       if (s===2) { ctx.fillRect(px+36,py+24,2,2); ctx.fillRect(px+20,py+48,2,2); }
       ctx.strokeStyle = adjustColor(base, -14); ctx.lineWidth = 0.5; ctx.strokeRect(px+0.5, py+0.5, dt-1, dt-1);
+      // 環境光オーバーレイ（時間帯による）
+      const amb = window._ambientTint;
+      if (amb) { ctx.fillStyle = amb; ctx.fillRect(px, py, dt, dt); }
     }
     function adjustColor(hex, amt) {
       let r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
       r = Math.max(0, Math.min(255, r+amt)); g = Math.max(0, Math.min(255, g+amt)); b = Math.max(0, Math.min(255, b+amt));
       return '#' + [r,g,b].map(c => c.toString(16).padStart(2,'0')).join('');
     }
+
+    // ===== 時間帯・天気システム =====
+    window._weather = 'sunny';
+    window._windowColors = {};
+    window._ambientTint = null;
+
+    function updateTimeWeather() {
+      const h = new Date().getHours();
+      let tod;
+      if (h >= 5 && h < 8) tod = 'morning';
+      else if (h >= 8 && h < 17) tod = 'day';
+      else if (h >= 17 && h < 20) tod = 'evening';
+      else tod = 'night';
+
+      const w = window._weather;
+      const cloudy = w === 'cloudy';
+      const colors = {
+        morning: { skyTop: '#f0c878', skyMid: cloudy ? '#b0a890' : '#e8b878', skyBot: '#88c8e8', ambient: 'rgba(255,200,100,0.04)' },
+        day:     { skyTop: cloudy ? '#a0a0a8' : '#a0d8f0', skyMid: cloudy ? '#909098' : '#88c8e8', skyBot: cloudy ? '#808088' : '#78b8d8', ambient: null },
+        evening: { skyTop: '#d06080', skyMid: cloudy ? '#906868' : '#f08040', skyBot: '#804060', ambient: 'rgba(255,120,60,0.05)' },
+        night:   { skyTop: '#1a1a3a', skyMid: '#2a2a5a', skyBot: '#1a2040', ambient: 'rgba(60,60,140,0.06)' },
+      };
+      const c = colors[tod];
+      window._windowColors = { ...c, tod };
+      window._ambientTint = c.ambient;
+    }
+    // 毎分更新
+    updateTimeWeather();
+    setInterval(updateTimeWeather, 60000);
     function drawWood(px,py,dt,x,y){
       ctx.fillStyle='#c8a06a'; ctx.fillRect(px,py,dt,dt);
       ctx.fillStyle='#b8905a'; ctx.fillRect(px,py+dt/3-1,dt,3); ctx.fillRect(px,py+dt*2/3-1,dt,3);
@@ -2564,15 +2698,132 @@
       }
     }
 
-    // ===== WebRTC 音声通話・画面共有 =====
+    // ===== WebRTC ビデオ/音声通話・画面共有（近接自動接続） =====
     const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-    const peers = {}; // peerId -> { pc, name, audioEl, stream }
+    const peers = {}; // peerId -> { pc, name, audioEl, videoEl, wrapper, stream }
     let localStream = null;
     let localScreenStream = null;
     let screenPeers = {}; // peerId -> pc (for screen share)
     let voiceJoined = false;
     let micMuted = false;
+    let cameraMuted = false;
     let isScreenSharing = false;
+    let proximityActive = false; // 近接通話が有効か
+    const DISCONNECT_RANGE = PROXIMITY_RANGE + 1; // ヒステリシス（4タイル）
+    const MAX_VIDEO_PEERS = 4;
+
+    // ローカルメディア取得
+    async function ensureLocalStream() {
+      if (localStream) return true;
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+        micMuted = false; cameraMuted = false;
+        updateMediaButtons();
+        return true;
+      } catch (e) {
+        try {
+          localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+          micMuted = false; cameraMuted = true;
+          updateMediaButtons();
+          return true;
+        } catch (e2) {
+          showCoinNotif('カメラ/マイクへのアクセスが拒否されました');
+          return false;
+        }
+      }
+    }
+
+    function updateMediaButtons() {
+      const camBtn = document.getElementById('btn-cam-toggle');
+      const micBtn = document.getElementById('btn-mic-toggle');
+      const show = proximityActive || voiceJoined;
+      camBtn.style.display = show ? '' : 'none';
+      micBtn.style.display = show ? '' : 'none';
+      camBtn.textContent = cameraMuted ? '📷 カメラOFF' : '📷 カメラON';
+      camBtn.style.background = cameraMuted ? 'rgba(198,40,40,0.6)' : '';
+      micBtn.textContent = micMuted ? '🔇 ミュート' : '🎤 マイク';
+      micBtn.style.background = micMuted ? 'rgba(198,40,40,0.6)' : '';
+      const scrBtn = document.getElementById('btn-screen-share');
+      scrBtn.textContent = isScreenSharing ? '🖥️ 共有中' : '🖥️ 画面共有';
+      scrBtn.style.background = isScreenSharing ? 'rgba(33,150,243,0.6)' : '';
+    }
+
+    // 近接チェック（gameLoopから30フレームごとに呼ばれる）
+    async function checkProximityConnections() {
+      if (!myId || !players[myId]) return;
+      const me = players[myId];
+      const nearbyIds = new Set();
+
+      for (const p of Object.values(players)) {
+        if (p.id === myId || p.room !== currentRoom) continue;
+        const dx = p.x - me.x, dy = p.y - me.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist <= PROXIMITY_RANGE) nearbyIds.add(p.id);
+      }
+
+      // 範囲外のピアを切断（DISCONNECT_RANGE使用）
+      for (const peerId of Object.keys(peers)) {
+        const p = players[peerId];
+        if (!p || p.room !== currentRoom) {
+          teardownPeer(peerId);
+          continue;
+        }
+        const dx = p.x - me.x, dy = p.y - me.y;
+        if (Math.sqrt(dx*dx + dy*dy) > DISCONNECT_RANGE) {
+          teardownPeer(peerId);
+        }
+      }
+
+      // 近くの新しいプレイヤーに接続
+      if (nearbyIds.size > 0) {
+        if (!proximityActive) {
+          const ok = await ensureLocalStream();
+          if (!ok) return;
+          proximityActive = true;
+          updateMediaButtons();
+        }
+        for (const peerId of nearbyIds) {
+          if (peers[peerId] || Object.keys(peers).length >= MAX_VIDEO_PEERS) continue;
+          const p = players[peerId];
+          if (p && socket.id > peerId) { // ID比較で片方だけがinitiator
+            await createPeerConnection(peerId, p.name, true);
+          }
+        }
+      } else if (proximityActive && Object.keys(peers).length === 0) {
+        // 近くに誰もいない → ストリーム解放
+        if (localStream && !voiceJoined) {
+          localStream.getTracks().forEach(t => t.stop());
+          localStream = null;
+        }
+        proximityActive = false;
+        updateMediaButtons();
+      }
+
+      // 音量減衰
+      for (const [peerId, peer] of Object.entries(peers)) {
+        const p = players[peerId];
+        if (!p || !peer.audioEl) continue;
+        const dx = p.x - me.x, dy = p.y - me.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        peer.audioEl.volume = Math.max(0, Math.min(1, 1 - dist / (PROXIMITY_RANGE + 1)));
+      }
+    }
+
+    function teardownPeer(peerId) {
+      if (!peers[peerId]) return;
+      peers[peerId].pc.close();
+      if (peers[peerId].audioEl) peers[peerId].audioEl.remove();
+      if (peers[peerId].wrapper) peers[peerId].wrapper.remove();
+      delete peers[peerId];
+      // 画面共有も切断
+      if (screenPeers[peerId]) {
+        screenPeers[peerId].close();
+        delete screenPeers[peerId];
+        if (Object.keys(screenPeers).length === 0) {
+          document.getElementById('screen-share-view').classList.remove('show');
+        }
+      }
+    }
 
     socket.on('rtcExistingPeers', async (list) => {
       for (const { peerId, name } of list) {
@@ -2581,14 +2832,11 @@
     });
 
     socket.on('rtcPeerJoined', async ({ peerId, name }) => {
-      // 新規が来たら待つ（offerは相手から来る）
-      // ただし既にpeerがあれば無視
       if (peers[peerId]) return;
     });
 
     socket.on('rtcOffer', async ({ from, offer, type, name }) => {
       if (type === 'screen') {
-        // 画面共有を受信
         const pc = new RTCPeerConnection(rtcConfig);
         screenPeers[from] = pc;
         pc.ontrack = (e) => {
@@ -2606,8 +2854,13 @@
         socket.emit('rtcAnswer', { to: from, answer });
         return;
       }
-      // 音声offer
-      if (!voiceJoined) return;
+      // 音声/ビデオoffer（近接自動接続 or 会議室）
+      if (!proximityActive && !voiceJoined) {
+        const ok = await ensureLocalStream();
+        if (!ok) return;
+        proximityActive = true;
+        updateMediaButtons();
+      }
       await createPeerConnection(from, name, false);
       const peer = peers[from];
       if (!peer) return;
@@ -2636,16 +2889,7 @@
     });
 
     socket.on('rtcPeerLeft', ({ peerId }) => {
-      if (peers[peerId]) {
-        peers[peerId].pc.close();
-        if (peers[peerId].audioEl) peers[peerId].audioEl.remove();
-        delete peers[peerId];
-      }
-      if (screenPeers[peerId]) {
-        screenPeers[peerId].close();
-        delete screenPeers[peerId];
-        document.getElementById('screen-share-view').classList.remove('show');
-      }
+      teardownPeer(peerId);
       renderMeeting();
     });
 
@@ -2655,15 +2899,36 @@
       audioEl.autoplay = true;
       document.body.appendChild(audioEl);
 
-      peers[peerId] = { pc, name, audioEl, stream: null };
+      // ビデオサムネイル
+      const wrapper = document.createElement('div');
+      wrapper.className = 'video-thumb-wrapper';
+      const videoEl = document.createElement('video');
+      videoEl.className = 'video-thumb';
+      videoEl.autoplay = true; videoEl.playsInline = true; videoEl.muted = true;
+      const label = document.createElement('div');
+      label.className = 'video-thumb-label';
+      label.textContent = name;
+      wrapper.appendChild(videoEl);
+      wrapper.appendChild(label);
+      document.getElementById('video-container').appendChild(wrapper);
+
+      peers[peerId] = { pc, name, audioEl, videoEl, wrapper, stream: null };
 
       if (localStream) {
         localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
       }
 
       pc.ontrack = (e) => {
-        audioEl.srcObject = e.streams[0];
-        peers[peerId].stream = e.streams[0];
+        const stream = e.streams[0];
+        peers[peerId].stream = stream;
+        // オーディオトラック → audio要素
+        if (e.track.kind === 'audio') {
+          audioEl.srcObject = stream;
+        }
+        // ビデオトラック → video要素
+        if (e.track.kind === 'video') {
+          videoEl.srcObject = stream;
+        }
         renderMeeting();
       };
 
@@ -2673,7 +2938,8 @@
 
       pc.onconnectionstatechange = () => {
         if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
-          if (peers[peerId]) { peers[peerId].pc.close(); if(peers[peerId].audioEl) peers[peerId].audioEl.remove(); delete peers[peerId]; renderMeeting(); }
+          teardownPeer(peerId);
+          renderMeeting();
         }
       };
 
@@ -2682,32 +2948,38 @@
         await pc.setLocalDescription(offer);
         socket.emit('rtcOffer', { to: peerId, offer, type: 'audio' });
       }
+
+      // 画面共有中なら新ピアにも送る
+      if (isScreenSharing && localScreenStream) {
+        const spc = new RTCPeerConnection(rtcConfig);
+        screenPeers[peerId] = spc;
+        localScreenStream.getTracks().forEach(track => spc.addTrack(track, localScreenStream));
+        spc.onicecandidate = (e) => {
+          if (e.candidate) socket.emit('rtcIceCandidate', { to: peerId, candidate: e.candidate });
+        };
+        const offer = await spc.createOffer();
+        await spc.setLocalDescription(offer);
+        socket.emit('rtcOffer', { to: peerId, offer, type: 'screen' });
+      }
     }
 
     async function joinVoice() {
       if (voiceJoined) return;
-      try {
-        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-        voiceJoined = true;
-        micMuted = false;
-        socket.emit('rtcJoin', 'meeting');
-        renderMeeting();
-      } catch (e) {
-        showCoinNotif('マイクへのアクセスが拒否されました');
-      }
+      const ok = await ensureLocalStream();
+      if (!ok) return;
+      voiceJoined = true;
+      updateMediaButtons();
+      socket.emit('rtcJoin', 'meeting');
+      renderMeeting();
     }
 
     function leaveVoice() {
       if (!voiceJoined) return;
-      // 全ピア切断
-      for (const [id, peer] of Object.entries(peers)) {
-        peer.pc.close();
-        if (peer.audioEl) peer.audioEl.remove();
-      }
-      Object.keys(peers).forEach(id => delete peers[id]);
-      if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+      for (const id of Object.keys(peers)) teardownPeer(id);
+      if (localStream && !proximityActive) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
       stopScreenShare();
       voiceJoined = false;
+      updateMediaButtons();
       socket.emit('rtcLeave', 'meeting');
       renderMeeting();
     }
@@ -2716,7 +2988,15 @@
       if (!localStream) return;
       micMuted = !micMuted;
       localStream.getAudioTracks().forEach(t => { t.enabled = !micMuted; });
+      updateMediaButtons();
       renderMeeting();
+    }
+
+    function toggleCamera() {
+      if (!localStream) return;
+      cameraMuted = !cameraMuted;
+      localStream.getVideoTracks().forEach(t => { t.enabled = !cameraMuted; });
+      updateMediaButtons();
     }
 
     async function startScreenShare() {
@@ -2724,8 +3004,8 @@
       try {
         localScreenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
         isScreenSharing = true;
+        updateMediaButtons();
 
-        // 会議室の全メンバーにscreen share offerを送る
         const clients = Object.keys(peers);
         for (const peerId of clients) {
           const pc = new RTCPeerConnection(rtcConfig);
@@ -2739,9 +3019,7 @@
           socket.emit('rtcOffer', { to: peerId, offer, type: 'screen' });
         }
 
-        // 画面共有が終了したら自動停止
         localScreenStream.getVideoTracks()[0].onended = () => stopScreenShare();
-        renderMeeting();
       } catch (e) {
         showCoinNotif('画面共有がキャンセルされました');
       }
@@ -2754,8 +3032,17 @@
       for (const [id, pc] of Object.entries(screenPeers)) { pc.close(); }
       screenPeers = {};
       document.getElementById('screen-share-view').classList.remove('show');
+      updateMediaButtons();
       renderMeeting();
     }
+
+    // ツールバーボタンイベント
+    document.getElementById('btn-cam-toggle').addEventListener('click', toggleCamera);
+    document.getElementById('btn-mic-toggle').addEventListener('click', toggleMic);
+    document.getElementById('btn-screen-share').addEventListener('click', () => {
+      if (isScreenSharing) stopScreenShare();
+      else startScreenShare();
+    });
 
     document.getElementById('screen-share-close').addEventListener('click', () => {
       document.getElementById('screen-share-view').classList.remove('show');
@@ -2859,6 +3146,13 @@
     // enterRoom をフックして会議ボタン更新 + BGM
     const _origEnterRoom = enterRoom;
     enterRoom = function(rn) {
+      // 部屋移動時に近接通話を全切断
+      for (const id of Object.keys(peers)) teardownPeer(id);
+      if (proximityActive && localStream && !voiceJoined) {
+        localStream.getTracks().forEach(t => t.stop()); localStream = null;
+      }
+      proximityActive = false;
+      updateMediaButtons();
       // 会議室を離れるとき音声も切断
       if (currentRoom === 'meeting' && rn !== 'meeting') leaveVoice();
       _origEnterRoom(rn);
@@ -2952,14 +3246,15 @@
         }
       }
 
-      // 音声通話中のマイクアイコン
-      if (voiceJoined && currentRoom === 'meeting' && myId && players[myId]) {
+      // 音声/ビデオ通話中のアイコン
+      if ((voiceJoined || proximityActive) && myId && players[myId]) {
         const ds = getDisplayState(players[myId]);
         const mx = ds.x * SCALE + DRAW_TILE - 4;
         const my2 = ds.y * SCALE + 8;
         ctx.font = `${Math.round(SCALE*5)}px serif`;
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.fillText(micMuted ? '🔇' : '🎤', mx, my2);
+        if (!cameraMuted) ctx.fillText('📷', mx - 14, my2);
       }
 
       // 会議パネルのタイマーも更新
@@ -2969,6 +3264,9 @@
       frameCount++;
       // エモート・ペット描画
       if (typeof window._drawExtras === 'function') window._drawExtras();
+
+      // 近接ビデオ通話チェック（30フレームごと）
+      if (frameCount % 30 === 0) checkProximityConnections();
 
       if (frameCount % 60 === 0) updatePeople();
 
@@ -3651,6 +3949,10 @@
 
     socket.on('roomThemes', (themes) => { window._currentThemes = themes; });
     socket.on('roomThemeChanged', ({ room, theme }) => { window._currentThemes[room] = theme; });
+
+    // 天気
+    socket.on('weatherUpdate', (w) => { window._weather = w; updateTimeWeather(); });
+    socket.emit('getWeather');
 
     // テーマピッカーUI
     let selectedFloor = 0, selectedWall = 0;
