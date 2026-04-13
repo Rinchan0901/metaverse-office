@@ -916,10 +916,21 @@ io.on('connection', (socket) => {
     });
   }
 
+  // 未認証の接続は30秒以内にログインしなければ切断
+  if (!socket.authUser) {
+    socket._authTimeout = setTimeout(() => {
+      if (players[socket.id] && players[socket.id].name.startsWith('Player')) {
+        console.log(`[AUTH] 未認証のまま30秒経過、切断: ${socket.id}`);
+        socket.disconnect(true);
+      }
+    }, 30000);
+  }
+
   // 新規プレイヤー追加
+  const initialName = socket.authUser || `Player${Math.floor(Math.random() * 999)}`;
   players[socket.id] = {
     id: socket.id,
-    name: `Player${Math.floor(Math.random() * 999)}`,
+    name: initialName,
     x: 5 + Math.floor(Math.random() * 4),
     y: 5 + Math.floor(Math.random() * 4),
     direction: 'down',
@@ -947,6 +958,8 @@ io.on('connection', (socket) => {
   // 名前変更
   socket.on('setName', (name) => {
     if (players[socket.id]) {
+      // 認証タイムアウト解除
+      if (socket._authTimeout) { clearTimeout(socket._authTimeout); socket._authTimeout = null; }
       const sanitized = String(name).slice(0, 12).replace(/[<>&"']/g, '');
       const isNewJoin = players[socket.id].name.startsWith('Player');
       players[socket.id].name = sanitized;
@@ -1717,6 +1730,7 @@ io.on('connection', (socket) => {
 
   // 切断
   socket.on('disconnect', () => {
+    if (socket._authTimeout) { clearTimeout(socket._authTimeout); socket._authTimeout = null; }
     console.log(`切断: ${socket.id}`);
     const p = players[socket.id];
     if (p && p.name && !p.name.startsWith('Player') && !p.name.startsWith('Guest')) {
